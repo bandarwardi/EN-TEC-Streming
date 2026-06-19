@@ -1,0 +1,15 @@
+# Firebase App Hosting configuration file
+# Reference: https://firebase.google.com/docs/app-hosting/configure
+
+# Service runtime settings mapping to Cloud Run
+runConfig:
+  cpu: 1
+  memoryMiB: 1024
+  minInstances: 0
+  maxInstances: 10
+  concurrency: 80
+
+# Environment variables
+env:
+  - variable: NODE_ENV
+    value: production

@@ -283,7 +283,7 @@ export default function SeriesDetailScreen() {
     }
     if (seriesInfo?.cast && typeof seriesInfo.cast === 'string') {
       return seriesInfo.cast
-        .split(',')
+        .split(/[,;|]|\r?\n|\s*\/\s*/)
         .map((name: string, idx: number) => {
           const trimmed = name.trim();
           return {

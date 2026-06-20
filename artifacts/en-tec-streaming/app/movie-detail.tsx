@@ -259,7 +259,7 @@ export default function MovieDetailScreen() {
     }
     if (movieInfo?.cast && typeof movieInfo.cast === 'string') {
       return movieInfo.cast
-        .split(',')
+        .split(/[,;|]|\r?\n|\s*\/\s*/)
         .map((name: string, idx: number) => {
           const trimmed = name.trim();
           return {

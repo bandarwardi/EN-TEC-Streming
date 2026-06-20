@@ -21,6 +21,7 @@ import { Feather, Ionicons } from '@expo/vector-icons';
 import { useColors } from '@/hooks/useColors';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useAppStore } from '@/store/app-store';
 
 const { width: W, height: H } = Dimensions.get('window');
 
@@ -37,12 +38,15 @@ export default function PlayerScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{
+    id?: string;
     streamUrl: string;
     title: string;
     isLive: string;
     current: string;
     next: string;
     quality: string;
+    logo?: string;
+    category?: string;
   }>();
 
   const streamUrl = params.streamUrl ?? '';
@@ -61,13 +65,39 @@ export default function PlayerScreen() {
   const [isMuted, setIsMuted] = useState(false);
   const [seeking, setSeeking] = useState(false);
   const [seekPreview, setSeekPreview] = useState(0);
-  const [isFavorite, setIsFavorite] = useState(false);
-  
-  const [activeQuality, setActiveQuality] = useState(params.quality || 'Auto');
-  const [showQualityMenu, setShowQualityMenu] = useState(false);
+
+  const favoriteItems = useAppStore((s) => s.favoriteItems) || [];
+  const toggleFavorite = useAppStore((s) => s.toggleFavorite);
+
+  const matchedFavoriteItem = favoriteItems.find(
+    (item) => item.streamUrl === streamUrl || (params.id && item.id === params.id)
+  );
+  const isFavorite = !!matchedFavoriteItem;
+
+  const handleToggleFavorite = () => {
+    if (matchedFavoriteItem) {
+      toggleFavorite(matchedFavoriteItem);
+    } else {
+      const newItem: any = {
+        id: params.id || `stream_${encodeURIComponent(streamUrl).substring(0, 30)}`,
+        name: title,
+        logo: params.logo || '',
+        category: params.category || 'Uncategorized',
+        streamUrl: streamUrl,
+        current: current,
+        next: next,
+        quality: params.quality || 'HD',
+        isLive: isLive,
+        type: isLive ? 'live' : 'vod'
+      };
+      toggleFavorite(newItem);
+    }
+  };
 
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const seekBarWidth = useRef(0);
+  const seekBarRef = useRef<View>(null);
+  const seekBarXRef = useRef(20);
+  const seekBarWidth = useRef(W - 40);
   const controlsOpacity = useRef(new Animated.Value(1)).current;
 
   const player = useVideoPlayer(streamUrl || null, (p) => {
@@ -147,8 +177,7 @@ export default function PlayerScreen() {
   const seekTo = useCallback((ratio: number) => {
     if (!player || !duration) return;
     const target = Math.max(0, Math.min(duration, ratio * duration));
-    const delta = target - (player.currentTime ?? 0);
-    player.seekBy(delta);
+    player.currentTime = target;
     setCurrentTime(target);
   }, [player, duration]);
 
@@ -159,15 +188,15 @@ export default function PlayerScreen() {
       onPanResponderGrant: (evt) => {
         setSeeking(true);
         if (hideTimer.current) clearTimeout(hideTimer.current);
-        const ratio = Math.max(0, Math.min(1, evt.nativeEvent.locationX / seekBarWidth.current));
+        const ratio = Math.max(0, Math.min(1, (evt.nativeEvent.pageX - seekBarXRef.current) / seekBarWidth.current));
         setSeekPreview(ratio);
       },
       onPanResponderMove: (evt) => {
-        const ratio = Math.max(0, Math.min(1, evt.nativeEvent.locationX / seekBarWidth.current));
+        const ratio = Math.max(0, Math.min(1, (evt.nativeEvent.pageX - seekBarXRef.current) / seekBarWidth.current));
         setSeekPreview(ratio);
       },
       onPanResponderRelease: (evt) => {
-        const ratio = Math.max(0, Math.min(1, evt.nativeEvent.locationX / seekBarWidth.current));
+        const ratio = Math.max(0, Math.min(1, (evt.nativeEvent.pageX - seekBarXRef.current) / seekBarWidth.current));
         seekTo(ratio);
         setSeeking(false);
         scheduleHide();
@@ -188,6 +217,17 @@ export default function PlayerScreen() {
     })
   ).current;
 
+  const onSeekBarLayout = () => {
+    seekBarRef.current?.measure((x, y, width, height, pageX, pageY) => {
+      if (pageX !== undefined && pageX !== null) {
+        seekBarXRef.current = pageX;
+      }
+      if (width) {
+        seekBarWidth.current = width;
+      }
+    });
+  };
+
   const togglePlay = () => {
     if (!player) return;
     if (player.playing) { player.pause(); setIsPlaying(false); }
@@ -197,8 +237,9 @@ export default function PlayerScreen() {
 
   const handleSeekBy = (secs: number) => {
     if (!player) return;
-    player.seekBy(secs);
-    setCurrentTime((t) => Math.max(0, Math.min(duration, t + secs)));
+    const target = Math.max(0, Math.min(duration, (player.currentTime ?? 0) + secs));
+    player.currentTime = target;
+    setCurrentTime(target);
     showControlsNow();
   };
 
@@ -279,24 +320,15 @@ export default function PlayerScreen() {
               </View>
 
               <View style={styles.topActions}>
-                <Pressable 
-                  style={[styles.iconBtn, { width: 'auto', paddingHorizontal: 12, flexDirection: 'row', gap: 6 }]} 
-                  onPress={() => {
-                    setShowQualityMenu(true);
-                    if (hideTimer.current) clearTimeout(hideTimer.current);
-                  }}
-                >
-                  <Feather name="sliders" size={16} color="#FFF" />
-                  <Text style={{ color: '#FFF', fontSize: 13, fontWeight: 'bold' }}>{activeQuality}</Text>
-                </Pressable>
                 <Pressable style={styles.iconBtn} onPress={toggleMute}>
                   <Feather name={isMuted ? 'volume-x' : 'volume-2'} size={20} color="#FFF" />
                 </Pressable>
-                <Pressable style={styles.iconBtn} onPress={() => setIsFavorite((f) => !f)}>
+                <Pressable style={styles.iconBtn} onPress={handleToggleFavorite}>
                   <Feather
                     name="heart"
                     size={20}
                     color={isFavorite ? '#E53935' : '#FFF'}
+                    fill={isFavorite ? '#E53935' : 'transparent'}
                   />
                 </Pressable>
               </View>
@@ -361,8 +393,9 @@ export default function PlayerScreen() {
                   </View>
 
                   <View
+                    ref={seekBarRef}
                     style={styles.seekBarContainer}
-                    onLayout={(e) => { seekBarWidth.current = e.nativeEvent.layout.width; }}
+                    onLayout={onSeekBarLayout}
                     {...seekBarPan.panHandlers}
                   >
                     <View style={styles.seekBarTrack}>
@@ -420,55 +453,7 @@ export default function PlayerScreen() {
         </View>
       )}
 
-      {showQualityMenu && (
-        <View style={StyleSheet.absoluteFill}>
-          <Pressable style={styles.qualityOverlayBg} onPress={() => { setShowQualityMenu(false); scheduleHide(); }} />
-          <View style={[styles.qualityBottomSheet, { backgroundColor: colors.surface2 || '#1A1A1A', borderColor: colors.border || '#2A2A2A', paddingBottom: insets.bottom + 20 }]}>
-            <View style={styles.qualityHeader}>
-              <Text style={[styles.qualityTitle, { color: colors.text || '#FFF' }]}>Quality</Text>
-              <Pressable onPress={() => { setShowQualityMenu(false); scheduleHide(); }}>
-                <Feather name="x" size={20} color={colors.text || '#FFF'} />
-              </Pressable>
-            </View>
-            
-            {(['Auto', '1080p', '720p', '480p'] as const).map((q) => {
-              const isSelected = activeQuality === q;
-              return (
-                <Pressable
-                  key={q}
-                  style={[
-                    styles.qualityOption,
-                    isSelected && { backgroundColor: 'rgba(212,168,67,0.15)' }
-                  ]}
-                  onPress={async () => {
-                    setShowQualityMenu(false);
-                    if (q === activeQuality) {
-                      scheduleHide();
-                      return;
-                    }
-                    setActiveQuality(q);
-                    setIsBuffering(true);
-                    try {
-                      if (player) {
-                        player.pause();
-                        await new Promise((resolve) => setTimeout(resolve, 1200));
-                        player.play();
-                      }
-                    } catch (_) {}
-                    setIsBuffering(false);
-                    scheduleHide();
-                  }}
-                >
-                  <Text style={[styles.qualityOptionText, { color: isSelected ? colors.gold || '#D4A843' : colors.text || '#FFF' }]}>
-                    {q === 'Auto' ? 'Auto (Recommended)' : q}
-                  </Text>
-                  {isSelected && <Feather name="check" size={16} color={colors.gold || '#D4A843'} />}
-                </Pressable>
-              );
-            })}
-          </View>
-        </View>
-      )}
+
     </View>
   );
 }

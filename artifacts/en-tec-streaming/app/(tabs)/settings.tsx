@@ -44,11 +44,6 @@ export default function SettingsScreen() {
         <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>Player</Text>
         <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <View style={styles.row}>
-            <Text style={[styles.rowText, { color: colors.text }]}>Default Quality</Text>
-            <Text style={[styles.rowValue, { color: colors.mutedForeground }]}>{settings.quality}</Text>
-          </View>
-          <View style={styles.divider} />
-          <View style={styles.row}>
             <Text style={[styles.rowText, { color: colors.text }]}>Force HTTP</Text>
             <Feather name={settings.forceHttp ? 'toggle-right' : 'toggle-left'} size={24} color={settings.forceHttp ? colors.gold : colors.mutedForeground} />
           </View>

@@ -61,6 +61,72 @@ export default function SeriesDetailScreen() {
   const [episodes, setEpisodes] = useState<Episode[]>([]);
   const [seasonsCount, setSeasonsCount] = useState(1);
   const [seriesInfo, setSeriesInfo] = useState<any>(null);
+  const [actorsImages, setActorsImages] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (!seriesInfo) return;
+    
+    const castNames: string[] = [];
+    if (seriesInfo.actors_images && Array.isArray(seriesInfo.actors_images)) {
+      seriesInfo.actors_images.forEach((actor: any) => {
+        const img = actor.image || actor.profile_path || '';
+        const name = actor.name || actor.cast_name;
+        if (!img && name) {
+          castNames.push(name);
+        }
+      });
+    } else if (seriesInfo.cast && typeof seriesInfo.cast === 'string') {
+      const rawParts = seriesInfo.cast.split(/[,;|]|\r?\n|\s{2,}|\s*-\s*|\s*\/\s*/);
+      let cleaned = rawParts.map((p: string) => p.trim()).filter((p: string) => p.length > 0);
+
+      if (cleaned.length === 1 && cleaned[0].includes(' ')) {
+        const words = cleaned[0].split(/\s+/).filter((w: string) => w.length > 0);
+        if (words.length > 3) {
+          const grouped: string[] = [];
+          for (let i = 0; i < words.length; i += 2) {
+            if (i + 1 < words.length) {
+              grouped.push(`${words[i]} ${words[i + 1]}`);
+            } else {
+              grouped.push(words[i]);
+            }
+          }
+          cleaned = grouped;
+        }
+      }
+      castNames.push(...cleaned);
+    }
+
+    if (castNames.length === 0) return;
+
+    const TMDB_API_KEY = '2eae50aadf0d62874cdc2a281e7130cd';
+    
+    async function fetchImages() {
+      const results: Record<string, string> = {};
+      const promises = castNames.map(async (name) => {
+        try {
+          const url = `https://api.themoviedb.org/3/search/person?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(name)}`;
+          const response = await fetch(url);
+          const data = await response.json();
+          if (data.results && data.results.length > 0) {
+            const path = data.results[0].profile_path;
+            if (path) {
+              results[name] = `https://image.tmdb.org/t/p/w185${path}`;
+            }
+          }
+        } catch (e) {
+          console.warn(`[TMDB] Failed to fetch image for: ${name}`, e);
+        }
+      });
+
+      await Promise.all(promises);
+      
+      if (Object.keys(results).length > 0) {
+        setActorsImages(prev => ({ ...prev, ...results }));
+      }
+    }
+
+    fetchImages();
+  }, [seriesInfo]);
 
   const seriesTitle = params.title || 'Series Detail';
   const seriesPoster = params.poster || '';
@@ -275,11 +341,15 @@ export default function SeriesDetailScreen() {
 
   const getActors = (): Actor[] => {
     if (seriesInfo?.actors_images && Array.isArray(seriesInfo.actors_images)) {
-      return seriesInfo.actors_images.map((actor: any, idx: number) => ({
-        id: `actor_${idx}`,
-        name: actor.name || actor.cast_name || 'Unknown',
-        image: actor.image || actor.profile_path || '',
-      }));
+      return seriesInfo.actors_images.map((actor: any, idx: number) => {
+        const img = actor.image || actor.profile_path || '';
+        const realImg = img.startsWith('http') || img ? (img.startsWith('http') ? img : `https://image.tmdb.org/t/p/w185${img}`) : (actorsImages[actor.name || actor.cast_name] || '');
+        return {
+          id: `actor_${idx}`,
+          name: actor.name || actor.cast_name || 'Unknown',
+          image: realImg,
+        };
+      });
     }
     if (seriesInfo?.cast && typeof seriesInfo.cast === 'string') {
       const rawParts = seriesInfo.cast.split(/[,;|]|\r?\n|\s{2,}|\s*-\s*|\s*\/\s*/);
@@ -303,7 +373,7 @@ export default function SeriesDetailScreen() {
       return cleaned.map((name: string, idx: number) => ({
         id: `actor_c_${idx}`,
         name,
-        image: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=1A1A1A&color=D4A843&bold=true&size=150`,
+        image: actorsImages[name] || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=1A1A1A&color=D4A843&bold=true&size=150`,
       }));
     }
     return [];

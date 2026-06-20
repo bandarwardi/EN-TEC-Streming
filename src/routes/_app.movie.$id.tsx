@@ -134,6 +134,40 @@ export const Route = createFileRoute("/_app/movie/$id")({
 function MovieDetailPage() {
   const { movie, similarMovies } = Route.useLoaderData();
   const [showTrailer, setShowTrailer] = useState(false);
+  const [actorsImages, setActorsImages] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (!movie || !movie.cast || movie.cast.length === 0) return;
+
+    const TMDB_API_KEY = "2eae50aadf0d62874cdc2a281e7130cd";
+    const results: Record<string, string> = {};
+
+    async function fetchImages() {
+      const promises = movie.cast.map(async (c: { name: string; avatar: string }) => {
+        try {
+          const url = `https://api.themoviedb.org/3/search/person?api_key=${TMDB_API_KEY}&query=${encodeURIComponent(c.name)}`;
+          const response = await fetch(url);
+          const data = await response.json();
+          if (data.results && data.results.length > 0) {
+            const path = data.results[0].profile_path;
+            if (path) {
+              results[c.name] = `https://image.tmdb.org/t/p/w185${path}`;
+            }
+          }
+        } catch (e) {
+          console.warn(`[TMDB] Failed to fetch image for: ${c.name}`, e);
+        }
+      });
+
+      await Promise.all(promises);
+
+      if (Object.keys(results).length > 0) {
+        setActorsImages((prev) => ({ ...prev, ...results }));
+      }
+    }
+
+    fetchImages();
+  }, [movie]);
 
   return (
     <div className="relative min-h-screen">
@@ -231,7 +265,7 @@ function MovieDetailPage() {
               <div key={i} className="shrink-0 w-24 text-center">
                 <div className="mx-auto h-24 w-24 overflow-hidden rounded-full border-2 border-border bg-surface">
                   <img
-                    src={c.avatar}
+                    src={actorsImages[c.name] || c.avatar}
                     alt={c.name}
                     className="h-full w-full object-cover"
                     onError={(e) => {

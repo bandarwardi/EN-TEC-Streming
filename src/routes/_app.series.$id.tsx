@@ -74,15 +74,31 @@ export const Route = createFileRoute("/_app/series/$id")({
           ];
         }
 
-        const castArray = infoData.cast
-          ? infoData.cast.split(/[,;|]|\r?\n|\s*\/\s*/).map((c: string) => {
-              const name = c.trim();
-              return {
-                name,
-                avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=1A1A1A&color=fff&bold=true`
-              };
-            })
-          : [];
+        let cleanedCast: string[] = [];
+        if (infoData.cast) {
+          const rawParts = infoData.cast.split(/[,;|]|\r?\n|\s{2,}|\s*-\s*|\s*\/\s*/);
+          cleanedCast = rawParts.map((p: string) => p.trim()).filter((p: string) => p.length > 0);
+
+          if (cleanedCast.length === 1 && cleanedCast[0].includes(' ')) {
+            const words = cleanedCast[0].split(/\s+/).filter((w: string) => w.length > 0);
+            if (words.length > 3) {
+              const grouped: string[] = [];
+              for (let i = 0; i < words.length; i += 2) {
+                if (i + 1 < words.length) {
+                  grouped.push(`${words[i]} ${words[i + 1]}`);
+                } else {
+                  grouped.push(words[i]);
+                }
+              }
+              cleanedCast = grouped;
+            }
+          }
+        }
+
+        const castArray = cleanedCast.map((name: string) => ({
+          name,
+          avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=1A1A1A&color=fff&bold=true`
+        }));
 
         series = {
           id: channel.id,

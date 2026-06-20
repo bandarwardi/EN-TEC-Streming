@@ -260,11 +260,14 @@ export default function MovieDetailScreen() {
     if (movieInfo?.cast && typeof movieInfo.cast === 'string') {
       return movieInfo.cast
         .split(',')
-        .map((name: string, idx: number) => ({
-          id: `actor_c_${idx}`,
-          name: name.trim(),
-          image: '',
-        }))
+        .map((name: string, idx: number) => {
+          const trimmed = name.trim();
+          return {
+            id: `actor_c_${idx}`,
+            name: trimmed,
+            image: `https://ui-avatars.com/api/?name=${encodeURIComponent(trimmed)}&background=1A1A1A&color=D4A843&bold=true&size=150`,
+          };
+        })
         .filter((x: Actor) => x.name.length > 0);
     }
     return [];

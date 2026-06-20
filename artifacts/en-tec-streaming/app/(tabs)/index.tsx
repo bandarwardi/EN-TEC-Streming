@@ -84,6 +84,7 @@ export default function HomeScreen() {
           duration: item.type === 'live' ? 'LIVE' : 'VOD',
           genres: [item.category],
           streamUrl: item.streamUrl,
+          originalItem: item,
         }));
         
         setFeaturedItems(mappedFeatured);
@@ -151,6 +152,34 @@ export default function HomeScreen() {
           <HeroCarousel 
             items={featuredItems} 
             onPlay={(item) => router.push({ pathname: '/player', params: { streamUrl: item.streamUrl || '', title: item.title, isLive: String(item.subtitle.includes('LIVE')), quality: 'HD' } })} 
+            onInfo={(item) => {
+              if (item.subtitle.includes('LIVE')) {
+                router.push({
+                  pathname: '/player',
+                  params: {
+                    streamUrl: item.streamUrl || '',
+                    title: item.title,
+                    isLive: 'true',
+                    current: item.description || '',
+                    quality: 'HD',
+                  }
+                });
+              } else {
+                router.push({
+                  pathname: '/movie-detail',
+                  params: {
+                    id: item.id,
+                    title: item.title,
+                    poster: typeof item.backdrop === 'object' && 'uri' in item.backdrop ? item.backdrop.uri : '',
+                    backdrop: typeof item.backdrop === 'object' && 'uri' in item.backdrop ? item.backdrop.uri : '',
+                    quality: 'HD',
+                    genres: item.genres.join(','),
+                    description: item.description || '',
+                    streamUrl: item.streamUrl || '',
+                  },
+                });
+              }
+            }}
           />
         ) : (
           <View style={{ height: 100 }} />

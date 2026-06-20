@@ -71,4 +71,5 @@ export interface FeaturedHero {
   duration: string;
   genres: string[];
   streamUrl?: string;
+  originalItem?: Channel;
 }

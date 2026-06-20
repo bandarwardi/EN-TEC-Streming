@@ -7,17 +7,23 @@ import { FeaturedHero } from '@/types';
 import { useColors } from '@/hooks/useColors';
 import { Feather } from '@expo/vector-icons';
 
+import { useAppStore } from '@/store/app-store';
+
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 interface HeroCarouselProps {
   items: FeaturedHero[];
   onPlay: (item: FeaturedHero) => void;
+  onInfo: (item: FeaturedHero) => void;
 }
 
-export function HeroCarousel({ items, onPlay }: HeroCarouselProps) {
+export function HeroCarousel({ items, onPlay, onInfo }: HeroCarouselProps) {
   const colors = useColors();
   const [currentIndex, setCurrentIndex] = useState(0);
   const opacity = useSharedValue(1);
+
+  const favorites = useAppStore((s) => s.favorites);
+  const toggleFavorite = useAppStore((s) => s.toggleFavorite);
 
   useEffect(() => {
     if (items.length <= 1) return;
@@ -34,6 +40,28 @@ export function HeroCarousel({ items, onPlay }: HeroCarouselProps) {
 
   if (!items.length) return null;
   const item = items[currentIndex];
+
+  const isFav = item ? favorites.includes(item.id) : false;
+
+  const handleToggleFavorite = () => {
+    if (!item) return;
+    if (item.originalItem) {
+      toggleFavorite(item.originalItem);
+    } else {
+      toggleFavorite({
+        id: item.id,
+        name: item.title,
+        logo: typeof item.backdrop === 'object' && 'uri' in item.backdrop ? item.backdrop.uri : '',
+        category: item.genres[0] || 'Uncategorized',
+        current: item.description || '',
+        next: '',
+        quality: item.duration === 'LIVE' ? 'HD' : 'FHD',
+        isLive: item.duration === 'LIVE',
+        streamUrl: item.streamUrl || '',
+        type: item.duration === 'LIVE' ? 'live' : 'vod',
+      } as any);
+    }
+  };
 
   const animatedStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
@@ -65,12 +93,15 @@ export function HeroCarousel({ items, onPlay }: HeroCarouselProps) {
               <Text style={styles.playButtonText}>Play</Text>
             </Pressable>
             
-            <Pressable style={[styles.listButton, { borderColor: colors.border }]}>
-              <Feather name="plus" size={20} color="#FFF" />
-              <Text style={styles.listButtonText}>My List</Text>
+            <Pressable 
+              style={[styles.listButton, { borderColor: isFav ? colors.gold : colors.border }]} 
+              onPress={handleToggleFavorite}
+            >
+              <Feather name={isFav ? 'check' : 'plus'} size={20} color={isFav ? colors.gold : '#FFF'} />
+              <Text style={[styles.listButtonText, { color: isFav ? colors.gold : '#FFF' }]}>المفضلة</Text>
             </Pressable>
             
-            <Pressable style={[styles.infoButton, { borderColor: colors.border }]}>
+            <Pressable style={[styles.infoButton, { borderColor: colors.border }]} onPress={() => onInfo(item)}>
               <Feather name="info" size={20} color="#FFF" />
             </Pressable>
           </View>

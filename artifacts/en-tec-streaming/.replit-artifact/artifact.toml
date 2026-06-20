@@ -1,0 +1,27 @@
+kind = "mobile"
+previewPath = "/"
+title = "EN TEC Streaming"
+version = "1.0.0"
+id = "artifacts/en-tec-streaming"
+router = "expo-domain"
+
+[[integratedSkills]]
+name = "expo"
+version = "1.0.0"
+
+[[services]]
+ensurePreviewReachable = "/status"
+name = "expo"
+paths = [ "/" ]
+localPort = 25128
+
+[services.development]
+run = "pnpm --filter @workspace/en-tec-streaming run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/en-tec-streaming", "run", "build" ]
+run = [ "pnpm", "--filter", "@workspace/en-tec-streaming", "run", "serve" ]
+
+[services.env]
+PORT = "25128"
+BASE_PATH = "/"

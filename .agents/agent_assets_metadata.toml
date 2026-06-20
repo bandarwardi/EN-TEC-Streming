@@ -1,0 +1,26 @@
+uploads = []
+outputs = []
+
+[[generated]]
+id = "P2cJOGQwHa5FkGqLR031m"
+uri = "file://artifacts/en-tec-streaming/assets/images/icon.png"
+type = "image"
+title = "EN TEC app icon"
+
+[[generated]]
+id = "wLsdV6wAXOOnaf4eR5dVH"
+uri = "file://artifacts/en-tec-streaming/assets/images/hero1.png"
+type = "image"
+title = "FIFA World Cup hero banner"
+
+[[generated]]
+id = "iUMgEdtGOWkzMfE_ysn1g"
+uri = "file://artifacts/en-tec-streaming/assets/images/hero2.png"
+type = "image"
+title = "Dune Part Two hero banner"
+
+[[generated]]
+id = "r0ipugEGq9Bmwob0j0pvF"
+uri = "file://artifacts/en-tec-streaming/assets/images/hero3.png"
+type = "image"
+title = "Karuppu 2026 hero banner"

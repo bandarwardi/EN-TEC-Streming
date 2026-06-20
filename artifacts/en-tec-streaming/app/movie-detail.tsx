@@ -258,17 +258,29 @@ export default function MovieDetailScreen() {
       }));
     }
     if (movieInfo?.cast && typeof movieInfo.cast === 'string') {
-      return movieInfo.cast
-        .split(/[,;|]|\r?\n|\s*\/\s*/)
-        .map((name: string, idx: number) => {
-          const trimmed = name.trim();
-          return {
-            id: `actor_c_${idx}`,
-            name: trimmed,
-            image: `https://ui-avatars.com/api/?name=${encodeURIComponent(trimmed)}&background=1A1A1A&color=D4A843&bold=true&size=150`,
-          };
-        })
-        .filter((x: Actor) => x.name.length > 0);
+      const rawParts = movieInfo.cast.split(/[,;|]|\r?\n|\s{2,}|\s*-\s*|\s*\/\s*/);
+      let cleaned = rawParts.map(p => p.trim()).filter(p => p.length > 0);
+
+      if (cleaned.length === 1 && cleaned[0].includes(' ')) {
+        const words = cleaned[0].split(/\s+/).filter(w => w.length > 0);
+        if (words.length > 3) {
+          const grouped: string[] = [];
+          for (let i = 0; i < words.length; i += 2) {
+            if (i + 1 < words.length) {
+              grouped.push(`${words[i]} ${words[i + 1]}`);
+            } else {
+              grouped.push(words[i]);
+            }
+          }
+          cleaned = grouped;
+        }
+      }
+
+      return cleaned.map((name: string, idx: number) => ({
+        id: `actor_c_${idx}`,
+        name,
+        image: `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=1A1A1A&color=D4A843&bold=true&size=150`,
+      }));
     }
     return [];
   };

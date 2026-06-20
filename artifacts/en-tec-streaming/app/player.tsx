@@ -95,8 +95,7 @@ export default function PlayerScreen() {
   };
 
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const seekBarRef = useRef<View>(null);
-  const seekBarXRef = useRef(20);
+  const startX = useRef(0);
   const seekBarWidth = useRef(W - 40);
   const controlsOpacity = useRef(new Animated.Value(1)).current;
 
@@ -188,15 +187,18 @@ export default function PlayerScreen() {
       onPanResponderGrant: (evt) => {
         setSeeking(true);
         if (hideTimer.current) clearTimeout(hideTimer.current);
-        const ratio = Math.max(0, Math.min(1, (evt.nativeEvent.pageX - seekBarXRef.current) / seekBarWidth.current));
+        startX.current = evt.nativeEvent.locationX;
+        const ratio = Math.max(0, Math.min(1, startX.current / (seekBarWidth.current || 1)));
         setSeekPreview(ratio);
       },
-      onPanResponderMove: (evt) => {
-        const ratio = Math.max(0, Math.min(1, (evt.nativeEvent.pageX - seekBarXRef.current) / seekBarWidth.current));
+      onPanResponderMove: (evt, gestureState) => {
+        const currentX = startX.current + gestureState.dx;
+        const ratio = Math.max(0, Math.min(1, currentX / (seekBarWidth.current || 1)));
         setSeekPreview(ratio);
       },
-      onPanResponderRelease: (evt) => {
-        const ratio = Math.max(0, Math.min(1, (evt.nativeEvent.pageX - seekBarXRef.current) / seekBarWidth.current));
+      onPanResponderRelease: (evt, gestureState) => {
+        const currentX = startX.current + gestureState.dx;
+        const ratio = Math.max(0, Math.min(1, currentX / (seekBarWidth.current || 1)));
         seekTo(ratio);
         setSeeking(false);
         scheduleHide();
@@ -216,17 +218,6 @@ export default function PlayerScreen() {
       },
     })
   ).current;
-
-  const onSeekBarLayout = () => {
-    seekBarRef.current?.measure((x, y, width, height, pageX, pageY) => {
-      if (pageX !== undefined && pageX !== null) {
-        seekBarXRef.current = pageX;
-      }
-      if (width) {
-        seekBarWidth.current = width;
-      }
-    });
-  };
 
   const togglePlay = () => {
     if (!player) return;
@@ -393,12 +384,11 @@ export default function PlayerScreen() {
                   </View>
 
                   <View
-                    ref={seekBarRef}
                     style={styles.seekBarContainer}
-                    onLayout={onSeekBarLayout}
+                    onLayout={(e) => { seekBarWidth.current = e.nativeEvent.layout.width; }}
                     {...seekBarPan.panHandlers}
                   >
-                    <View style={styles.seekBarTrack}>
+                    <View style={styles.seekBarTrack} pointerEvents="none">
                       <View style={[styles.seekBarFill, { width: `${progress * 100}%` }]} />
                     </View>
                     <View
@@ -409,6 +399,7 @@ export default function PlayerScreen() {
                           transform: [{ translateX: -8 }],
                         },
                       ]}
+                      pointerEvents="none"
                     />
                   </View>
                 </View>

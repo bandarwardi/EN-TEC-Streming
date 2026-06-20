@@ -283,10 +283,10 @@ export default function SeriesDetailScreen() {
     }
     if (seriesInfo?.cast && typeof seriesInfo.cast === 'string') {
       const rawParts = seriesInfo.cast.split(/[,;|]|\r?\n|\s{2,}|\s*-\s*|\s*\/\s*/);
-      let cleaned = rawParts.map(p => p.trim()).filter(p => p.length > 0);
+      let cleaned = rawParts.map((p: string) => p.trim()).filter((p: string) => p.length > 0);
 
       if (cleaned.length === 1 && cleaned[0].includes(' ')) {
-        const words = cleaned[0].split(/\s+/).filter(w => w.length > 0);
+        const words = cleaned[0].split(/\s+/).filter((w: string) => w.length > 0);
         if (words.length > 3) {
           const grouped: string[] = [];
           for (let i = 0; i < words.length; i += 2) {

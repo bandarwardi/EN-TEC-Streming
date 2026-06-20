@@ -243,7 +243,7 @@ export default function MovieDetailScreen() {
         ? trailerId
         : `https://www.youtube.com/watch?v=${trailerId}`;
       Linking.openURL(url).catch(() => {
-        Alert.alert('خطأ / Error', 'تعذر فتح الإعلان / Failed to open trailer.');
+        Alert.alert('Error', 'Failed to open trailer.');
       });
     }
   };
@@ -346,7 +346,7 @@ export default function MovieDetailScreen() {
           
           {director ? (
             <Text style={[styles.directorText, { color: colors.mutedForeground }]}>
-              Director / المخرج: <Text style={{ color: colors.text, fontWeight: '600' }}>{director}</Text>
+              Director: <Text style={{ color: colors.text, fontWeight: '600' }}>{director}</Text>
             </Text>
           ) : null}
 
@@ -390,7 +390,7 @@ export default function MovieDetailScreen() {
 
           {!loading && actors.length > 0 && (
             <View style={styles.castSection}>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>Cast / طاقم العمل</Text>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>Cast</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.castList}>
                 {actors.map(actor => (
                   <View key={actor.id} style={styles.castCard}>
@@ -410,7 +410,7 @@ export default function MovieDetailScreen() {
 
           {recommendations.length > 0 && (
             <View style={styles.similarSection}>
-              <Text style={[styles.sectionTitle, { color: colors.text }]}>Similar Content / اقتراحات مشابهة</Text>
+              <Text style={[styles.sectionTitle, { color: colors.text }]}>Similar Content</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.similarList}>
                 {recommendations.map(item => (
                   <Pressable

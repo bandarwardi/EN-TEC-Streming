@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  FlatList, 
-  Pressable, 
-  Dimensions 
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  Pressable,
+  Dimensions
 } from 'react-native';
 import { useColors } from '@/hooks/useColors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -75,24 +75,24 @@ export default function FavoritesScreen() {
 
   const renderCard = ({ item }: { item: Channel }) => {
     const isLive = item.type === 'live';
-    
+
     return (
       <View style={[styles.cardContainer, isLive ? styles.liveWidth : styles.vodWidth]}>
-        <Pressable 
+        <Pressable
           style={[
-            styles.card, 
+            styles.card,
             { backgroundColor: colors.surface, borderColor: colors.border }
           ]}
           onPress={() => handleItemPress(item)}
         >
           <View style={isLive ? styles.liveLogoWrapper : styles.posterWrapper}>
-            <Image 
-              source={{ uri: item.logo || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.name)}&background=1A1A1A&color=D4A843&bold=true&size=150&format=svg` }} 
-              style={styles.cardImage} 
-              contentFit={isLive ? "contain" : "cover"} 
+            <Image
+              source={{ uri: item.logo || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.name)}&background=1A1A1A&color=D4A843&bold=true&size=150&format=svg` }}
+              style={styles.cardImage}
+              contentFit={isLive ? "contain" : "cover"}
             />
-            
-            <Pressable 
+
+            <Pressable
               style={[styles.removeFavBtn, { backgroundColor: 'rgba(0,0,0,0.6)' }]}
               onPress={() => toggleFavorite(item)}
             >
@@ -106,7 +106,7 @@ export default function FavoritesScreen() {
               </View>
             )}
           </View>
-          
+
           <View style={styles.cardInfo}>
             <Text style={[styles.cardTitle, { color: colors.text }]} numberOfLines={1}>
               {item.name}
@@ -120,10 +120,10 @@ export default function FavoritesScreen() {
     );
   };
 
-  const tabs: { type: TabType; label: string; labelAr: string }[] = [
-    { type: 'live', label: 'Live TV', labelAr: 'قنوات مباشرة' },
-    { type: 'vod', label: 'Movies', labelAr: 'أفلام' },
-    { type: 'series', label: 'TV Series', labelAr: 'مسلسلات' },
+  const tabs: { type: TabType; label: string }[] = [
+    { type: 'live', label: 'Live TV' },
+    { type: 'vod', label: 'Movies' },
+    { type: 'series', label: 'TV Series' },
   ];
 
   return (
@@ -132,7 +132,7 @@ export default function FavoritesScreen() {
         <Pressable style={styles.backBtn} onPress={() => router.back()}>
           <Feather name="arrow-left" size={24} color={colors.text} />
         </Pressable>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>Favorites / المفضلة</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Favorites</Text>
         <View style={{ width: 40 }} />
       </View>
 
@@ -149,16 +149,10 @@ export default function FavoritesScreen() {
               onPress={() => setActiveTab(tab.type)}
             >
               <Text style={[
-                styles.tabLabel, 
+                styles.tabLabel,
                 { color: isSelected ? colors.gold : colors.mutedForeground }
               ]}>
                 {tab.label}
-              </Text>
-              <Text style={[
-                styles.tabLabelAr, 
-                { color: isSelected ? colors.gold : colors.mutedForeground }
-              ]}>
-                {tab.labelAr}
               </Text>
             </Pressable>
           );
@@ -180,9 +174,6 @@ export default function FavoritesScreen() {
             <Feather name="heart" size={48} color={colors.mutedForeground} style={{ marginBottom: 16 }} />
             <Text style={[styles.emptyText, { color: colors.text }]}>
               No favorites added yet
-            </Text>
-            <Text style={[styles.emptySubtitle, { color: colors.mutedForeground }]}>
-              لا توجد عناصر مضافة للمفضلة حالياً
             </Text>
           </View>
         }
@@ -229,11 +220,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: 'bold',
   },
-  tabLabelAr: {
-    fontSize: 10,
-    marginTop: 2,
-    fontWeight: '600',
-  },
   listContent: {
     paddingHorizontal: 8,
     flexGrow: 1,
@@ -253,7 +239,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   liveLogoWrapper: {
-    aspectRatio: 16/10,
+    aspectRatio: 16 / 10,
     width: '100%',
     backgroundColor: '#151515',
     alignItems: 'center',
@@ -262,7 +248,7 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   posterWrapper: {
-    aspectRatio: 2/3,
+    aspectRatio: 2 / 3,
     width: '100%',
     position: 'relative',
     backgroundColor: '#151515',

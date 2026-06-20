@@ -27,14 +27,14 @@ export function HeroCarousel({ items, onPlay, onInfo }: HeroCarouselProps) {
 
   useEffect(() => {
     if (items.length <= 1) return;
-    
+
     const interval = setInterval(() => {
       opacity.value = withTiming(0, { duration: 300 }, () => {
         runOnJS(setCurrentIndex)((currentIndex + 1) % items.length);
         opacity.value = withTiming(1, { duration: 300 });
       });
     }, 6000);
-    
+
     return () => clearInterval(interval);
   }, [currentIndex, items.length]);
 
@@ -78,44 +78,44 @@ export function HeroCarousel({ items, onPlay, onInfo }: HeroCarouselProps) {
         <View style={styles.content}>
           <Text style={[styles.subtitle, { color: colors.gold }]}>{item.subtitle}</Text>
           <Text style={styles.title}>{item.title}</Text>
-          
+
           <Text style={[styles.meta, { color: colors.mutedForeground }]}>
             ⭐ {item.rating} · {item.year} · {item.duration} · {item.genres.join(' · ')}
           </Text>
-          
+
           <Text style={[styles.description, { color: colors.mutedForeground }]} numberOfLines={2}>
             {item.description}
           </Text>
-          
+
           <View style={styles.actions}>
             <Pressable style={styles.playButton} onPress={() => onPlay(item)}>
               <Feather name="play" size={20} color="#0A0A0A" />
               <Text style={styles.playButtonText}>Play</Text>
             </Pressable>
-            
-            <Pressable 
-              style={[styles.listButton, { borderColor: isFav ? colors.gold : colors.border }]} 
+
+            <Pressable
+              style={[styles.listButton, { borderColor: isFav ? colors.gold : colors.border }]}
               onPress={handleToggleFavorite}
             >
               <Feather name={isFav ? 'check' : 'plus'} size={20} color={isFav ? colors.gold : '#FFF'} />
-              <Text style={[styles.listButtonText, { color: isFav ? colors.gold : '#FFF' }]}>المفضلة</Text>
+              <Text style={[styles.listButtonText, { color: isFav ? colors.gold : '#FFF' }]}>Favorites</Text>
             </Pressable>
-            
+
             <Pressable style={[styles.infoButton, { borderColor: colors.border }]} onPress={() => onInfo(item)}>
               <Feather name="info" size={20} color="#FFF" />
             </Pressable>
           </View>
         </View>
       </Animated.View>
-      
+
       <View style={styles.indicators}>
         {items.map((_, i) => (
-          <View 
-            key={i} 
+          <View
+            key={i}
             style={[
-              styles.dot, 
+              styles.dot,
               { backgroundColor: i === currentIndex ? colors.gold : colors.muted }
-            ]} 
+            ]}
           />
         ))}
       </View>

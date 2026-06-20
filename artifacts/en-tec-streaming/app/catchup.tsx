@@ -68,10 +68,8 @@ export default function CatchUpScreen() {
       const d = new Date();
       d.setDate(now.getDate() - i);
       const daysOfWeek = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-      const daysAr = ['الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
       
       const labelEn = i === 0 ? 'Today' : i === 1 ? 'Yesterday' : daysOfWeek[d.getDay()];
-      const labelAr = i === 0 ? 'اليوم' : i === 1 ? 'أمس' : daysAr[d.getDay()];
 
       const y = d.getFullYear();
       const m = String(d.getMonth() + 1).padStart(2, '0');
@@ -79,7 +77,7 @@ export default function CatchUpScreen() {
 
       list.push({
         dateString: `${y}-${m}-${day}`,
-        label: `${labelEn} / ${labelAr} (${day}/${m})`
+        label: `${labelEn} (${day}/${m})`
       });
     }
     setDays(list);
@@ -211,16 +209,16 @@ export default function CatchUpScreen() {
           targetDay.setDate(now.getDate() - i);
           
           const slots = [
-            { startHour: 0, endHour: 2, title: 'Late Night Movie / فيلم السهرة', desc: 'An exciting thriller movie for late night entertainment.' },
-            { startHour: 2, endHour: 6, title: 'Music Mix Live / منوعات موسيقية', desc: 'A collection of the greatest music hits of all times.' },
-            { startHour: 6, endHour: 8, title: 'Morning EPG News / نشرة الصباح', desc: 'Get the latest national and international news.' },
-            { startHour: 8, endHour: 10, title: 'Good Morning / صباح الخير', desc: 'Start your day with news, weather, and interviews.' },
-            { startHour: 10, endHour: 12, title: 'Cooking Show / مطبخ اليوم', desc: 'Learn how to cook amazing international recipes.' },
-            { startHour: 12, endHour: 14, title: 'Sports Special / الاستوديو التحليلي', desc: 'Weekly roundup of matches, results, and interviews.' },
-            { startHour: 14, endHour: 16, title: 'Documentary Time / وثائقي اليوم', desc: 'Explore the wonders of nature and history.' },
-            { startHour: 16, endHour: 18, title: 'Evening Series / مسلسل المساء', desc: 'Episode of your favorite drama television series.' },
-            { startHour: 18, endHour: 21, title: 'Prime Time Show / سهرة اليوم', desc: 'Celebrity guest interviews and musical performances.' },
-            { startHour: 21, endHour: 24, title: 'Blockbuster Cinema / فيلم السهرة', desc: 'Premium award-winning action and drama films.' }
+            { startHour: 0, endHour: 2, title: 'Late Night Movie', desc: 'An exciting thriller movie for late night entertainment.' },
+            { startHour: 2, endHour: 6, title: 'Music Mix Live', desc: 'A collection of the greatest music hits of all times.' },
+            { startHour: 6, endHour: 8, title: 'Morning EPG News', desc: 'Get the latest national and international news.' },
+            { startHour: 8, endHour: 10, title: 'Good Morning', desc: 'Start your day with news, weather, and interviews.' },
+            { startHour: 10, endHour: 12, title: 'Cooking Show', desc: 'Learn how to cook amazing international recipes.' },
+            { startHour: 12, endHour: 14, title: 'Sports Special', desc: 'Weekly roundup of matches, results, and interviews.' },
+            { startHour: 14, endHour: 16, title: 'Documentary Time', desc: 'Explore the wonders of nature and history.' },
+            { startHour: 16, endHour: 18, title: 'Evening Series', desc: 'Episode of your favorite drama television series.' },
+            { startHour: 18, endHour: 21, title: 'Prime Time Show', desc: 'Celebrity guest interviews and musical performances.' },
+            { startHour: 21, endHour: 24, title: 'Blockbuster Cinema', desc: 'Premium award-winning action and drama films.' }
           ];
 
           slots.forEach((s, idx) => {
@@ -267,7 +265,7 @@ export default function CatchUpScreen() {
     if (!selectedChannel) return;
 
     if (program.isFuture) {
-      Alert.alert('تنبيه / Warning', 'لا يمكن تشغيل برنامج لم يبث بعد / Cannot play a future broadcast.');
+      Alert.alert('Warning', 'Cannot play a future broadcast.');
       return;
     }
 
@@ -384,7 +382,7 @@ export default function CatchUpScreen() {
           <Feather name="arrow-left" size={24} color={colors.text} />
         </Pressable>
         <Text style={[styles.headerTitle, { color: colors.text }]}>
-          {selectedChannel ? `${selectedChannel.name} - Catch Up` : 'Catch Up / الأرشيف'}
+          {selectedChannel ? `${selectedChannel.name} - Catch Up` : 'Catch Up'}
         </Text>
         <View style={{ width: 40 }} />
       </View>
@@ -401,9 +399,6 @@ export default function CatchUpScreen() {
               <Feather name="clock" size={48} color={colors.mutedForeground} style={{ marginBottom: 16 }} />
               <Text style={[styles.emptyText, { color: colors.text }]}>
                 No catch-up channels available
-              </Text>
-              <Text style={[styles.emptySubtitle, { color: colors.mutedForeground }]}>
-                لا توجد قنوات تدعم الأرشيف
               </Text>
             </View>
           }
@@ -426,7 +421,7 @@ export default function CatchUpScreen() {
                     styles.dayTabLabel, 
                     { color: isSelected ? colors.gold : colors.text }
                   ]}>
-                    {idx === 0 ? 'Today / اليوم' : idx === 1 ? 'Yesterday / أمس' : day.label.split(' / ')[0]}
+                    {idx === 0 ? 'Today' : idx === 1 ? 'Yesterday' : day.label.split(' (')[0]}
                   </Text>
                 </Pressable>
               );
@@ -460,7 +455,7 @@ export default function CatchUpScreen() {
                     </Text>
                     {item.isCurrent && (
                       <View style={styles.nowPlayingBadge}>
-                        <Text style={styles.nowPlayingText}>LIVE / الآن</Text>
+                        <Text style={styles.nowPlayingText}>LIVE</Text>
                       </View>
                     )}
                   </View>
@@ -498,9 +493,6 @@ export default function CatchUpScreen() {
                   <Feather name="calendar" size={48} color={colors.mutedForeground} style={{ marginBottom: 16 }} />
                   <Text style={[styles.emptyText, { color: colors.text }]}>
                     No schedule for this date
-                  </Text>
-                  <Text style={[styles.emptySubtitle, { color: colors.mutedForeground }]}>
-                    لا يوجد جدول بث لهذا التاريخ
                   </Text>
                 </View>
               }

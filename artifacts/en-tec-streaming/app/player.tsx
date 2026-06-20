@@ -136,9 +136,9 @@ export default function PlayerScreen() {
   useEffect(() => {
     if (hasError) {
       Alert.alert(
-        'خطأ في التشغيل',
-        'تعذر تشغيل هذا المحتوى من السيرفر.',
-        [{ text: 'موافق', onPress: () => router.back() }],
+        'Playback Error',
+        'Failed to play this content from the server.',
+        [{ text: 'OK', onPress: () => router.back() }],
         { cancelable: false }
       );
     }
@@ -425,7 +425,7 @@ export default function PlayerScreen() {
           <Pressable style={styles.qualityOverlayBg} onPress={() => { setShowQualityMenu(false); scheduleHide(); }} />
           <View style={[styles.qualityBottomSheet, { backgroundColor: colors.surface2 || '#1A1A1A', borderColor: colors.border || '#2A2A2A', paddingBottom: insets.bottom + 20 }]}>
             <View style={styles.qualityHeader}>
-              <Text style={[styles.qualityTitle, { color: colors.text || '#FFF' }]}>Quality / الجودة</Text>
+              <Text style={[styles.qualityTitle, { color: colors.text || '#FFF' }]}>Quality</Text>
               <Pressable onPress={() => { setShowQualityMenu(false); scheduleHide(); }}>
                 <Feather name="x" size={20} color={colors.text || '#FFF'} />
               </Pressable>
@@ -460,7 +460,7 @@ export default function PlayerScreen() {
                   }}
                 >
                   <Text style={[styles.qualityOptionText, { color: isSelected ? colors.gold || '#D4A843' : colors.text || '#FFF' }]}>
-                    {q === 'Auto' ? 'Auto (Recommended) / تلقائي' : q}
+                    {q === 'Auto' ? 'Auto (Recommended)' : q}
                   </Text>
                   {isSelected && <Feather name="check" size={16} color={colors.gold || '#D4A843'} />}
                 </Pressable>

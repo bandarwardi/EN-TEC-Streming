@@ -48,7 +48,7 @@ export const Route = createFileRoute("/_app/movie/$id")({
               const movieData = res.info.movie_data || {};
 
               const castArray = info.cast
-                ? info.cast.split(",").map((c: string) => {
+                ? info.cast.split(/[,;|]|\r?\n|\s*\/\s*/).map((c: string) => {
                     const name = c.trim();
                     return {
                       name,

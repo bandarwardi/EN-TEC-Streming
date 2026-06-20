@@ -75,7 +75,7 @@ export const Route = createFileRoute("/_app/series/$id")({
         }
 
         const castArray = infoData.cast
-          ? infoData.cast.split(",").map((c: string) => {
+          ? infoData.cast.split(/[,;|]|\r?\n|\s*\/\s*/).map((c: string) => {
               const name = c.trim();
               return {
                 name,

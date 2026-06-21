@@ -711,7 +711,54 @@ export const useAppStore = create<AppState>((set, get) => ({
     try {
       const cached = await AsyncStorage.getItem(`search_index_${playlistId}`);
       if (cached) {
-        set({ searchIndex: JSON.parse(cached) });
+        const parsed = JSON.parse(cached) as any[];
+        
+        // Retrieve config if it is an Xtream Codes playlist
+        const p = get().playlists.find(x => x.id === playlistId);
+        let config: any = null;
+        if (p && (p.url.startsWith('xtream://') || p.url.includes('/get.php?'))) {
+          try {
+            if (p.url.startsWith('xtream://')) {
+              config = JSON.parse(base64Decode(p.url.replace('xtream://', '')));
+            } else {
+              const match = p.url.match(/^(https?:\/\/[^/]+)\/get\.php\?username=([^&]+)&password=([^&]+)/);
+              if (match) {
+                config = { host: match[1], username: match[2], password: match[3] };
+              }
+            }
+          } catch (_) {}
+        }
+
+        const decompressed = parsed.map(item => {
+          const type: 'live' | 'vod' | 'series' = item.t === 'l' ? 'live' : item.t === 'v' ? 'vod' : 'series';
+          const rawUrl = item.u || '';
+          
+          const decompressUrl = (compressedUrl: string, cfg: any): string => {
+            if (!cfg || !compressedUrl) return compressedUrl;
+            // Match paths like /live/filename.m3u8, /movie/filename.mp4, /series/filename.m3u8
+            const match = compressedUrl.match(/^\/?(live|movie|series)\/(.+)$/);
+            if (match) {
+              const [, t, file] = match;
+              return `${cfg.host}/${t}/${cfg.username}/${cfg.password}/${file}`;
+            }
+            return compressedUrl;
+          };
+
+          return {
+            id: item.i,
+            name: item.n,
+            logo: item.l || '',
+            category: item.c || '',
+            type: type,
+            isLive: type === 'live',
+            streamUrl: decompressUrl(rawUrl, config),
+            quality: 'HD' as const,
+            current: '',
+            next: ''
+          };
+        });
+
+        set({ searchIndex: decompressed });
       } else {
         set({ searchIndex: [] });
       }
@@ -757,7 +804,19 @@ export const useAppStore = create<AppState>((set, get) => ({
 
         const items = [...MOCK_CHANNELS, ...mockMoviesMapped, ...mockSeriesMapped];
         set({ searchIndex: items, loadingSearchIndex: false, searchIndexProgress: '' });
-        await AsyncStorage.setItem(`search_index_${playlistId}`, JSON.stringify(items));
+        try {
+          const compressed = items.map(ch => ({
+            i: ch.id,
+            n: ch.name,
+            l: ch.logo || undefined,
+            t: ch.type === 'live' ? ('l' as const) : ch.type === 'vod' ? ('v' as const) : ('s' as const),
+            c: ch.category || undefined,
+            u: ch.streamUrl
+          }));
+          await AsyncStorage.setItem(`search_index_${playlistId}`, JSON.stringify(compressed));
+        } catch (e) {
+          console.warn('[Search Index] AsyncStorage is full, index held in memory:', e);
+        }
         onProgress?.('Sync complete!');
         return;
       }
@@ -905,7 +964,29 @@ export const useAppStore = create<AppState>((set, get) => ({
         onProgress?.('Saving search index...');
         set({ searchIndexProgress: 'Saving index...' });
         set({ searchIndex: items });
-        await AsyncStorage.setItem(`search_index_${playlistId}`, JSON.stringify(items));
+        
+        try {
+          const compressUrl = (url: string, cfg: any): string => {
+            if (!cfg || !url) return url;
+            const path = url.replace(cfg.host, '');
+            const credPath = `/${cfg.username}/${cfg.password}/`;
+            return path.replace(credPath, '/');
+          };
+
+          const compressed = items.map(ch => ({
+            i: ch.id,
+            n: ch.name,
+            l: ch.logo || undefined,
+            t: ch.type === 'live' ? ('l' as const) : ch.type === 'vod' ? ('v' as const) : ('s' as const),
+            c: ch.category || undefined,
+            u: compressUrl(ch.streamUrl, config)
+          }));
+
+          await AsyncStorage.setItem(`search_index_${playlistId}`, JSON.stringify(compressed));
+        } catch (storageErr) {
+          console.warn('[Search Index] AsyncStorage is full, index held in memory:', storageErr);
+        }
+        
         onProgress?.('Sync complete!');
 
       } else {
@@ -946,7 +1027,21 @@ export const useAppStore = create<AppState>((set, get) => ({
           }
         }
         set({ searchIndex: items });
-        await AsyncStorage.setItem(`search_index_${playlistId}`, JSON.stringify(items));
+        
+        try {
+          const compressed = items.map(ch => ({
+            i: ch.id,
+            n: ch.name,
+            l: ch.logo || undefined,
+            t: ch.type === 'live' ? ('l' as const) : ch.type === 'vod' ? ('v' as const) : ('s' as const),
+            c: ch.category || undefined,
+            u: ch.streamUrl
+          }));
+          await AsyncStorage.setItem(`search_index_${playlistId}`, JSON.stringify(compressed));
+        } catch (storageErr) {
+          console.warn('[Search Index] AsyncStorage is full, M3U index held in memory:', storageErr);
+        }
+        
         onProgress?.('Sync complete!');
       }
 

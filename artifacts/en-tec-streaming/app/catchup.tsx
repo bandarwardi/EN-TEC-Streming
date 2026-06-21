@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   View, 
   Text, 
@@ -17,6 +17,7 @@ import { router } from 'expo-router';
 import { useAppStore } from '@/store/app-store';
 import { Channel } from '@/types';
 import { base64Decode } from '@/lib/base64';
+import { MOCK_CHANNELS } from '@/lib/mock-data';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -39,29 +40,20 @@ export default function CatchUpScreen() {
 
   const activePlaylistId = useAppStore((s) => s.activePlaylistId);
   const playlists = useAppStore((s) => s.playlists);
-  const liveChannels = useAppStore((s) => s.getActiveChannels('live'));
+  const channels = useAppStore((s) => s.channels);
+
+  const liveChannels = useMemo(() => {
+    const isMock = activePlaylistId === 'p1' || activePlaylistId === 'p2' || activePlaylistId === 'p3';
+    const sourceChannels = isMock ? MOCK_CHANNELS : channels;
+    return sourceChannels.filter((c) => c.type === 'live');
+  }, [activePlaylistId, channels]);
 
   const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
   const [epgList, setEpgList] = useState<EpgProgram[]>([]);
   const [loadingEpg, setLoadingEpg] = useState(false);
   
-  // Last 3 days tabs config
-  const [days, setDays] = useState<{ dateString: string; label: string }[]>([]);
-  const [selectedDayIndex, setSelectedDayIndex] = useState(0);
-
-  // Filter channels supporting catchup. 
-  // Fallback: if none, make first few mock channels catchup-capable so user can try the feature.
-  let catchupChannels = liveChannels.filter(c => c.hasArchive);
-  if (catchupChannels.length === 0 && liveChannels.length > 0) {
-    catchupChannels = liveChannels.slice(0, 10).map(c => ({
-      ...c,
-      hasArchive: true,
-      archiveDuration: 3
-    }));
-  }
-
-  useEffect(() => {
-    // Generate dates for past 3 days (Today, Yesterday, 2 days ago)
+  // Generate dates for past 3 days (Today, Yesterday, 2 days ago) synchronously
+  const days = useMemo(() => {
     const list = [];
     const now = new Date();
     for (let i = 0; i < 3; i++) {
@@ -80,8 +72,21 @@ export default function CatchUpScreen() {
         label: `${labelEn} (${day}/${m})`
       });
     }
-    setDays(list);
+    return list;
   }, []);
+
+  const [selectedDayIndex, setSelectedDayIndex] = useState(0);
+
+  // Filter channels supporting catchup. 
+  // Fallback: if none, make first few mock channels catchup-capable so user can try the feature.
+  let catchupChannels = liveChannels.filter(c => c.hasArchive);
+  if (catchupChannels.length === 0 && liveChannels.length > 0) {
+    catchupChannels = liveChannels.slice(0, 10).map(c => ({
+      ...c,
+      hasArchive: true,
+      archiveDuration: 3
+    }));
+  }
 
   useEffect(() => {
     if (!selectedChannel) return;
@@ -95,13 +100,17 @@ export default function CatchUpScreen() {
 
       if (isXtream && selectedChannel) {
         let config: any = null;
-        if (p.url.startsWith('xtream://')) {
-          config = JSON.parse(base64Decode(p.url.replace('xtream://', '')));
-        } else {
-          const match = p.url.match(/^(https?:\/\/[^/]+)\/get\.php\?username=([^&]+)&password=([^&]+)/);
-          if (match) {
-            config = { host: match[1], username: match[2], password: match[3] };
+        try {
+          if (p.url.startsWith('xtream://')) {
+            config = JSON.parse(base64Decode(p.url.replace('xtream://', '')));
+          } else {
+            const match = p.url.match(/^(https?:\/\/[^/]+)\/get\.php\?username=([^&]+)&password=([^&]+)/);
+            if (match) {
+              config = { host: match[1], username: match[2], password: match[3] };
+            }
           }
+        } catch (e) {
+          console.error('[Catchup EPG] Failed parsing Xtream configuration:', e);
         }
 
         if (config) {

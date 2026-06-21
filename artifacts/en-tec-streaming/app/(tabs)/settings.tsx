@@ -41,15 +41,7 @@ export default function SettingsScreen() {
           </LinearGradient>
         </View>
         
-        <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>Player</Text>
-        <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <View style={styles.row}>
-            <Text style={[styles.rowText, { color: colors.text }]}>Force HTTP</Text>
-            <Feather name={settings.forceHttp ? 'toggle-right' : 'toggle-left'} size={24} color={settings.forceHttp ? colors.gold : colors.mutedForeground} />
-          </View>
-        </View>
-
-        <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>App</Text>
+        <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>Playlist Management</Text>
         <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <Pressable style={styles.row} onPress={() => router.push('/playlists')}>
             <Text style={[styles.rowText, { color: colors.text }]}>Playlists</Text>
@@ -58,19 +50,6 @@ export default function SettingsScreen() {
               <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
             </View>
           </Pressable>
-          <View style={styles.divider} />
-          <View style={styles.row}>
-            <Text style={[styles.rowText, { color: colors.text }]}>Notifications</Text>
-            <Feather name={settings.notifications ? 'toggle-right' : 'toggle-left'} size={24} color={settings.notifications ? colors.gold : colors.mutedForeground} />
-          </View>
-        </View>
-
-        <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>About</Text>
-        <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <View style={styles.row}>
-            <Text style={[styles.rowText, { color: colors.text }]}>App Version</Text>
-            <Text style={[styles.rowValue, { color: colors.mutedForeground }]}>1.0.0</Text>
-          </View>
         </View>
 
         <Pressable 

@@ -76,6 +76,7 @@ export default function PlaylistsScreen() {
       );
       setShowAdd(false);
       resetForm();
+      router.replace('/(tabs)');
     } catch (err: any) {
       Alert.alert('Failed to load playlist', err.message ?? 'Unknown error');
     } finally {
@@ -113,6 +114,7 @@ export default function PlaylistsScreen() {
       });
       setShowAdd(false);
       resetForm();
+      router.replace('/(tabs)');
     } catch (err: any) {
       Alert.alert('Failed to connect', err.message ?? 'Check your Xtream credentials');
     } finally {
@@ -177,7 +179,10 @@ export default function PlaylistsScreen() {
                   borderColor: isActive ? colors.gold : colors.border,
                 },
               ]}
-              onPress={() => setActivePlaylist(item.id)}
+              onPress={async () => {
+                await setActivePlaylist(item.id);
+                router.replace('/(tabs)');
+              }}
             >
               <View style={styles.cardHeader}>
                 <View style={styles.cardTitleRow}>

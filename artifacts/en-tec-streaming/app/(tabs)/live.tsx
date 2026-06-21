@@ -1,38 +1,52 @@
-import React, { useMemo, useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, Pressable, TextInput, ActivityIndicator } from 'react-native';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { View, Text, StyleSheet, FlatList, Pressable, ActivityIndicator } from 'react-native';
 import { useColors } from '@/hooks/useColors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { ChannelCard } from '@/components/ChannelCard';
 import { router, useNavigation } from 'expo-router';
 import { useAppStore } from '@/store/app-store';
+import { Channel } from '@/types';
 
 export default function LiveScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const [selectedCategory, setSelectedCategory] = useState<{ id: string; name: string } | null>(null);
-  const [search, setSearch] = useState('');
-  const hasDefaulted = React.useRef(false);
   const navigation = useNavigation();
 
   const activePlaylistId = useAppStore((s) => s.activePlaylistId);
   const activeCategories = useAppStore((s) => s.activeCategories);
-  const channels = useAppStore((s) => s.channels);
-  const loading = useAppStore((s) => s.loadingChannels);
-  const loadChannelsForCategory = useAppStore((s) => s.loadChannelsForCategory);
+  const getChannelsForCategory = useAppStore((s) => s.getChannelsForCategory);
+  const setPlaybackQueue = useAppStore((s) => s.setPlaybackQueue);
 
-  const categories = useMemo(() => {
-    return activeCategories?.live || [];
-  }, [activeCategories]);
+  const [selectedCategory, setSelectedCategory] = useState<{ id: string; name: string } | null>(null);
+  const [localChannels, setLocalChannels] = useState<Channel[]>([]);
+  const [loading, setLoading] = useState(false);
+  const hasDefaulted = React.useRef(false);
 
-  // Load channels when category changes
-  useEffect(() => {
-    if (activePlaylistId && selectedCategory) {
-      loadChannelsForCategory(activePlaylistId, 'live', selectedCategory.id, selectedCategory.name);
+  const categories = useMemo(() => activeCategories?.live || [], [activeCategories]);
+
+  // Load channels when category changes - use LOCAL state, not the shared store
+  const loadCategory = useCallback(async (cat: { id: string; name: string }) => {
+    if (!activePlaylistId) return;
+    setLoading(true);
+    setLocalChannels([]);
+    try {
+      const result = await getChannelsForCategory(activePlaylistId, 'live', cat.id, cat.name);
+      setLocalChannels(result);
+    } catch (e) {
+      setLocalChannels([]);
+    } finally {
+      setLoading(false);
     }
-  }, [activePlaylistId, selectedCategory]);
+  }, [activePlaylistId, getChannelsForCategory]);
 
-  // Reset defaulting and select first category when screen gains focus
+  useEffect(() => {
+    if (selectedCategory) {
+      loadCategory(selectedCategory);
+    }
+  }, [selectedCategory, loadCategory]);
+
+  // Auto-select first category when screen gains focus
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
       hasDefaulted.current = false;
@@ -44,7 +58,7 @@ export default function LiveScreen() {
     return unsubscribe;
   }, [navigation, categories]);
 
-  // Automatically select the first category by default on mount or load
+  // Auto-select first category on initial load
   useEffect(() => {
     if (categories.length > 0 && !hasDefaulted.current) {
       setSelectedCategory(categories[0]);
@@ -52,26 +66,12 @@ export default function LiveScreen() {
     }
   }, [categories]);
 
-  // Reset defaulting ref when playlist changes so we auto-select the first category of the new playlist
+  // Reset when playlist changes
   useEffect(() => {
     hasDefaulted.current = false;
     setSelectedCategory(null);
+    setLocalChannels([]);
   }, [activePlaylistId]);
-
-  const filteredCategories = useMemo(() => {
-    if (!search.trim()) return categories;
-    const q = search.toLowerCase();
-    return categories.filter((c) => c.name.toLowerCase().includes(q));
-  }, [categories, search]);
-
-  const filteredChannels = useMemo(() => {
-    let list = channels;
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      list = list.filter((c) => c.name.toLowerCase().includes(q));
-    }
-    return list;
-  }, [channels, search]);
 
   // If a category is selected, render the channel list
   if (selectedCategory) {
@@ -82,37 +82,24 @@ export default function LiveScreen() {
             {selectedCategory.name}
           </Text>
           <Text style={[styles.count, { color: colors.mutedForeground }]}>
-            {filteredChannels.length.toLocaleString()} channels
+            {localChannels.length.toLocaleString()} channels
           </Text>
         </View>
 
         {/* Horizontal scrollable categories tabs bar */}
         <View style={styles.horizontalTabsContainer}>
-          <Pressable 
-            onPress={() => {
-              setSelectedCategory(null);
-              setSearch('');
-            }}
-            style={[styles.viewAllTabBtn, { backgroundColor: colors.surface2, borderColor: colors.border }]}
-          >
-            <Feather name="grid" size={14} color={colors.gold} />
-            <Text style={[styles.viewAllTabBtnText, { color: colors.text }]}>View All</Text>
-          </Pressable>
-
           <FlatList
             horizontal
             showsHorizontalScrollIndicator={false}
             data={categories}
             keyExtractor={(item) => item.id}
             contentContainerStyle={styles.tabsScrollContent}
+            style={{ flex: 1 }}
             renderItem={({ item }) => {
               const isSelected = selectedCategory?.id === item.id;
               return (
                 <Pressable
-                  onPress={() => {
-                    setSelectedCategory(item);
-                    setSearch('');
-                  }}
+                  onPress={() => setSelectedCategory(item)}
                   style={[
                     styles.tabPill,
                     {
@@ -136,30 +123,31 @@ export default function LiveScreen() {
               );
             }}
           />
+
+          <Pressable
+            onPress={() => setSelectedCategory(null)}
+            style={[styles.viewAllTabBtn, { backgroundColor: colors.surface2, borderColor: colors.border }]}
+          >
+            <Feather name="grid" size={14} color={colors.gold} />
+            <Text style={[styles.viewAllTabBtnText, { color: colors.text }]}>View All</Text>
+          </Pressable>
         </View>
 
-        <View style={[styles.searchBar, { backgroundColor: colors.surface2, borderColor: colors.border }]}>
+        <Pressable
+          style={[styles.searchBar, { backgroundColor: colors.surface2, borderColor: colors.border }]}
+          onPress={() => router.push('/search')}
+        >
           <Feather name="search" size={16} color={colors.mutedForeground} />
-          <TextInput
-            style={[styles.searchInput, { color: colors.text }]}
-            placeholder={`Search in ${selectedCategory.name}...`}
-            placeholderTextColor={colors.mutedForeground}
-            value={search}
-            onChangeText={setSearch}
-            autoCorrect={false}
-          />
-          {search.length > 0 && (
-            <Pressable onPress={() => setSearch('')}>
-              <Feather name="x" size={16} color={colors.mutedForeground} />
-            </Pressable>
-          )}
-        </View>
+          <Text style={[styles.searchInput, { color: colors.mutedForeground }]}>
+            Search channels, categories...
+          </Text>
+        </Pressable>
 
         {loading ? (
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
             <ActivityIndicator size="large" color={colors.gold} />
           </View>
-        ) : filteredChannels.length === 0 ? (
+        ) : localChannels.length === 0 ? (
           <View style={styles.empty}>
             <Feather name="tv" size={48} color={colors.mutedForeground} />
             <Text style={[styles.emptyTitle, { color: colors.text }]}>No channels found</Text>
@@ -167,27 +155,31 @@ export default function LiveScreen() {
         ) : (
           <FlatList
             key="channels_grid"
-            data={filteredChannels}
+            data={localChannels}
             keyExtractor={(item) => item.id}
             numColumns={2}
-            renderItem={({ item }) => (
+            renderItem={({ item, index }) => (
               <View style={styles.gridItem}>
                 <ChannelCard
                   channel={item}
                   width={'100%' as any}
-                  onPress={() =>
+                  onPress={() => {
+                    setPlaybackQueue(localChannels, index);
                     router.push({
                       pathname: '/player',
                       params: {
+                        id: item.id,
                         streamUrl: item.streamUrl,
                         title: item.name,
                         isLive: 'true',
                         current: item.current,
                         next: item.next,
                         quality: item.quality,
+                        logo: item.logo || '',
+                        category: item.category || '',
                       },
-                    })
-                  }
+                    });
+                  }}
                 />
               </View>
             )}
@@ -211,53 +203,41 @@ export default function LiveScreen() {
         </Text>
       </View>
 
-      <View style={[styles.searchBar, { backgroundColor: colors.surface2, borderColor: colors.border }]}>
+      <Pressable
+        style={[styles.searchBar, { backgroundColor: colors.surface2, borderColor: colors.border }]}
+        onPress={() => router.push('/search')}
+      >
         <Feather name="search" size={16} color={colors.mutedForeground} />
-        <TextInput
-          style={[styles.searchInput, { color: colors.text }]}
-          placeholder="Search categories..."
-          placeholderTextColor={colors.mutedForeground}
-          value={search}
-          onChangeText={setSearch}
-          autoCorrect={false}
-        />
-        {search.length > 0 && (
-          <Pressable onPress={() => setSearch('')}>
-            <Feather name="x" size={16} color={colors.mutedForeground} />
-          </Pressable>
-        )}
-      </View>
+        <Text style={[styles.searchInput, { color: colors.mutedForeground }]}>
+          Search channels, categories...
+        </Text>
+      </Pressable>
 
-      {filteredCategories.length === 0 ? (
+      {categories.length === 0 ? (
         <View style={styles.empty}>
           <Feather name="folder" size={48} color={colors.mutedForeground} />
           <Text style={[styles.emptyTitle, { color: colors.text }]}>No categories found</Text>
-          {categories.length === 0 && (
-            <>
-              <Text style={[styles.emptyDesc, { color: colors.mutedForeground }]}>
-                Add an M3U or Xtream playlist in Settings to get started
-              </Text>
-              <Pressable
-                style={[styles.emptyBtn, { borderColor: colors.gold }]}
-                onPress={() => router.push('/playlists')}
-              >
-                <Feather name="plus" size={16} color={colors.gold} />
-                <Text style={[styles.emptyBtnText, { color: colors.gold }]}>Add Playlist</Text>
-              </Pressable>
-            </>
-          )}
+          <>
+            <Text style={[styles.emptyDesc, { color: colors.mutedForeground }]}>
+              Add an M3U or Xtream playlist in Settings to get started
+            </Text>
+            <Pressable
+              style={[styles.emptyBtn, { borderColor: colors.gold }]}
+              onPress={() => router.push('/playlists')}
+            >
+              <Feather name="plus" size={16} color={colors.gold} />
+              <Text style={[styles.emptyBtnText, { color: colors.gold }]}>Add Playlist</Text>
+            </Pressable>
+          </>
         </View>
       ) : (
         <FlatList
           key="categories_list"
-          data={filteredCategories}
+          data={categories}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
             <Pressable
-              onPress={() => {
-                setSelectedCategory(item);
-                setSearch('');
-              }}
+              onPress={() => setSelectedCategory(item)}
               style={({ pressed }) => [
                 styles.categoryItem,
                 {
@@ -329,25 +309,8 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
     gap: 12,
   },
-  titleWrapper: {
-    alignItems: 'flex-end',
-    flex: 1,
-  },
   title: { fontSize: 24, fontWeight: 'bold' },
   count: { fontSize: 13, marginTop: 2 },
-  backButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
-  backButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',

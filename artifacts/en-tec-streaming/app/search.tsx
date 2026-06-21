@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   View, 
   Text, 
@@ -31,10 +31,18 @@ export default function SearchScreen() {
   const searchIndexProgress = useAppStore((s) => s.searchIndexProgress);
   const loadSearchIndex = useAppStore((s) => s.loadSearchIndex);
   const buildSearchIndex = useAppStore((s) => s.buildSearchIndex);
+  const setPlaybackQueue = useAppStore((s) => s.setPlaybackQueue);
 
   const [query, setQuery] = useState('');
   const [activeTab, setActiveTab] = useState<SearchTab>('all');
   const [statusMessage, setStatusMessage] = useState('');
+  const inputRef = useRef<any>(null);
+
+  // Auto-focus input after screen transition completes
+  useEffect(() => {
+    const t = setTimeout(() => inputRef.current?.focus(), 150);
+    return () => clearTimeout(t);
+  }, []);
 
   // Load search index on mount
   useEffect(() => {
@@ -71,17 +79,23 @@ export default function SearchScreen() {
     });
   }, [searchIndex, query, activeTab]);
 
-  const handleItemPress = (item: Channel) => {
+  const handleItemPress = (item: Channel, index: number) => {
     if (item.type === 'live') {
+      const liveResults = filteredResults.filter(r => r.type === 'live');
+      const indexInLive = liveResults.findIndex(r => r.id === item.id);
+      setPlaybackQueue(liveResults, indexInLive >= 0 ? indexInLive : 0);
       router.push({
         pathname: '/player',
         params: {
+          id: item.id,
           streamUrl: item.streamUrl,
           title: item.name,
           isLive: 'true',
           current: item.current || 'Live Stream',
           next: item.next || '',
-          quality: item.quality || 'HD'
+          quality: item.quality || 'HD',
+          logo: item.logo || '',
+          category: item.category || ''
         }
       });
     } else if (item.type === 'vod') {
@@ -113,7 +127,7 @@ export default function SearchScreen() {
     }
   };
 
-  const renderResultCard = ({ item }: { item: Channel }) => {
+  const renderResultCard = ({ item, index }: { item: Channel; index: number }) => {
     const typeLabel = 
       item.type === 'live' ? 'Live TV' : 
       item.type === 'vod' ? 'Movie' : 'TV Series';
@@ -125,7 +139,7 @@ export default function SearchScreen() {
     return (
       <Pressable 
         style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}
-        onPress={() => handleItemPress(item)}
+        onPress={() => handleItemPress(item, index)}
       >
         <View style={styles.cardImageWrapper}>
           <Image 
@@ -174,12 +188,12 @@ export default function SearchScreen() {
         <View style={[styles.searchBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <Feather name="search" size={18} color={colors.mutedForeground} style={{ marginRight: 8 }} />
           <TextInput
+            ref={inputRef}
             value={query}
             onChangeText={setQuery}
             placeholder="Search channels, movies, series..."
             placeholderTextColor={colors.mutedForeground}
             style={[styles.searchInput, { color: colors.text }]}
-            autoFocus={true}
             returnKeyType="search"
           />
           {query.length > 0 && (
@@ -188,7 +202,7 @@ export default function SearchScreen() {
             </Pressable>
           )}
         </View>
-        {searchIndex.length > 0 && !loadingSearchIndex && (
+        {!loadingSearchIndex && (
           <Pressable style={styles.syncBtn} onPress={handleBuildIndex}>
             <Feather name="refresh-cw" size={20} color={colors.gold} />
           </Pressable>
@@ -240,18 +254,11 @@ export default function SearchScreen() {
         <View style={styles.centerContainer}>
           <Feather name="database" size={64} color={colors.mutedForeground} style={{ marginBottom: 16 }} />
           <Text style={[styles.emptyTitle, { color: colors.text }]}>
-            Search Index Not Built
+            No Search Data
           </Text>
           <Text style={[styles.emptySubtitle, { color: colors.mutedForeground }]}>
-            Build a local search index to enable unified global search. This runs fast in the background.
+            No searchable items found. You can try refreshing the database using the sync button in the header.
           </Text>
-          <Pressable 
-            style={[styles.primaryBtn, { backgroundColor: colors.gold }]}
-            onPress={handleBuildIndex}
-          >
-            <Feather name="refresh-cw" size={16} color="#1A1A1A" style={{ marginRight: 8 }} />
-            <Text style={styles.primaryBtnText}>Build Search Index</Text>
-          </Pressable>
         </View>
       ) : query.trim().length < 2 ? (
         <View style={styles.centerContainer}>

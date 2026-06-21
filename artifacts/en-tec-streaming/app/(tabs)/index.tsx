@@ -18,6 +18,7 @@ export default function HomeScreen() {
   const activePlaylistId = useAppStore((s) => s.activePlaylistId);
   const activeCategories = useAppStore((s) => s.activeCategories);
   const getChannelsForCategory = useAppStore((s) => s.getChannelsForCategory);
+  const setPlaybackQueue = useAppStore((s) => s.setPlaybackQueue);
   
   const [loading, setLoading] = useState(true);
   const [popularChannels, setPopularChannels] = useState<Channel[]>([]);
@@ -191,21 +192,27 @@ export default function HomeScreen() {
               title="Popular Channels" 
               data={popularChannels}
               onSeeAll={() => router.push('/(tabs)/live')}
-              renderItem={({ item }) => (
+              renderItem={({ item, index }) => (
                 <ChannelCard 
                   channel={item} 
                   width={128} 
-                  onPress={() => router.push({ 
-                    pathname: '/player', 
-                    params: { 
-                      streamUrl: item.streamUrl, 
-                      title: item.name,
-                      isLive: 'true',
-                      current: item.current,
-                      next: item.next,
-                      quality: item.quality,
-                    } 
-                  })} 
+                  onPress={() => {
+                    setPlaybackQueue(popularChannels, index);
+                    router.push({ 
+                      pathname: '/player', 
+                      params: { 
+                        id: item.id,
+                        streamUrl: item.streamUrl, 
+                        title: item.name,
+                        isLive: 'true',
+                        current: item.current,
+                        next: item.next,
+                        quality: item.quality,
+                        logo: item.logo || '',
+                        category: item.category || ''
+                      } 
+                    });
+                  }} 
                 />
               )}
             />

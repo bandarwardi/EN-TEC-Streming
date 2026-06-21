@@ -58,6 +58,11 @@ interface AppState {
 
   getActiveChannels: (type: 'live' | 'vod' | 'series') => Channel[];
 
+  playbackQueue: Channel[];
+  playbackIndex: number;
+  setPlaybackQueue: (queue: Channel[], index: number) => void;
+  setPlaybackIndex: (index: number) => void;
+
   favorites: string[];
   favoriteItems: Channel[];
   toggleFavorite: (item: Channel) => void;
@@ -661,6 +666,11 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
     return get().channels.filter((c) => c.type === type);
   },
+
+  playbackQueue: [],
+  playbackIndex: 0,
+  setPlaybackQueue: (queue, index) => set({ playbackQueue: queue, playbackIndex: index }),
+  setPlaybackIndex: (index) => set({ playbackIndex: index }),
 
   favorites: [],
   favoriteItems: [],

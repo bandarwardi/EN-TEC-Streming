@@ -5,7 +5,7 @@ import { useColors } from '@/hooks/useColors';
 interface ContentRowProps {
   title: string;
   data: any[];
-  renderItem: ({ item }: { item: any }) => React.ReactElement;
+  renderItem: ({ item, index }: { item: any; index: number }) => React.ReactElement;
   onSeeAll?: () => void;
 }
 

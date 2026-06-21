@@ -1,15 +1,13 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, Dimensions, Pressable } from 'react-native';
+import React, { useEffect, useState, useRef } from 'react';
+import { View, Text, StyleSheet, Dimensions, Pressable, ScrollView } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import Animated, { useAnimatedStyle, useSharedValue, withTiming, runOnJS } from 'react-native-reanimated';
 import { FeaturedHero } from '@/types';
 import { useColors } from '@/hooks/useColors';
 import { Feather } from '@expo/vector-icons';
-
 import { useAppStore } from '@/store/app-store';
 
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 interface HeroCarouselProps {
   items: FeaturedHero[];
@@ -20,30 +18,31 @@ interface HeroCarouselProps {
 export function HeroCarousel({ items, onPlay, onInfo }: HeroCarouselProps) {
   const colors = useColors();
   const [currentIndex, setCurrentIndex] = useState(0);
-  const opacity = useSharedValue(1);
+  const [isUserInteracting, setIsUserInteracting] = useState(false);
+  const scrollViewRef = useRef<ScrollView>(null);
 
   const favorites = useAppStore((s) => s.favorites);
   const toggleFavorite = useAppStore((s) => s.toggleFavorite);
 
+  // Auto-scroll effect
   useEffect(() => {
-    if (items.length <= 1) return;
+    if (items.length <= 1 || isUserInteracting) return;
 
     const interval = setInterval(() => {
-      opacity.value = withTiming(0, { duration: 300 }, () => {
-        runOnJS(setCurrentIndex)((currentIndex + 1) % items.length);
-        opacity.value = withTiming(1, { duration: 300 });
+      const nextIndex = (currentIndex + 1) % items.length;
+      scrollViewRef.current?.scrollTo({
+        x: nextIndex * SCREEN_WIDTH,
+        animated: true,
       });
+      setCurrentIndex(nextIndex);
     }, 6000);
 
     return () => clearInterval(interval);
-  }, [currentIndex, items.length]);
+  }, [currentIndex, items.length, isUserInteracting]);
 
   if (!items.length) return null;
-  const item = items[currentIndex];
 
-  const isFav = item ? favorites.includes(item.id) : false;
-
-  const handleToggleFavorite = () => {
+  const handleToggleFavorite = (item: FeaturedHero) => {
     if (!item) return;
     if (item.originalItem) {
       toggleFavorite(item.originalItem);
@@ -63,50 +62,69 @@ export function HeroCarousel({ items, onPlay, onInfo }: HeroCarouselProps) {
     }
   };
 
-  const animatedStyle = useAnimatedStyle(() => ({
-    opacity: opacity.value,
-  }));
-
   return (
     <View style={styles.container}>
-      <Animated.View style={[StyleSheet.absoluteFill, animatedStyle]}>
-        <Image source={item.backdrop} style={StyleSheet.absoluteFill} contentFit="cover" />
-        <LinearGradient
-          colors={['transparent', 'rgba(10,10,10,0.5)', '#0A0A0A']}
-          style={StyleSheet.absoluteFill}
-        />
-        <View style={styles.content}>
-          <Text style={[styles.subtitle, { color: colors.gold }]}>{item.subtitle}</Text>
-          <Text style={styles.title}>{item.title}</Text>
+      <ScrollView
+        ref={scrollViewRef}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        onMomentumScrollEnd={(e) => {
+          const index = Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH);
+          setCurrentIndex(index);
+        }}
+        onScrollBeginDrag={() => {
+          setIsUserInteracting(true);
+        }}
+        onScrollEndDrag={() => {
+          setIsUserInteracting(false);
+        }}
+        style={StyleSheet.absoluteFill}
+      >
+        {items.map((item) => {
+          const isFav = favorites.includes(item.id);
+          return (
+            <View key={item.id} style={styles.slide}>
+              <Image source={item.backdrop} style={StyleSheet.absoluteFill} contentFit="cover" />
+              <LinearGradient
+                colors={['transparent', 'rgba(10,10,10,0.5)', '#0A0A0A']}
+                style={StyleSheet.absoluteFill}
+              />
+              <View style={styles.content}>
+                <Text style={[styles.subtitle, { color: colors.gold }]}>{item.subtitle}</Text>
+                <Text style={styles.title}>{item.title}</Text>
 
-          <Text style={[styles.meta, { color: colors.mutedForeground }]}>
-            ⭐ {item.rating} · {item.year} · {item.duration} · {item.genres.join(' · ')}
-          </Text>
+                <Text style={[styles.meta, { color: colors.mutedForeground }]}>
+                  ⭐ {item.rating} · {item.year} · {item.duration} · {item.genres.join(' · ')}
+                </Text>
 
-          <Text style={[styles.description, { color: colors.mutedForeground }]} numberOfLines={2}>
-            {item.description}
-          </Text>
+                <Text style={[styles.description, { color: colors.mutedForeground }]} numberOfLines={2}>
+                  {item.description}
+                </Text>
 
-          <View style={styles.actions}>
-            <Pressable style={styles.playButton} onPress={() => onPlay(item)}>
-              <Feather name="play" size={20} color="#0A0A0A" />
-              <Text style={styles.playButtonText}>Play</Text>
-            </Pressable>
+                <View style={styles.actions}>
+                  <Pressable style={styles.playButton} onPress={() => onPlay(item)}>
+                    <Feather name="play" size={20} color="#0A0A0A" />
+                    <Text style={styles.playButtonText}>Play</Text>
+                  </Pressable>
 
-            <Pressable
-              style={[styles.listButton, { borderColor: isFav ? colors.gold : colors.border }]}
-              onPress={handleToggleFavorite}
-            >
-              <Feather name={isFav ? 'check' : 'plus'} size={20} color={isFav ? colors.gold : '#FFF'} />
-              <Text style={[styles.listButtonText, { color: isFav ? colors.gold : '#FFF' }]}>Favorites</Text>
-            </Pressable>
+                  <Pressable
+                    style={[styles.listButton, { borderColor: isFav ? colors.gold : colors.border }]}
+                    onPress={() => handleToggleFavorite(item)}
+                  >
+                    <Feather name={isFav ? 'check' : 'plus'} size={20} color={isFav ? colors.gold : '#FFF'} />
+                    <Text style={[styles.listButtonText, { color: isFav ? colors.gold : '#FFF' }]}>Favorites</Text>
+                  </Pressable>
 
-            <Pressable style={[styles.infoButton, { borderColor: colors.border }]} onPress={() => onInfo(item)}>
-              <Feather name="info" size={20} color="#FFF" />
-            </Pressable>
-          </View>
-        </View>
-      </Animated.View>
+                  <Pressable style={[styles.infoButton, { borderColor: colors.border }]} onPress={() => onInfo(item)}>
+                    <Feather name="info" size={20} color="#FFF" />
+                  </Pressable>
+                </View>
+              </View>
+            </View>
+          );
+        })}
+      </ScrollView>
 
       <View style={styles.indicators}>
         {items.map((_, i) => (
@@ -127,6 +145,11 @@ const styles = StyleSheet.create({
   container: {
     height: SCREEN_HEIGHT * 0.7,
     width: '100%',
+    position: 'relative',
+  },
+  slide: {
+    width: SCREEN_WIDTH,
+    height: '100%',
     position: 'relative',
   },
   content: {
@@ -204,6 +227,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     gap: 6,
+    zIndex: 10,
   },
   dot: {
     width: 6,

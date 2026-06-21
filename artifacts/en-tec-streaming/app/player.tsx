@@ -10,7 +10,6 @@ import {
   Linking,
   Animated,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import * as Clipboard from 'expo-clipboard';
@@ -65,9 +64,15 @@ export default function PlayerScreen() {
   const [isMuted, setIsMuted] = useState(false);
   const [seeking, setSeeking] = useState(false);
   const [seekPreview, setSeekPreview] = useState(0);
+  const [errorToastVisible, setErrorToastVisible] = useState(false);
+  const errorToastOpacity = useRef(new Animated.Value(0)).current;
+  const errorToastY = useRef(new Animated.Value(-80)).current;
 
   const favoriteItems = useAppStore((s) => s.favoriteItems) || [];
   const toggleFavorite = useAppStore((s) => s.toggleFavorite);
+  const playbackQueue = useAppStore((s) => s.playbackQueue) || [];
+  const playbackIndex = useAppStore((s) => s.playbackIndex);
+  const setPlaybackIndex = useAppStore((s) => s.setPlaybackIndex);
 
   const matchedFavoriteItem = favoriteItems.find(
     (item) => item.streamUrl === streamUrl || (params.id && item.id === params.id)
@@ -95,8 +100,8 @@ export default function PlayerScreen() {
   };
 
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const startX = useRef(0);
   const seekBarWidth = useRef(W - 40);
+  const seekStartX = useRef(0);
   const controlsOpacity = useRef(new Animated.Value(1)).current;
 
   const player = useVideoPlayer(streamUrl || null, (p) => {
@@ -136,9 +141,21 @@ export default function PlayerScreen() {
     scheduleHide();
   }, [showControls, controlsOpacity, scheduleHide]);
 
+  // Tap on empty area: toggle controls immediately
+  const handleBackgroundTap = useCallback(() => {
+    if (showControls) {
+      if (hideTimer.current) clearTimeout(hideTimer.current);
+      Animated.timing(controlsOpacity, { toValue: 0, duration: 200, useNativeDriver: true }).start(
+        () => setShowControls(false)
+      );
+    } else {
+      showControlsNow();
+    }
+  }, [showControls, controlsOpacity, showControlsNow]);
+
   useEffect(() => {
     scheduleHide();
-    
+
     async function lockLandscape() {
       try {
         await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE);
@@ -146,9 +163,9 @@ export default function PlayerScreen() {
         console.warn('Failed to lock screen orientation to landscape:', e);
       }
     }
-    
+
     lockLandscape();
-    
+
     return () => {
       if (hideTimer.current) clearTimeout(hideTimer.current);
       async function unlockOrientation() {
@@ -164,12 +181,23 @@ export default function PlayerScreen() {
 
   useEffect(() => {
     if (hasError) {
-      Alert.alert(
-        'Playback Error',
-        'Failed to play this content from the server.',
-        [{ text: 'OK', onPress: () => router.back() }],
-        { cancelable: false }
-      );
+      // Show animated toast then auto-navigate back
+      setErrorToastVisible(true);
+      Animated.parallel([
+        Animated.timing(errorToastOpacity, { toValue: 1, duration: 300, useNativeDriver: true }),
+        Animated.spring(errorToastY, { toValue: 0, useNativeDriver: true, tension: 80, friction: 10 }),
+      ]).start();
+
+      const timer = setTimeout(() => {
+        Animated.parallel([
+          Animated.timing(errorToastOpacity, { toValue: 0, duration: 300, useNativeDriver: true }),
+          Animated.timing(errorToastY, { toValue: -80, duration: 300, useNativeDriver: true }),
+        ]).start(() => {
+          router.back();
+        });
+      }, 2500);
+
+      return () => clearTimeout(timer);
     }
   }, [hasError]);
 
@@ -180,32 +208,49 @@ export default function PlayerScreen() {
     setCurrentTime(target);
   }, [player, duration]);
 
+  // Seek bar PanResponder - uses absolute position within seekBar view
   const seekBarPan = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
+      onStartShouldSetPanResponderCapture: () => true,
       onMoveShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponderCapture: () => true,
       onPanResponderGrant: (evt) => {
         setSeeking(true);
         if (hideTimer.current) clearTimeout(hideTimer.current);
-        startX.current = evt.nativeEvent.locationX;
-        const ratio = Math.max(0, Math.min(1, startX.current / (seekBarWidth.current || 1)));
+        // locationX is position within the seekBarContainer view
+        seekStartX.current = evt.nativeEvent.locationX;
+        const ratio = Math.max(0, Math.min(1, seekStartX.current / (seekBarWidth.current || 1)));
         setSeekPreview(ratio);
       },
       onPanResponderMove: (evt, gestureState) => {
-        const currentX = startX.current + gestureState.dx;
+        const currentX = seekStartX.current + gestureState.dx;
         const ratio = Math.max(0, Math.min(1, currentX / (seekBarWidth.current || 1)));
         setSeekPreview(ratio);
       },
       onPanResponderRelease: (evt, gestureState) => {
-        const currentX = startX.current + gestureState.dx;
+        const currentX = seekStartX.current + gestureState.dx;
         const ratio = Math.max(0, Math.min(1, currentX / (seekBarWidth.current || 1)));
-        seekTo(ratio);
+        // seekTo is captured via closure - need to get current values
+        const dur = player?.duration ?? 0;
+        if (player && dur > 0) {
+          const target = Math.max(0, Math.min(dur, ratio * dur));
+          player.currentTime = target;
+          setCurrentTime(target);
+        }
         setSeeking(false);
-        scheduleHide();
+        if (hideTimer.current) clearTimeout(hideTimer.current);
+        hideTimer.current = setTimeout(() => {
+          Animated.timing(controlsOpacity, { toValue: 0, duration: 300, useNativeDriver: true }).start(
+            () => setShowControls(false)
+          );
+        }, 4000);
       },
+      onPanResponderTerminationRequest: () => false,
     })
   ).current;
 
+  // Volume slider PanResponder
   const volumePan = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
@@ -232,6 +277,48 @@ export default function PlayerScreen() {
     player.currentTime = target;
     setCurrentTime(target);
     showControlsNow();
+  };
+
+  const handlePrevChannel = () => {
+    if (playbackQueue.length <= 1) return;
+    const prevIdx = (playbackIndex - 1 + playbackQueue.length) % playbackQueue.length;
+    setPlaybackIndex(prevIdx);
+    const ch = playbackQueue[prevIdx];
+    router.replace({
+      pathname: '/player',
+      params: {
+        id: ch.id,
+        streamUrl: ch.streamUrl,
+        title: ch.name,
+        isLive: 'true',
+        current: ch.current || '',
+        next: ch.next || '',
+        quality: ch.quality || 'HD',
+        logo: ch.logo || '',
+        category: ch.category || ''
+      }
+    });
+  };
+
+  const handleNextChannel = () => {
+    if (playbackQueue.length <= 1) return;
+    const nextIdx = (playbackIndex + 1) % playbackQueue.length;
+    setPlaybackIndex(nextIdx);
+    const ch = playbackQueue[nextIdx];
+    router.replace({
+      pathname: '/player',
+      params: {
+        id: ch.id,
+        streamUrl: ch.streamUrl,
+        title: ch.name,
+        isLive: 'true',
+        current: ch.current || '',
+        next: ch.next || '',
+        quality: ch.quality || 'HD',
+        logo: ch.logo || '',
+        category: ch.category || ''
+      }
+    });
   };
 
   const toggleMute = () => {
@@ -269,182 +356,208 @@ export default function PlayerScreen() {
     <View style={styles.container}>
       <StatusBar hidden />
 
-      {player && (
-        <VideoView
-          player={player}
-          style={StyleSheet.absoluteFill}
-          nativeControls={false}
-          contentFit="contain"
-        />
-      )}
+      {/* ── Layer 1: Video (pointerEvents none so it never eats touches) ── */}
+      <View style={StyleSheet.absoluteFill} pointerEvents="none">
+        {player && (
+          <VideoView
+            player={player}
+            style={StyleSheet.absoluteFill}
+            nativeControls={false}
+            contentFit="contain"
+          />
+        )}
+      </View>
 
+      {/* ── Layer 2: Buffering spinner ── */}
       {isBuffering && !hasError && (
-        <View style={styles.bufferingOverlay}>
+        <View style={styles.bufferingOverlay} pointerEvents="none">
           <ActivityIndicator size="large" color="#D4A843" />
         </View>
       )}
 
-      <Pressable style={StyleSheet.absoluteFill} onPress={showControlsNow}>
-        {showControls && (
-          <Animated.View style={[StyleSheet.absoluteFill, { opacity: controlsOpacity }]}>
-            <LinearGradient
-              colors={['rgba(0,0,0,0.85)', 'transparent']}
-              style={styles.topGradient}
-            />
-            <LinearGradient
-              colors={['transparent', 'rgba(0,0,0,0.85)']}
-              style={styles.bottomGradient}
-            />
+      {/* ── Layer 3: Background tap area (toggle controls) ── */}
+      <Pressable style={StyleSheet.absoluteFill} onPress={handleBackgroundTap} />
 
-            <View
-              style={[styles.topBar, { paddingTop: Platform.OS === 'ios' ? insets.top + 8 : 20 }]}
-            >
-              <Pressable onPress={() => router.back()} style={styles.iconBtn}>
-                <Feather name="arrow-left" size={22} color="#FFF" />
-              </Pressable>
+      {/* ── Layer 4: Controls overlay (box-none so tap layer still works in empty areas) ── */}
+      {showControls && (
+        <Animated.View
+          style={[StyleSheet.absoluteFill, { opacity: controlsOpacity }]}
+          pointerEvents="box-none"
+        >
+          {/* Decorative gradients - no touch */}
+          <LinearGradient
+            colors={['rgba(0,0,0,0.85)', 'transparent']}
+            style={styles.topGradient}
+            pointerEvents="none"
+          />
+          <LinearGradient
+            colors={['transparent', 'rgba(0,0,0,0.85)']}
+            style={styles.bottomGradient}
+            pointerEvents="none"
+          />
 
-              <View style={styles.titleBlock}>
-                <Text style={styles.titleText} numberOfLines={1}>{title}</Text>
-                {isLive && current ? (
-                  <Text style={styles.subtitleText} numberOfLines={1}>{current}</Text>
-                ) : null}
-              </View>
+          {/* Top bar */}
+          <View
+            style={[styles.topBar, { paddingTop: Platform.OS === 'ios' ? insets.top + 8 : 20 }]}
+            pointerEvents="box-none"
+          >
+            <Pressable onPress={() => router.back()} style={styles.iconBtn}>
+              <Feather name="arrow-left" size={22} color="#FFF" />
+            </Pressable>
 
-              <View style={styles.topActions}>
-                <Pressable style={styles.iconBtn} onPress={toggleMute}>
-                  <Feather name={isMuted ? 'volume-x' : 'volume-2'} size={20} color="#FFF" />
-                </Pressable>
-                <Pressable style={styles.iconBtn} onPress={handleToggleFavorite}>
-                  <Feather
-                    name="heart"
-                    size={20}
-                    color={isFavorite ? '#E53935' : '#FFF'}
-                    fill={isFavorite ? '#E53935' : 'transparent'}
-                  />
-                </Pressable>
-              </View>
+            <View style={styles.titleBlock} pointerEvents="none">
+              <Text style={styles.titleText} numberOfLines={1}>{title}</Text>
+              {isLive && current ? (
+                <Text style={styles.subtitleText} numberOfLines={1}>{current}</Text>
+              ) : null}
             </View>
 
-            <View style={styles.centerRow}>
+            <View style={styles.topActions} pointerEvents="box-none">
+              <Pressable style={styles.iconBtn} onPress={toggleMute}>
+                <Feather name={isMuted ? 'volume-x' : 'volume-2'} size={20} color="#FFF" />
+              </Pressable>
+              <Pressable style={styles.iconBtn} onPress={handleToggleFavorite}>
+                <Feather
+                  name="heart"
+                  size={20}
+                  color={isFavorite ? '#E53935' : '#FFF'}
+                  fill={isFavorite ? '#E53935' : 'transparent'}
+                />
+              </Pressable>
+            </View>
+          </View>
+
+          {/* Center play controls */}
+          <View style={styles.centerRow} pointerEvents="box-none">
+            {isLive ? (
+              <Pressable
+                style={[styles.centerBtn, playbackQueue.length <= 1 && { opacity: 0.3 }]}
+                onPress={handlePrevChannel}
+                disabled={playbackQueue.length <= 1}
+              >
+                <Ionicons name="play-skip-back" size={32} color="#FFF" />
+                <Text style={styles.seekLabel}>Prev Channel</Text>
+              </Pressable>
+            ) : (
               <Pressable style={styles.centerBtn} onPress={() => handleSeekBy(-10)}>
                 <Ionicons name="play-back" size={32} color="#FFF" />
                 <Text style={styles.seekLabel}>10</Text>
               </Pressable>
+            )}
 
-              <Pressable style={styles.playBtn} onPress={togglePlay}>
-                <Feather name={isPlaying ? 'pause' : 'play'} size={38} color="#FFF" />
+            <Pressable style={styles.playBtn} onPress={togglePlay}>
+              <Feather name={isPlaying ? 'pause' : 'play'} size={38} color="#FFF" />
+            </Pressable>
+
+            {isLive ? (
+              <Pressable
+                style={[styles.centerBtn, playbackQueue.length <= 1 && { opacity: 0.3 }]}
+                onPress={handleNextChannel}
+                disabled={playbackQueue.length <= 1}
+              >
+                <Ionicons name="play-skip-forward" size={32} color="#FFF" />
+                <Text style={styles.seekLabel}>Next Channel</Text>
               </Pressable>
-
+            ) : (
               <Pressable style={styles.centerBtn} onPress={() => handleSeekBy(10)}>
                 <Ionicons name="play-forward" size={32} color="#FFF" />
                 <Text style={styles.seekLabel}>10</Text>
               </Pressable>
-            </View>
-
-            <View
-              style={[
-                styles.volumeSliderWrapper,
-                { top: H * 0.5 - 60, left: Platform.OS === 'ios' ? insets.left + 20 : 20 },
-              ]}
-              {...volumePan.panHandlers}
-            >
-              <View style={styles.volumeTrack}>
-                <View style={[styles.volumeFill, { height: `${volume * 100}%` }]} />
-              </View>
-              <Feather
-                name={volume === 0 ? 'volume-x' : volume < 0.5 ? 'volume-1' : 'volume-2'}
-                size={14}
-                color="rgba(255,255,255,0.6)"
-                style={{ marginTop: 6 }}
-              />
-            </View>
-
-            <View style={styles.bottomBar}>
-              {isLive ? (
-                <View style={styles.liveRow}>
-                  <View style={styles.liveBadge}>
-                    <View style={styles.liveDot} />
-                    <Text style={styles.liveBadgeText}>LIVE</Text>
-                  </View>
-                  <View style={styles.liveInfo}>
-                    <Text style={styles.liveChannel} numberOfLines={1}>{title}</Text>
-                    {current ? (
-                      <Text style={styles.liveProgram} numberOfLines={1}>
-                        Now: {current}
-                        {next ? `  ·  Next: ${next}` : ''}
-                      </Text>
-                    ) : null}
-                  </View>
-                </View>
-              ) : (
-                <View style={styles.vodBar}>
-                  <View style={styles.timeRow}>
-                    <Text style={styles.timeText}>{formatTime(currentTime)}</Text>
-                    <Text style={styles.timeText}>{formatTime(duration)}</Text>
-                  </View>
-
-                  <View
-                    style={styles.seekBarContainer}
-                    onLayout={(e) => { seekBarWidth.current = e.nativeEvent.layout.width; }}
-                    {...seekBarPan.panHandlers}
-                  >
-                    <View style={styles.seekBarTrack} pointerEvents="none">
-                      <View style={[styles.seekBarFill, { width: `${progress * 100}%` }]} />
-                    </View>
-                    <View
-                      style={[
-                        styles.seekThumb,
-                        {
-                          left: `${progress * 100}%`,
-                          transform: [{ translateX: -8 }],
-                        },
-                      ]}
-                      pointerEvents="none"
-                    />
-                  </View>
-                </View>
-              )}
-            </View>
-          </Animated.View>
-        )}
-      </Pressable>
-
-      {hasError && (
-        <View style={styles.errorOverlay}>
-          <Feather name="shield" size={52} color="#E53935" />
-          <Text style={styles.errorTitle}>Stream unavailable</Text>
-          <Text style={styles.errorUrl} numberOfLines={3}>{streamUrl}</Text>
-          <View style={styles.errorActions}>
-            <Pressable
-              style={[styles.errorBtn, { borderColor: '#E53935' }]}
-              onPress={() => {
-                setHasError(false);
-                setIsBuffering(true);
-                player?.play();
-              }}
-            >
-              <Feather name="refresh-cw" size={16} color="#FFF" />
-              <Text style={styles.errorBtnText}>Retry</Text>
-            </Pressable>
-            <Pressable style={[styles.errorBtn, { borderColor: '#555' }]} onPress={handleCopyUrl}>
-              <Feather name="copy" size={16} color="#FFF" />
-              <Text style={styles.errorBtnText}>Copy URL</Text>
-            </Pressable>
-            <Pressable
-              style={[styles.errorBtn, { borderColor: '#555' }]}
-              onPress={handleOpenExternal}
-            >
-              <Feather name="external-link" size={16} color="#FFF" />
-              <Text style={styles.errorBtnText}>Open Externally</Text>
-            </Pressable>
+            )}
           </View>
-          <Pressable style={styles.backFromError} onPress={() => router.back()}>
-            <Text style={styles.backFromErrorText}>Go Back</Text>
-          </Pressable>
-        </View>
+
+          {/* Volume slider */}
+          <View
+            style={[
+              styles.volumeSliderWrapper,
+              { top: H * 0.5 - 60, left: Platform.OS === 'ios' ? insets.left + 20 : 20 },
+            ]}
+            {...volumePan.panHandlers}
+          >
+            <View style={styles.volumeTrack}>
+              <View style={[styles.volumeFill, { height: `${volume * 100}%` }]} />
+            </View>
+            <Feather
+              name={volume === 0 ? 'volume-x' : volume < 0.5 ? 'volume-1' : 'volume-2'}
+              size={14}
+              color="rgba(255,255,255,0.6)"
+              style={{ marginTop: 6 }}
+            />
+          </View>
+
+          {/* Bottom bar */}
+          <View style={styles.bottomBar} pointerEvents="box-none">
+            {isLive ? (
+              <View style={styles.liveRow} pointerEvents="none">
+                <View style={styles.liveBadge}>
+                  <View style={styles.liveDot} />
+                  <Text style={styles.liveBadgeText}>LIVE</Text>
+                </View>
+                <View style={styles.liveInfo}>
+                  <Text style={styles.liveChannel} numberOfLines={1}>{title}</Text>
+                  {current ? (
+                    <Text style={styles.liveProgram} numberOfLines={1}>
+                      Now: {current}
+                      {next ? `  ·  Next: ${next}` : ''}
+                    </Text>
+                  ) : null}
+                </View>
+              </View>
+            ) : (
+              <View style={styles.vodBar} pointerEvents="box-none">
+                <View style={styles.timeRow} pointerEvents="none">
+                  <Text style={styles.timeText}>{formatTime(currentTime)}</Text>
+                  <Text style={styles.timeText}>{formatTime(duration)}</Text>
+                </View>
+
+                {/* Seek bar - has its own PanResponder, must NOT be box-none */}
+                <View
+                  style={styles.seekBarContainer}
+                  onLayout={(e) => { seekBarWidth.current = e.nativeEvent.layout.width; }}
+                  {...seekBarPan.panHandlers}
+                >
+                  <View style={styles.seekBarTrack} pointerEvents="none">
+                    <View style={[styles.seekBarFill, { width: `${progress * 100}%` }]} />
+                  </View>
+                  <View
+                    style={[
+                      styles.seekThumb,
+                      {
+                        left: `${progress * 100}%`,
+                        transform: [{ translateX: -8 }],
+                      },
+                    ]}
+                    pointerEvents="none"
+                  />
+                </View>
+              </View>
+            )}
+          </View>
+        </Animated.View>
       )}
 
-
+      {/* ── Layer 5: Error toast (slides in from top, auto-dismisses) ── */}
+      {errorToastVisible && (
+        <Animated.View
+          style={[
+            styles.errorToast,
+            {
+              opacity: errorToastOpacity,
+              transform: [{ translateY: errorToastY }],
+              top: Platform.OS === 'ios' ? insets.top + 16 : 32,
+            },
+          ]}
+          pointerEvents="none"
+        >
+          <View style={styles.errorToastIconBg}>
+            <Feather name="wifi-off" size={20} color="#FFF" />
+          </View>
+          <View style={styles.errorToastTextBlock}>
+            <Text style={styles.errorToastTitle}>المحتوى غير متوفر</Text>
+            <Text style={styles.errorToastSub}>جارٍ العودة تلقائياً...</Text>
+          </View>
+        </Animated.View>
+      )}
     </View>
   );
 }
@@ -549,7 +662,7 @@ const styles = StyleSheet.create({
   timeRow: { flexDirection: 'row', justifyContent: 'space-between' },
   timeText: { color: 'rgba(255,255,255,0.8)', fontSize: 12, fontWeight: '600' },
   seekBarContainer: {
-    height: 28,
+    height: 36,
     justifyContent: 'center',
     position: 'relative',
   },
@@ -567,41 +680,55 @@ const styles = StyleSheet.create({
   seekThumb: {
     position: 'absolute',
     top: '50%',
-    width: 16, height: 16,
-    borderRadius: 8,
+    width: 18, height: 18,
+    borderRadius: 9,
     backgroundColor: '#D4A843',
-    marginTop: -8,
+    marginTop: -9,
     shadowColor: '#D4A843',
     shadowOpacity: 0.8,
     shadowRadius: 6,
     elevation: 4,
   },
-  errorOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.92)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 32,
-    gap: 16,
-  },
-  errorTitle: { color: '#FFF', fontSize: 22, fontWeight: 'bold' },
-  errorUrl: {
-    color: '#777',
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
-    fontSize: 11,
-    textAlign: 'center',
-  },
-  errorActions: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, justifyContent: 'center' },
-  errorBtn: {
+  errorToast: {
+    position: 'absolute',
+    left: 20,
+    right: 20,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 12,
+    backgroundColor: 'rgba(20,20,20,0.95)',
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     borderWidth: 1,
-    borderRadius: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    borderColor: 'rgba(229,57,53,0.5)',
+    shadowColor: '#000',
+    shadowOpacity: 0.5,
+    shadowRadius: 12,
+    elevation: 10,
+    zIndex: 999,
   },
-  errorBtnText: { color: '#FFF', fontSize: 13, fontWeight: '600' },
+  errorToastIconBg: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: '#E53935',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  errorToastTextBlock: { flex: 1 },
+  errorToastTitle: {
+    color: '#FFF',
+    fontSize: 15,
+    fontWeight: 'bold',
+    writingDirection: 'rtl',
+  },
+  errorToastSub: {
+    color: 'rgba(255,255,255,0.55)',
+    fontSize: 12,
+    marginTop: 2,
+    writingDirection: 'rtl',
+  },
   retryBtn: {
     marginTop: 16,
     paddingHorizontal: 24, paddingVertical: 12,
@@ -609,44 +736,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#D4A843',
   },
   retryText: { color: '#1A1A1A', fontWeight: 'bold' },
-  backFromError: { marginTop: 8 },
-  backFromErrorText: { color: 'rgba(255,255,255,0.4)', fontSize: 13 },
-  qualityOverlayBg: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-  },
-  qualityBottomSheet: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    borderTopWidth: 1,
-    padding: 24,
-    gap: 8,
-    zIndex: 100,
-  },
-  qualityHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  qualityTitle: {
+  errorTitle: {
+    color: '#FFF',
     fontSize: 18,
     fontWeight: 'bold',
-  },
-  qualityOption: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-  },
-  qualityOptionText: {
-    fontSize: 15,
-    fontWeight: '600',
+    marginTop: 16,
   },
 });
+

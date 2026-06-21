@@ -25,22 +25,27 @@ export default function FavoritesScreen() {
 
   const favoriteItems = useAppStore((s) => s.favoriteItems) || [];
   const toggleFavorite = useAppStore((s) => s.toggleFavorite);
+  const setPlaybackQueue = useAppStore((s) => s.setPlaybackQueue);
 
   const [activeTab, setActiveTab] = useState<TabType>('live');
 
   const filteredItems = favoriteItems.filter(item => item.type === activeTab);
 
-  const handleItemPress = (item: Channel) => {
+  const handleItemPress = (item: Channel, index: number) => {
     if (item.type === 'live') {
+      setPlaybackQueue(filteredItems, index);
       router.push({
         pathname: '/player',
         params: {
+          id: item.id,
           streamUrl: item.streamUrl,
           title: item.name,
           isLive: 'true',
           current: item.current || '',
           next: item.next || '',
-          quality: item.quality || 'HD'
+          quality: item.quality || 'HD',
+          logo: item.logo || '',
+          category: item.category || ''
         }
       });
     } else if (item.type === 'vod') {
@@ -73,7 +78,7 @@ export default function FavoritesScreen() {
     }
   };
 
-  const renderCard = ({ item }: { item: Channel }) => {
+  const renderCard = ({ item, index }: { item: Channel; index: number }) => {
     const isLive = item.type === 'live';
 
     return (
@@ -83,7 +88,7 @@ export default function FavoritesScreen() {
             styles.card,
             { backgroundColor: colors.surface, borderColor: colors.border }
           ]}
-          onPress={() => handleItemPress(item)}
+          onPress={() => handleItemPress(item, index)}
         >
           <View style={isLive ? styles.liveLogoWrapper : styles.posterWrapper}>
             <Image

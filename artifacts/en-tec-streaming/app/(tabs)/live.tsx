@@ -4,7 +4,7 @@ import { useColors } from '@/hooks/useColors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { ChannelCard } from '@/components/ChannelCard';
-import { router } from 'expo-router';
+import { router, useNavigation } from 'expo-router';
 import { useAppStore } from '@/store/app-store';
 
 export default function LiveScreen() {
@@ -12,6 +12,8 @@ export default function LiveScreen() {
   const insets = useSafeAreaInsets();
   const [selectedCategory, setSelectedCategory] = useState<{ id: string; name: string } | null>(null);
   const [search, setSearch] = useState('');
+  const hasDefaulted = React.useRef(false);
+  const navigation = useNavigation();
 
   const activePlaylistId = useAppStore((s) => s.activePlaylistId);
   const activeCategories = useAppStore((s) => s.activeCategories);
@@ -29,6 +31,32 @@ export default function LiveScreen() {
       loadChannelsForCategory(activePlaylistId, 'live', selectedCategory.id, selectedCategory.name);
     }
   }, [activePlaylistId, selectedCategory]);
+
+  // Reset defaulting and select first category when screen gains focus
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      hasDefaulted.current = false;
+      if (categories.length > 0) {
+        setSelectedCategory(categories[0]);
+        hasDefaulted.current = true;
+      }
+    });
+    return unsubscribe;
+  }, [navigation, categories]);
+
+  // Automatically select the first category by default on mount or load
+  useEffect(() => {
+    if (categories.length > 0 && !hasDefaulted.current) {
+      setSelectedCategory(categories[0]);
+      hasDefaulted.current = true;
+    }
+  }, [categories]);
+
+  // Reset defaulting ref when playlist changes so we auto-select the first category of the new playlist
+  useEffect(() => {
+    hasDefaulted.current = false;
+    setSelectedCategory(null);
+  }, [activePlaylistId]);
 
   const filteredCategories = useMemo(() => {
     if (!search.trim()) return categories;
@@ -50,25 +78,64 @@ export default function LiveScreen() {
     return (
       <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
         <View style={styles.header}>
+          <Text style={[styles.title, { color: colors.text }]} numberOfLines={1}>
+            {selectedCategory.name}
+          </Text>
+          <Text style={[styles.count, { color: colors.mutedForeground }]}>
+            {filteredChannels.length.toLocaleString()} channels
+          </Text>
+        </View>
+
+        {/* Horizontal scrollable categories tabs bar */}
+        <View style={styles.horizontalTabsContainer}>
           <Pressable 
             onPress={() => {
               setSelectedCategory(null);
               setSearch('');
             }}
-            style={[styles.backButton, { backgroundColor: colors.surface2, borderColor: colors.border }]}
+            style={[styles.viewAllTabBtn, { backgroundColor: colors.surface2, borderColor: colors.border }]}
           >
-            <Feather name="arrow-left" size={16} color={colors.text} />
-            <Text style={[styles.backButtonText, { color: colors.text }]}>Categories</Text>
+            <Feather name="grid" size={14} color={colors.gold} />
+            <Text style={[styles.viewAllTabBtnText, { color: colors.text }]}>View All</Text>
           </Pressable>
-          
-          <View style={styles.titleWrapper}>
-            <Text style={[styles.title, { color: colors.text }]} numberOfLines={1}>
-              {selectedCategory.name}
-            </Text>
-            <Text style={[styles.count, { color: colors.mutedForeground }]}>
-              {filteredChannels.length.toLocaleString()} channels
-            </Text>
-          </View>
+
+          <FlatList
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            data={categories}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={styles.tabsScrollContent}
+            renderItem={({ item }) => {
+              const isSelected = selectedCategory?.id === item.id;
+              return (
+                <Pressable
+                  onPress={() => {
+                    setSelectedCategory(item);
+                    setSearch('');
+                  }}
+                  style={[
+                    styles.tabPill,
+                    {
+                      backgroundColor: isSelected ? colors.gold : colors.surface2,
+                      borderColor: isSelected ? colors.gold : colors.border,
+                    }
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.tabPillText,
+                      {
+                        color: isSelected ? '#1A1A1A' : colors.text,
+                        fontWeight: isSelected ? '700' : '500',
+                      }
+                    ]}
+                  >
+                    {item.name}
+                  </Text>
+                </Pressable>
+              );
+            }}
+          />
         </View>
 
         <View style={[styles.searchBar, { backgroundColor: colors.surface2, borderColor: colors.border }]}>
@@ -218,6 +285,41 @@ export default function LiveScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  horizontalTabsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    marginBottom: 10,
+    gap: 8,
+  },
+  viewAllTabBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    borderWidth: 1,
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    height: 36,
+  },
+  viewAllTabBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  tabsScrollContent: {
+    gap: 8,
+    paddingRight: 10,
+  },
+  tabPill: {
+    paddingHorizontal: 16,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tabPillText: {
+    fontSize: 13,
+  },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',

@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Channel, Playlist } from '../types';
-import { MOCK_PLAYLISTS, MOCK_CHANNELS } from '../lib/mock-data';
+import { MOCK_PLAYLISTS, MOCK_CHANNELS, MOCK_MOVIES, MOCK_SERIES } from '../lib/mock-data';
 import { parseM3U } from '../lib/m3u-parser';
 import { base64Decode } from '../lib/base64';
 
@@ -23,6 +23,12 @@ interface AppState {
   activeCategories: PlaylistCategories | null;
   channels: Channel[];
   loadingChannels: boolean;
+
+  searchIndex: Channel[];
+  loadingSearchIndex: boolean;
+  searchIndexProgress: string;
+  loadSearchIndex: (playlistId: string) => Promise<void>;
+  buildSearchIndex: (playlistId: string, onProgress?: (msg: string) => void) => Promise<void>;
   
   addPlaylist: (
     playlist: Playlist, 
@@ -75,6 +81,35 @@ const USER_AGENTS = [
   'TiviMate/4.7.0',
 ];
 
+const fetchWithXHR = (targetUrl: string, acceptHeader?: string): Promise<string> =>
+  new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('GET', targetUrl, true);
+    xhr.timeout = 30000;
+    try {
+      xhr.setRequestHeader('Accept', acceptHeader || 'application/json, application/x-mpegurl, */*');
+    } catch (_) {}
+
+    xhr.onload = () => {
+      const body = xhr.responseText ?? '';
+      if (body.trim().length > 0) {
+        resolve(body);
+      } else {
+        const hint =
+          xhr.status > 599
+            ? `\n\nStatus ${xhr.status} > 599 suggests the port may be wrong or the server is not responding with HTTP.`
+            : '';
+        reject(new Error(`SERVER_EMPTY:${xhr.status}${hint}`));
+      }
+    };
+
+    xhr.onerror = () => reject(new Error('NETWORK_ERROR'));
+    xhr.ontimeout = () => reject(new Error('TIMEOUT'));
+    xhr.onabort = () => reject(new Error('ABORTED'));
+
+    xhr.send();
+  });
+
 export const useAppStore = create<AppState>((set, get) => ({
   isLoggedIn: false,
   user: null,
@@ -95,6 +130,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   activeCategories: null,
   channels: [],
   loadingChannels: false,
+
+  searchIndex: [],
+  loadingSearchIndex: false,
+  searchIndexProgress: '',
 
   addPlaylist: async (playlist, channels, categories) => {
     const newPlaylists = [...get().playlists, playlist];
@@ -159,39 +198,6 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   loadPlaylistFromUrl: async (playlistId, url, onProgress) => {
     onProgress?.('Connecting to server...');
-
-    // fetchWithXHR: wraps XHR in a promise. React Native blocks User-Agent
-    // header overrides, so we only set Accept to keep the request minimal.
-    // Accepts ANY HTTP response that has a non-empty body — IPTV servers
-    // commonly use non-standard status codes. We validate via M3U content.
-    const fetchWithXHR = (targetUrl: string): Promise<string> =>
-      new Promise((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-        xhr.open('GET', targetUrl, true);
-        xhr.timeout = 30000;
-        try { xhr.setRequestHeader('Accept', 'application/x-mpegurl, audio/x-mpegurl, */*'); } catch (_) {}
-
-        xhr.onload = () => {
-          const body = xhr.responseText ?? '';
-          if (body.trim().length > 0) {
-            resolve(body);
-          } else {
-            // Status > 599 usually means the port number leaked into the status field
-            // (happens when an HTTP/1.0 proxy or a non-HTTP server sits on the port).
-            const hint =
-              xhr.status > 599
-                ? `\n\nStatus ${xhr.status} > 599 suggests the port may be wrong or the server is not responding with HTTP.`
-                : '';
-            reject(new Error(`SERVER_EMPTY:${xhr.status}${hint}`));
-          }
-        };
-
-        xhr.onerror = () => reject(new Error('NETWORK_ERROR'));
-        xhr.ontimeout = () => reject(new Error('TIMEOUT'));
-        xhr.onabort = () => reject(new Error('ABORTED'));
-
-        xhr.send();
-      });
 
     // Build the list of URLs to try for this playlist load.
     // For Xtream Codes the url was already built by playlists.tsx as the
@@ -694,6 +700,261 @@ export const useAppStore = create<AppState>((set, get) => ({
       if (itemsStr) set({ favoriteItems: JSON.parse(itemsStr) ?? [] });
     } catch (e) {
       console.error('Failed to load store', e);
+    }
+  },
+
+  loadSearchIndex: async (playlistId) => {
+    if (!playlistId) {
+      set({ searchIndex: [] });
+      return;
+    }
+    try {
+      const cached = await AsyncStorage.getItem(`search_index_${playlistId}`);
+      if (cached) {
+        set({ searchIndex: JSON.parse(cached) });
+      } else {
+        set({ searchIndex: [] });
+      }
+    } catch (e) {
+      console.error('Failed to load search index', e);
+      set({ searchIndex: [] });
+    }
+  },
+
+  buildSearchIndex: async (playlistId, onProgress) => {
+    if (!playlistId) return;
+    set({ loadingSearchIndex: true, searchIndexProgress: 'Initializing sync...' });
+    onProgress?.('Initializing sync...');
+    
+    try {
+      // Mock data handling
+      if (playlistId === 'p1' || playlistId === 'p2' || playlistId === 'p3') {
+        const mockMoviesMapped: Channel[] = MOCK_MOVIES.map(m => ({
+          id: m.id,
+          name: m.title,
+          logo: m.poster,
+          category: m.genres[0] || 'Movie',
+          streamUrl: m.streamUrl,
+          quality: m.quality || 'HD',
+          isLive: false,
+          type: 'vod',
+          current: '',
+          next: ''
+        }));
+        
+        const mockSeriesMapped: Channel[] = MOCK_SERIES.map(s => ({
+          id: s.id,
+          name: s.title,
+          logo: s.poster,
+          category: s.genres[0] || 'Series',
+          streamUrl: s.episodes[0]?.streamUrl || 'https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8',
+          quality: 'FHD',
+          isLive: false,
+          type: 'series',
+          current: '',
+          next: ''
+        }));
+
+        const items = [...MOCK_CHANNELS, ...mockMoviesMapped, ...mockSeriesMapped];
+        set({ searchIndex: items, loadingSearchIndex: false, searchIndexProgress: '' });
+        await AsyncStorage.setItem(`search_index_${playlistId}`, JSON.stringify(items));
+        onProgress?.('Sync complete!');
+        return;
+      }
+
+      // Check if it is a real Xtream or M3U playlist
+      const p = get().playlists.find(x => x.id === playlistId);
+      if (!p) {
+        set({ loadingSearchIndex: false, searchIndexProgress: '' });
+        return;
+      }
+
+      const isXtream = p.url.startsWith('xtream://') || p.url.includes('/get.php?');
+      if (isXtream) {
+        // Build search index for Xtream Codes
+        let config: any = null;
+        if (p.url.startsWith('xtream://')) {
+          config = JSON.parse(base64Decode(p.url.replace('xtream://', '')));
+        } else {
+          const match = p.url.match(/^(https?:\/\/[^/]+)\/get\.php\?username=([^&]+)&password=([^&]+)/);
+          if (match) {
+            config = { host: match[1], username: match[2], password: match[3] };
+          }
+        }
+
+        if (!config) {
+          throw new Error('Invalid playlist config.');
+        }
+
+        // Fetch Live, VOD and Series list
+        const liveUrl = `${config.host}/player_api.php?username=${config.username}&password=${config.password}&action=get_live_streams`;
+        const vodUrl = `${config.host}/player_api.php?username=${config.username}&password=${config.password}&action=get_vod_streams`;
+        const seriesUrl = `${config.host}/player_api.php?username=${config.username}&password=${config.password}&action=get_series`;
+
+        // Map categories lookup table
+        const catLookup: Record<string, string> = {};
+        const cats = get().activeCategories;
+        if (cats) {
+          const types: ('live' | 'vod' | 'series')[] = ['live', 'vod', 'series'];
+          for (const t of types) {
+            for (const c of cats[t] || []) {
+              catLookup[`${t}_${c.id}`] = c.name;
+            }
+          }
+        }
+
+        const items: Channel[] = [];
+
+        onProgress?.('Fetching Live Streams list...');
+        set({ searchIndexProgress: 'Fetching Live TV...' });
+        
+        // Helper function for Xtream JSON fetching with proxies
+        const fetchJsonWithProxyFallback = async (endpoint: string): Promise<any> => {
+          const urls = [
+            endpoint,
+            `https://corsproxy.io/?url=${encodeURIComponent(endpoint)}`,
+            `https://api.allorigins.win/raw?url=${encodeURIComponent(endpoint)}`
+          ];
+          for (const u of urls) {
+            try {
+              const resText = await fetchWithXHR(u);
+              const parsed = JSON.parse(resText);
+              if (Array.isArray(parsed)) return parsed;
+            } catch (_) {}
+          }
+          return [];
+        };
+
+        const liveList = await fetchJsonWithProxyFallback(liveUrl);
+        if (Array.isArray(liveList)) {
+          for (const item of liveList) {
+            if (!item || !item.name || !item.stream_id) continue;
+            let quality: '4K' | 'FHD' | 'HD' = 'HD';
+            const nameUpper = item.name.toUpperCase();
+            if (nameUpper.includes('4K') || nameUpper.includes('UHD')) quality = '4K';
+            else if (nameUpper.includes('FHD') || nameUpper.includes('1080')) quality = 'FHD';
+            
+            const hasArchive = item.tv_archive === 1 || item.tv_archive === '1';
+            const archiveDuration = parseInt(item.tv_archive_duration, 10) || 0;
+
+            items.push({
+              id: `xt_live_${item.stream_id}`,
+              name: item.name,
+              logo: item.stream_icon || '',
+              category: catLookup[`live_${item.category_id}`] || 'Live TV',
+              streamUrl: `${config.host}/live/${config.username}/${config.password}/${item.stream_id}.m3u8`,
+              quality,
+              isLive: true,
+              type: 'live',
+              hasArchive,
+              archiveDuration,
+              current: '',
+              next: ''
+            });
+          }
+        }
+
+        onProgress?.('Fetching Movies list...');
+        set({ searchIndexProgress: 'Fetching Movies...' });
+        const vodList = await fetchJsonWithProxyFallback(vodUrl);
+        if (Array.isArray(vodList)) {
+          for (const item of vodList) {
+            if (!item || !item.name || !item.stream_id) continue;
+            let quality: '4K' | 'FHD' | 'HD' = 'HD';
+            const nameUpper = item.name.toUpperCase();
+            if (nameUpper.includes('4K') || nameUpper.includes('UHD')) quality = '4K';
+            else if (nameUpper.includes('FHD') || nameUpper.includes('1080')) quality = 'FHD';
+
+            const ext = item.container_extension || 'mp4';
+            items.push({
+              id: `xt_vod_${item.stream_id}`,
+              name: item.name,
+              logo: item.stream_icon || '',
+              category: catLookup[`vod_${item.category_id}`] || 'Movie VOD',
+              streamUrl: `${config.host}/movie/${config.username}/${config.password}/${item.stream_id}.${ext}`,
+              quality,
+              isLive: false,
+              type: 'vod',
+              current: '',
+              next: ''
+            });
+          }
+        }
+
+        onProgress?.('Fetching TV Series list...');
+        set({ searchIndexProgress: 'Fetching TV Series...' });
+        const seriesList = await fetchJsonWithProxyFallback(seriesUrl);
+        if (Array.isArray(seriesList)) {
+          for (const item of seriesList) {
+            if (!item || !item.name || !item.series_id) continue;
+            items.push({
+              id: `xt_series_${item.series_id}`,
+              name: item.name,
+              logo: item.cover || '',
+              category: catLookup[`series_${item.category_id}`] || 'TV Series',
+              streamUrl: `${config.host}/series/${config.username}/${config.password}/${item.series_id}.m3u8`,
+              quality: 'FHD',
+              isLive: false,
+              type: 'series',
+              current: '',
+              next: ''
+            });
+          }
+        }
+
+        onProgress?.('Saving search index...');
+        set({ searchIndexProgress: 'Saving index...' });
+        set({ searchIndex: items });
+        await AsyncStorage.setItem(`search_index_${playlistId}`, JSON.stringify(items));
+        onProgress?.('Sync complete!');
+
+      } else {
+        // Build search index for M3U playlist from AsyncStorage cache files
+        onProgress?.('Building index from local cache...');
+        set({ searchIndexProgress: 'Reading local cache...' });
+        const cats = get().activeCategories;
+        const items: Channel[] = [];
+        if (cats) {
+          const types: ('live' | 'vod' | 'series')[] = ['live', 'vod', 'series'];
+          for (const type of types) {
+            const typeCats = cats[type] || [];
+            for (const cat of typeCats) {
+              try {
+                const cached = await AsyncStorage.getItem(`channels_${playlistId}_${type}_${cat.id}`);
+                if (cached) {
+                  const parsed = JSON.parse(cached) as Channel[];
+                  if (Array.isArray(parsed)) {
+                    for (const ch of parsed) {
+                      if (!ch) continue;
+                      items.push({
+                        id: ch.id,
+                        name: ch.name,
+                        logo: ch.logo,
+                        category: ch.category,
+                        streamUrl: ch.streamUrl,
+                        quality: ch.quality || 'HD',
+                        isLive: ch.isLive,
+                        type: ch.type,
+                        current: ch.current || '',
+                        next: ch.next || ''
+                      });
+                    }
+                  }
+                }
+              } catch (_) {}
+            }
+          }
+        }
+        set({ searchIndex: items });
+        await AsyncStorage.setItem(`search_index_${playlistId}`, JSON.stringify(items));
+        onProgress?.('Sync complete!');
+      }
+
+    } catch (e) {
+      console.error('Failed building search index', e);
+      onProgress?.('Failed to build search index.');
+    } finally {
+      set({ loadingSearchIndex: false, searchIndexProgress: '' });
     }
   },
 }));

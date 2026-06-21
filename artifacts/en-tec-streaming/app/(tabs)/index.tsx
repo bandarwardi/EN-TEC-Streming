@@ -133,7 +133,7 @@ export default function HomeScreen() {
         <View style={[styles.header, { top: insets.top }]}>
           <Text style={[styles.logoText, { color: colors.gold }]}>EN TEC</Text>
           <View style={styles.headerRight}>
-            <Pressable style={styles.iconButton} onPress={() => router.push('/(tabs)/live')}>
+            <Pressable style={styles.iconButton} onPress={() => router.push('/search')}>
               <Feather name="search" size={20} color={colors.foreground} />
             </Pressable>
             <Pressable style={styles.iconButton} onPress={() => router.push('/favorites')}>

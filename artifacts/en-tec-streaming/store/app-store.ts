@@ -137,10 +137,19 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   addPlaylist: async (playlist, channels, categories) => {
     const newPlaylists = [...get().playlists, playlist];
-    set({ playlists: newPlaylists, activePlaylistId: playlist.id });
+    set({ playlists: newPlaylists, activePlaylistId: playlist.id, channels: [] });
     if (categories) {
       set({ activeCategories: categories });
       await AsyncStorage.setItem(`categories_${playlist.id}`, JSON.stringify(categories));
+    } else {
+      try {
+        const cachedCats = await AsyncStorage.getItem(`categories_${playlist.id}`);
+        if (cachedCats) {
+          set({ activeCategories: JSON.parse(cachedCats) });
+        }
+      } catch (e) {
+        console.warn('Failed to load categories in addPlaylist:', e);
+      }
     }
     if (channels) {
       set((s) => ({ playlistChannels: { ...s.playlistChannels, [playlist.id]: channels } }));
@@ -148,6 +157,11 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
     await AsyncStorage.setItem('playlists', JSON.stringify(newPlaylists));
     await AsyncStorage.setItem('activePlaylistId', playlist.id);
+
+    // Build the search index automatically in the background
+    get().buildSearchIndex(playlist.id).catch((err) => {
+      console.error('[addPlaylist] Auto-building search index failed:', err);
+    });
   },
 
   deletePlaylist: async (id) => {
@@ -187,6 +201,18 @@ export const useAppStore = create<AppState>((set, get) => ({
       } catch (e) {
         set({ activeCategories: null });
       }
+    }
+
+    // Auto-load search index and build it in the background if it doesn't exist
+    try {
+      await get().loadSearchIndex(id);
+      if (get().searchIndex.length === 0) {
+        get().buildSearchIndex(id).catch((err) => {
+          console.error('[setActivePlaylist] Auto-building search index failed:', err);
+        });
+      }
+    } catch (err) {
+      console.error('[setActivePlaylist] Failed loading/building search index:', err);
     }
   },
 
@@ -680,18 +706,33 @@ export const useAppStore = create<AppState>((set, get) => ({
       }
 
       const activeId = await AsyncStorage.getItem('activePlaylistId');
+      let finalActiveId = '';
       if (activeId && loadedPlaylists.some(p => p.id === activeId)) {
+        finalActiveId = activeId;
         set({ activePlaylistId: activeId });
         const cachedCats = await AsyncStorage.getItem(`categories_${activeId}`);
         if (cachedCats) set({ activeCategories: JSON.parse(cachedCats) });
       } else if (loadedPlaylists.length > 0) {
         const fallbackId = loadedPlaylists[0].id;
+        finalActiveId = fallbackId;
         set({ activePlaylistId: fallbackId });
         await AsyncStorage.setItem('activePlaylistId', fallbackId);
         const cachedCats = await AsyncStorage.getItem(`categories_${fallbackId}`);
         if (cachedCats) set({ activeCategories: JSON.parse(cachedCats) });
       } else {
         set({ activePlaylistId: '', activeCategories: null });
+      }
+
+      // Auto-load search index for active playlist on start
+      if (finalActiveId) {
+        try {
+          await get().loadSearchIndex(finalActiveId);
+          if (get().searchIndex.length === 0) {
+            get().buildSearchIndex(finalActiveId).catch(() => {});
+          }
+        } catch (err) {
+          console.error('[initializeFromStorage] Failed loading search index:', err);
+        }
       }
 
       const favsStr = await AsyncStorage.getItem('favorites');

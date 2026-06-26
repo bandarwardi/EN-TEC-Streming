@@ -3,7 +3,7 @@
     "name": "EN TEC Streaming",
     "slug": "en-tec-streaming",
     "version": "1.0.0",
-    "orientation": "portrait",
+    "orientation": "default",
     "icon": "./assets/images/icon.png",
     "scheme": "en-tec-streaming",
     "userInterfaceStyle": "automatic",
@@ -14,7 +14,12 @@
       "backgroundColor": "#0A0A0A"
     },
     "ios": {
-      "supportsTablet": false
+      "supportsTablet": false,
+      "infoPlist": {
+        "UIBackgroundModes": [
+          "audio"
+        ]
+      }
     },
     "android": {
       "package": "com.entec.streaming",
@@ -31,7 +36,13 @@
         }
       ],
       "expo-font",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-video",
+        {
+          "supportsPictureInPicture": true
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

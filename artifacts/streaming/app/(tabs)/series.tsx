@@ -4,7 +4,7 @@ import { useColors } from '@/hooks/useColors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { MovieCard } from '@/components/MovieCard';
-import { router, useNavigation } from 'expo-router';
+import { router, useNavigation, useLocalSearchParams } from 'expo-router';
 import { useAppStore } from '@/store/app-store';
 import { Channel } from '@/types';
 
@@ -12,8 +12,11 @@ export default function SeriesScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
-  const { width } = useWindowDimensions();
-  const isLargeScreen = width >= 768 || Platform.isTV;
+  const { width, height } = useWindowDimensions();
+  const isLandscape = width > height;
+  const isLargeScreen = width >= 1024 || Platform.isTV;
+  const numColumns = isLargeScreen ? Math.max(4, Math.floor((width - 250) / 160)) : 3;
+  const mobileNumColumns = Math.max(2, Math.floor((width - 40) / 130));
 
   const activePlaylistId = useAppStore((s) => s.activePlaylistId);
   const activeCategories = useAppStore((s) => s.activeCategories);
@@ -59,16 +62,27 @@ export default function SeriesScreen() {
     }
   }, [selectedCategory, loadCategory]);
 
+  const { categoryId } = useLocalSearchParams<{ categoryId?: string }>();
+
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
+      if (categoryId && categories.length > 0) {
+        const targetCat = categories.find(c => c.id === categoryId);
+        if (targetCat) {
+          setSelectedCategory(targetCat);
+          hasDefaulted.current = true;
+          router.setParams({ categoryId: '' });
+          return;
+        }
+      }
+
       hasDefaulted.current = false;
-      if (categories.length > 0) {
+      if (categories.length > 0 && !selectedCategory) {
         setSelectedCategory(categories[0]);
-        hasDefaulted.current = true;
       }
     });
     return unsubscribe;
-  }, [navigation, categories]);
+  }, [navigation, categories, categoryId, selectedCategory]);
 
   useEffect(() => {
     if (categories.length > 0 && !hasDefaulted.current) {
@@ -101,13 +115,13 @@ export default function SeriesScreen() {
               return (
                 <Pressable
                   onPress={() => setSelectedCategory(item)}
-                  style={({ focused }) => [
+                  style={({ focused }: any) => [
                     styles.tvCategoryItem,
                     isSelected && { backgroundColor: 'rgba(212,168,67,0.15)', borderLeftWidth: 3, borderLeftColor: colors.gold },
                     focused && { backgroundColor: colors.gold, transform: [{ scale: 1.02 }] }
                   ]}
                 >
-                  {({ focused }) => (
+                  {({ focused }: any) => (
                     <Text style={[
                       styles.tvCategoryText, 
                       { color: focused ? '#000' : (isSelected ? colors.gold : colors.text), fontWeight: isSelected ? 'bold' : '500' }
@@ -125,13 +139,13 @@ export default function SeriesScreen() {
         <View style={styles.tvPaneContent}>
           <View style={styles.tvTopBar}>
             <Pressable
-              style={({ focused }) => [
+              style={({ focused }: any) => [
                 styles.tvSearchBar,
                 { backgroundColor: focused ? colors.gold : colors.surface2, borderColor: focused ? colors.gold : colors.border }
               ]}
               onPress={() => router.push('/search')}
             >
-              {({ focused }) => (
+              {({ focused }: any) => (
                 <>
                   <Feather name="search" size={18} color={focused ? '#000' : colors.mutedForeground} />
                   <Text style={[styles.tvSearchText, { color: focused ? '#000' : colors.mutedForeground }]}>
@@ -157,12 +171,12 @@ export default function SeriesScreen() {
             </View>
           ) : (
             <FlatList
-              key="tv_series_grid"
+              key={`tv_series_grid_${numColumns}`}
               data={localSeries}
               keyExtractor={(item) => item.id}
-              numColumns={4}
+              numColumns={numColumns}
               renderItem={({ item }) => (
-                <View style={styles.tvGridItem}>
+                <View style={[styles.tvGridItem, { width: `${100 / numColumns}%`, maxWidth: `${100 / numColumns}%` }]}>
                   <MovieCard
                     movie={item}
                     width={'100%' as any}
@@ -195,16 +209,18 @@ export default function SeriesScreen() {
   if (selectedCategory) {
     return (
       <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
-        <View style={styles.header}>
-          <Text style={[styles.title, { color: colors.text }]} numberOfLines={1}>
-            {selectedCategory.name}
-          </Text>
-          <Text style={[styles.count, { color: colors.mutedForeground }]}>
-            {localSeries.length.toLocaleString()} titles
-          </Text>
-        </View>
+        {!isLandscape && (
+          <View style={styles.header}>
+            <Text style={[styles.title, { color: colors.text }]} numberOfLines={1}>
+              {selectedCategory.name}
+            </Text>
+            <Text style={[styles.count, { color: colors.mutedForeground }]}>
+              {localSeries.length.toLocaleString()} titles
+            </Text>
+          </View>
+        )}
 
-        <View style={styles.horizontalTabsContainer}>
+        <View style={[styles.horizontalTabsContainer, { marginBottom: 12 }, isLandscape && { marginBottom: 8 }]}>
           <FlatList
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -237,25 +253,19 @@ export default function SeriesScreen() {
               );
             }}
           />
-
-          <Pressable
-            onPress={() => setSelectedCategory(null)}
-            style={[styles.viewAllTabBtn, { backgroundColor: colors.surface2, borderColor: colors.border }]}
-          >
-            <Feather name="grid" size={14} color={colors.gold} />
-            <Text style={[styles.viewAllTabBtnText, { color: colors.text }]}>View All</Text>
-          </Pressable>
         </View>
 
-        <Pressable
-          style={[styles.searchBar, { backgroundColor: colors.surface2, borderColor: colors.border }]}
-          onPress={() => router.push('/search')}
-        >
-          <Feather name="search" size={16} color={colors.mutedForeground} />
-          <Text style={[styles.searchInput, { color: colors.mutedForeground }]}>
-            Search series, categories...
-          </Text>
-        </Pressable>
+        {!isLandscape && (
+          <Pressable
+            style={[styles.searchBar, { backgroundColor: colors.surface2, borderColor: colors.border }]}
+            onPress={() => router.push('/search')}
+          >
+            <Feather name="search" size={16} color={colors.mutedForeground} />
+            <Text style={[styles.searchInput, { color: colors.mutedForeground }]}>
+              Search series, categories...
+            </Text>
+          </Pressable>
+        )}
 
         {loading ? (
           <View style={styles.centerAll}>
@@ -268,12 +278,12 @@ export default function SeriesScreen() {
           </View>
         ) : (
           <FlatList
-            key="series_grid"
+            key={`series_grid_${mobileNumColumns}`}
             data={localSeries}
             keyExtractor={(item) => item.id}
-            numColumns={3}
+            numColumns={mobileNumColumns}
             renderItem={({ item }) => (
-              <View style={styles.gridItem}>
+              <View style={[styles.gridItem, { width: `${100 / mobileNumColumns}%`, maxWidth: `${100 / mobileNumColumns}%` }]}>
                 <MovieCard
                   movie={item}
                   width={'100%' as any}
@@ -294,9 +304,17 @@ export default function SeriesScreen() {
                 />
               </View>
             )}
-            contentContainerStyle={[styles.gridContent, { paddingBottom: insets.bottom + 80 }]}
+            contentContainerStyle={[styles.gridContent, { paddingBottom: insets.bottom + 120 }]}
           />
         )}
+
+        <Pressable
+          onPress={() => setSelectedCategory(null)}
+          style={[styles.floatingViewAllBtn, { backgroundColor: colors.surface, borderColor: colors.border, bottom: insets.bottom + 90 }]}
+        >
+          <Feather name="grid" size={18} color={colors.gold} />
+          <Text style={[styles.floatingViewAllText, { color: colors.text }]}>View All Categories</Text>
+        </Pressable>
       </View>
     );
   }
@@ -360,7 +378,7 @@ const styles = StyleSheet.create({
   
   // TV Styles
   tvContainer: { flex: 1, flexDirection: 'row' },
-  tvPaneCategories: { width: 280, borderRightWidth: 1 },
+  tvPaneCategories: { width: '25%', maxWidth: 280, borderRightWidth: 1 },
   tvPaneContent: { flex: 1 },
   tvHeader: { padding: 24, paddingBottom: 16 },
   tvTitle: { fontSize: 24, fontWeight: 'bold' },
@@ -369,13 +387,13 @@ const styles = StyleSheet.create({
   tvTopBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, paddingTop: 24, paddingBottom: 8 },
   tvSearchBar: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, height: 48, borderRadius: 24, borderWidth: 1, width: 300 },
   tvSearchText: { fontSize: 15 },
-  tvGridItem: { flex: 1, padding: 12, maxWidth: '25%' },
+  tvGridItem: { padding: 12 },
 
   // Mobile Styles
-  horizontalTabsContainer: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, marginBottom: 10, gap: 8 },
-  viewAllTabBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, borderWidth: 1, borderRadius: 20, paddingHorizontal: 12, height: 36 },
-  viewAllTabBtnText: { fontSize: 12, fontWeight: '700' },
-  tabsScrollContent: { gap: 8, paddingRight: 10 },
+  horizontalTabsContainer: { flexDirection: 'row', gap: 8, paddingHorizontal: 20 },
+  floatingViewAllBtn: { position: 'absolute', alignSelf: 'center', flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderRadius: 30, paddingHorizontal: 20, height: 48, shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.3, shadowRadius: 6, elevation: 5 },
+  floatingViewAllText: { fontSize: 14, fontWeight: 'bold' },
+  tabsScrollContent: { gap: 8, paddingRight: 40 },
   tabPill: { paddingHorizontal: 16, height: 36, borderRadius: 18, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   tabPillText: { fontSize: 13 },
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 16, paddingBottom: 8, gap: 12 },

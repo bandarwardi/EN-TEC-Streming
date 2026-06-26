@@ -46,6 +46,9 @@ export default function PlayerScreen() {
     quality: string;
     logo?: string;
     category?: string;
+    poster?: string;
+    backdrop?: string;
+    description?: string;
   }>();
 
   const streamUrl = params.streamUrl ?? '';
@@ -67,12 +70,17 @@ export default function PlayerScreen() {
   const [errorToastVisible, setErrorToastVisible] = useState(false);
   const errorToastOpacity = useRef(new Animated.Value(0)).current;
   const errorToastY = useRef(new Animated.Value(-80)).current;
+  const videoViewRef = useRef<any>(null);
 
   const favoriteItems = useAppStore((s) => s.favoriteItems) || [];
   const toggleFavorite = useAppStore((s) => s.toggleFavorite);
   const playbackQueue = useAppStore((s) => s.playbackQueue) || [];
   const playbackIndex = useAppStore((s) => s.playbackIndex);
   const setPlaybackIndex = useAppStore((s) => s.setPlaybackIndex);
+
+  const continueWatching = useAppStore((s) => s.continueWatching) || [];
+  const updateContinueWatching = useAppStore((s) => s.updateContinueWatching);
+  const removeFromContinueWatching = useAppStore((s) => s.removeFromContinueWatching);
 
   const matchedFavoriteItem = favoriteItems.find(
     (item) => item.streamUrl === streamUrl || (params.id && item.id === params.id)
@@ -104,17 +112,27 @@ export default function PlayerScreen() {
   const seekStartX = useRef(0);
   const controlsOpacity = useRef(new Animated.Value(1)).current;
 
+  const matchedWatched = continueWatching.find(item => item.streamUrl === streamUrl || (params.id && item.id === params.id));
+
   const player = useVideoPlayer(streamUrl || null, (p) => {
     p.volume = 1;
+    if (matchedWatched && matchedWatched.progress > 10 && matchedWatched.duration > 0 && matchedWatched.progress < matchedWatched.duration - 30) {
+      p.currentTime = matchedWatched.progress;
+    }
     p.play();
   });
+
+  const progressRef = useRef({ time: 0, duration: 0 });
 
   useEffect(() => {
     if (!player) return;
     const interval = setInterval(() => {
       try {
-        setCurrentTime(player.currentTime ?? 0);
-        setDuration(player.duration ?? 0);
+        const time = player.currentTime ?? 0;
+        const dur = player.duration ?? 0;
+        setCurrentTime(time);
+        setDuration(dur);
+        progressRef.current = { time, duration: dur };
         setIsPlaying(player.playing ?? false);
         if (player.status === 'error') setHasError(true);
         if (player.status === 'readyToPlay') setIsBuffering(false);
@@ -123,6 +141,32 @@ export default function PlayerScreen() {
     }, 500);
     return () => clearInterval(interval);
   }, [player]);
+
+  useEffect(() => {
+    return () => {
+      const p = progressRef.current;
+      if (!isLive && p.duration > 0) {
+        if (p.time > p.duration - 30) {
+          removeFromContinueWatching(params.id || streamUrl);
+        } else if (p.time > 10) {
+          updateContinueWatching({
+            id: params.id || streamUrl,
+            type: 'vod',
+            title,
+            poster: params.poster || params.logo || '',
+            backdrop: params.backdrop || '',
+            streamUrl,
+            progress: p.time,
+            duration: p.duration,
+            timestamp: Date.now(),
+            quality: params.quality,
+            description: params.description,
+            category: params.category
+          });
+        }
+      }
+    };
+  }, []);
 
   const scheduleHide = useCallback(() => {
     if (hideTimer.current) clearTimeout(hideTimer.current);
@@ -337,6 +381,16 @@ export default function PlayerScreen() {
     Linking.openURL(streamUrl).catch(() => {});
   };
 
+  const handlePiP = () => {
+    if (videoViewRef.current) {
+      try {
+        videoViewRef.current.startPictureInPicture();
+      } catch (e) {
+        console.warn('PiP not supported or failed', e);
+      }
+    }
+  };
+
   const progress = duration > 0 ? (seeking ? seekPreview : currentTime / duration) : 0;
 
   if (!streamUrl) {
@@ -360,10 +414,13 @@ export default function PlayerScreen() {
       <View style={StyleSheet.absoluteFill} pointerEvents="none">
         {player && (
           <VideoView
+            ref={videoViewRef}
             player={player}
             style={StyleSheet.absoluteFill}
             nativeControls={false}
             contentFit="contain"
+            allowsPictureInPicture={true}
+            startsPictureInPictureAutomatically={true}
           />
         )}
       </View>
@@ -403,12 +460,12 @@ export default function PlayerScreen() {
           >
             <Pressable 
               onPress={() => router.back()} 
-              style={({ focused }) => [
+              style={({ focused }: any) => [
                 styles.iconBtn,
                 focused && { transform: [{ scale: 1.1 }], backgroundColor: colors.gold }
               ]}
             >
-              {({ focused }) => (
+              {({ focused }: any) => (
                 <Feather name="arrow-left" size={22} color={focused ? "#0A0A0A" : "#FFF"} />
               )}
             </Pressable>
@@ -422,24 +479,35 @@ export default function PlayerScreen() {
 
             <View style={styles.topActions} pointerEvents="box-none">
               <Pressable 
-                style={({ focused }) => [
+                style={({ focused }: any) => [
+                  styles.iconBtn,
+                  focused && { transform: [{ scale: 1.1 }], backgroundColor: colors.gold }
+                ]} 
+                onPress={handlePiP}
+              >
+                {({ focused }: any) => (
+                  <Feather name="minimize" size={20} color={focused ? "#0A0A0A" : "#FFF"} />
+                )}
+              </Pressable>
+              <Pressable 
+                style={({ focused }: any) => [
                   styles.iconBtn,
                   focused && { transform: [{ scale: 1.1 }], backgroundColor: colors.gold }
                 ]} 
                 onPress={toggleMute}
               >
-                {({ focused }) => (
+                {({ focused }: any) => (
                   <Feather name={isMuted ? 'volume-x' : 'volume-2'} size={20} color={focused ? "#0A0A0A" : "#FFF"} />
                 )}
               </Pressable>
               <Pressable 
-                style={({ focused }) => [
+                style={({ focused }: any) => [
                   styles.iconBtn,
                   focused && { transform: [{ scale: 1.1 }], backgroundColor: colors.gold }
                 ]} 
                 onPress={handleToggleFavorite}
               >
-                {({ focused }) => (
+                {({ focused }: any) => (
                   <Feather
                     name="heart"
                     size={20}
@@ -455,7 +523,7 @@ export default function PlayerScreen() {
           <View style={styles.centerRow} pointerEvents="box-none">
             {isLive ? (
               <Pressable
-                style={({ focused }) => [
+                style={({ focused }: any) => [
                   styles.centerBtn, 
                   playbackQueue.length <= 1 && { opacity: 0.3 },
                   focused && { transform: [{ scale: 1.1 }] }
@@ -463,7 +531,7 @@ export default function PlayerScreen() {
                 onPress={handlePrevChannel}
                 disabled={playbackQueue.length <= 1}
               >
-                {({ focused }) => (
+                {({ focused }: any) => (
                   <>
                     <Ionicons name="play-skip-back" size={32} color={focused ? colors.gold : "#FFF"} />
                     <Text style={[styles.seekLabel, focused && { color: colors.gold }]}>Prev Channel</Text>
@@ -472,13 +540,14 @@ export default function PlayerScreen() {
               </Pressable>
             ) : (
               <Pressable 
-                style={({ focused }) => [
+                style={({ focused }: any) => [
                   styles.centerBtn,
                   focused && { transform: [{ scale: 1.1 }] }
                 ]} 
                 onPress={() => handleSeekBy(-10)}
+                focusable={true}
               >
-                {({ focused }) => (
+                {({ focused }: any) => (
                   <>
                     <Ionicons name="play-back" size={32} color={focused ? colors.gold : "#FFF"} />
                     <Text style={[styles.seekLabel, focused && { color: colors.gold }]}>10</Text>
@@ -488,28 +557,31 @@ export default function PlayerScreen() {
             )}
 
             <Pressable 
-              style={({ focused }) => [
+              style={({ focused }: any) => [
                 styles.playBtn,
-                focused && { transform: [{ scale: 1.1 }], backgroundColor: colors.gold }
+                focused && { transform: [{ scale: 1.1 }], shadowColor: colors.gold, shadowOpacity: 0.8, shadowRadius: 10 }
               ]} 
               onPress={togglePlay}
+              focusable={true}
+              hasTVPreferredFocus={true}
             >
-              {({ focused }) => (
+              {({ focused }: any) => (
                 <Feather name={isPlaying ? 'pause' : 'play'} size={38} color={focused ? "#0A0A0A" : "#FFF"} />
               )}
             </Pressable>
 
             {isLive ? (
               <Pressable
-                style={({ focused }) => [
+                style={({ focused }: any) => [
                   styles.centerBtn, 
                   playbackQueue.length <= 1 && { opacity: 0.3 },
                   focused && { transform: [{ scale: 1.1 }] }
                 ]}
                 onPress={handleNextChannel}
                 disabled={playbackQueue.length <= 1}
+                focusable={true}
               >
-                {({ focused }) => (
+                {({ focused }: any) => (
                   <>
                     <Ionicons name="play-skip-forward" size={32} color={focused ? colors.gold : "#FFF"} />
                     <Text style={[styles.seekLabel, focused && { color: colors.gold }]}>Next Channel</Text>
@@ -518,13 +590,14 @@ export default function PlayerScreen() {
               </Pressable>
             ) : (
               <Pressable 
-                style={({ focused }) => [
+                style={({ focused }: any) => [
                   styles.centerBtn,
                   focused && { transform: [{ scale: 1.1 }] }
                 ]} 
                 onPress={() => handleSeekBy(10)}
+                focusable={true}
               >
-                {({ focused }) => (
+                {({ focused }: any) => (
                   <>
                     <Ionicons name="play-forward" size={32} color={focused ? colors.gold : "#FFF"} />
                     <Text style={[styles.seekLabel, focused && { color: colors.gold }]}>10</Text>
@@ -621,8 +694,8 @@ export default function PlayerScreen() {
             <Feather name="wifi-off" size={20} color="#FFF" />
           </View>
           <View style={styles.errorToastTextBlock}>
-            <Text style={styles.errorToastTitle}>المحتوى غير متوفر</Text>
-            <Text style={styles.errorToastSub}>جارٍ العودة تلقائياً...</Text>
+            <Text style={styles.errorToastTitle}>Content Unavailable</Text>
+            <Text style={styles.errorToastSub}>Returning automatically...</Text>
           </View>
         </Animated.View>
       )}

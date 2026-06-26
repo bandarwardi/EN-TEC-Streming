@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet, Pressable, Platform, useWindowDimensions } from 'react-native';
+import { View, StyleSheet, Pressable, Platform, useWindowDimensions, ScrollView } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useRouter, usePathname } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
@@ -25,7 +25,7 @@ export function TVSidebar() {
   
   // The sidebar is only active on large screens or TV
   const { width } = useWindowDimensions();
-  const isLargeScreen = width >= 768 || Platform.isTV;
+  const isLargeScreen = width >= 1024 || Platform.isTV;
 
   if (!isLargeScreen) return null;
 
@@ -38,36 +38,40 @@ export function TVSidebar() {
         paddingBottom: insets.bottom > 0 ? insets.bottom : 24 
       }
     ]}>
-      {TABS.map((tab) => {
-        const isActive = pathname === tab.path || (pathname.startsWith(tab.path) && tab.path !== '/');
-        // Handle root matching correctly since all paths start with /
-        const isReallyActive = tab.path === '/' ? pathname === '/' : isActive;
+      <ScrollView contentContainerStyle={{ alignItems: 'center', paddingVertical: 16 }} showsVerticalScrollIndicator={false}>
+        {TABS.map((tab) => {
+          const isActive = pathname === tab.path || (pathname.startsWith(tab.path) && tab.path !== '/');
+          // Handle root matching correctly since all paths start with /
+          const isReallyActive = tab.path === '/' ? pathname === '/' : isActive;
 
-        return (
-          <Pressable
-            key={tab.name}
-            onPress={() => router.push(tab.path as any)}
-            style={({ focused }) => [
-              styles.iconBtn,
-              isReallyActive && { backgroundColor: 'rgba(212,168,67,0.15)' },
-              focused && { transform: [{ scale: 1.15 }], backgroundColor: colors.gold, borderColor: colors.gold, borderWidth: 2 }
-            ]}
-          >
-            {({ focused }) => {
-              const tint = focused ? '#0A0A0A' : (isReallyActive ? colors.gold : colors.mutedForeground);
-              return isIOS ? (
-                <SymbolView name={tab.iosIcon as any} tintColor={tint} size={24} />
-              ) : (
-                <Feather 
-                  name={tab.icon as any} 
-                  size={24} 
-                  color={tint} 
-                />
-              );
-            }}
-          </Pressable>
-        );
-      })}
+          return (
+            <Pressable
+              key={tab.name}
+              onPress={() => router.push(tab.path as any)}
+              style={({ focused }: any) => [
+                styles.iconBtn,
+                { marginBottom: 16 },
+                isReallyActive && { backgroundColor: 'rgba(212,168,67,0.15)' },
+                focused && { transform: [{ scale: 1.15 }], backgroundColor: colors.gold, borderColor: colors.gold, borderWidth: 2 }
+              ]}
+              focusable={true}
+            >
+              {({ focused }: any) => {
+                const tint = focused ? '#0A0A0A' : (isReallyActive ? colors.gold : colors.mutedForeground);
+                return isIOS ? (
+                  <SymbolView name={tab.iosIcon as any} tintColor={tint} size={24} />
+                ) : (
+                  <Feather 
+                    name={tab.icon as any} 
+                    size={24} 
+                    color={tint} 
+                  />
+                );
+              }}
+            </Pressable>
+          );
+        })}
+      </ScrollView>
     </View>
   );
 }
@@ -76,10 +80,8 @@ const styles = StyleSheet.create({
   sidebar: {
     width: 80,
     height: '100%',
-    alignItems: 'center',
     borderRightWidth: 1,
     borderRightColor: 'rgba(255,255,255,0.05)',
-    gap: 16,
     zIndex: 100,
   },
   iconBtn: {

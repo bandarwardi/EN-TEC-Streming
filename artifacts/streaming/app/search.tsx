@@ -26,16 +26,20 @@ export default function SearchScreen() {
   const insets = useSafeAreaInsets();
 
   const activePlaylistId = useAppStore((s) => s.activePlaylistId);
-  const searchIndex = useAppStore((s) => s.searchIndex) || [];
+  const searchIndexReady = useAppStore((s) => s.searchIndexReady);
   const loadingSearchIndex = useAppStore((s) => s.loadingSearchIndex);
   const searchIndexProgress = useAppStore((s) => s.searchIndexProgress);
   const loadSearchIndex = useAppStore((s) => s.loadSearchIndex);
   const buildSearchIndex = useAppStore((s) => s.buildSearchIndex);
+  const searchChannels = useAppStore((s) => s.searchChannels);
   const setPlaybackQueue = useAppStore((s) => s.setPlaybackQueue);
 
   const [query, setQuery] = useState('');
+  const [filteredResults, setFilteredResults] = useState<Channel[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
   const [activeTab, setActiveTab] = useState<SearchTab>('all');
   const [statusMessage, setStatusMessage] = useState('');
+  const [hasAttemptedAutoBuild, setHasAttemptedAutoBuild] = useState(false);
   const inputRef = useRef<any>(null);
 
   // Auto-focus input after screen transition completes
@@ -44,12 +48,13 @@ export default function SearchScreen() {
     return () => clearTimeout(t);
   }, []);
 
-  // Load search index on mount
+  // Auto-build search index if empty
   useEffect(() => {
-    if (activePlaylistId) {
-      loadSearchIndex(activePlaylistId);
+    if (activePlaylistId && !searchIndexReady && !loadingSearchIndex && !hasAttemptedAutoBuild) {
+      setHasAttemptedAutoBuild(true);
+      handleBuildIndex();
     }
-  }, [activePlaylistId]);
+  }, [activePlaylistId, searchIndexReady, loadingSearchIndex, hasAttemptedAutoBuild]);
 
   const handleBuildIndex = async () => {
     if (activePlaylistId) {
@@ -59,25 +64,30 @@ export default function SearchScreen() {
     }
   };
 
-  // Perform client-side filter
-  const filteredResults = useMemo(() => {
-    if (query.trim().length < 2) return [];
-
-    const normQuery = query.trim().toLowerCase();
-    let list = searchIndex;
-
-    // Filter by type tab
-    if (activeTab !== 'all') {
-      list = list.filter(item => item.type === activeTab);
+  // Perform async debounce filter
+  useEffect(() => {
+    if (query.trim().length < 2) {
+      setFilteredResults([]);
+      return;
     }
 
-    // Filter by query name
-    return list.filter(item => {
-      const name = item.name || '';
-      const category = item.category || '';
-      return name.toLowerCase().includes(normQuery) || category.toLowerCase().includes(normQuery);
-    });
-  }, [searchIndex, query, activeTab]);
+    const timer = setTimeout(async () => {
+      setIsSearching(true);
+      try {
+        const results = await searchChannels(query);
+        if (activeTab !== 'all') {
+          setFilteredResults(results.filter(r => r.type === activeTab));
+        } else {
+          setFilteredResults(results);
+        }
+      } catch (e) {
+      } finally {
+        setIsSearching(false);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [query, activeTab, searchChannels]);
 
   const handleItemPress = (item: Channel, index: number) => {
     if (item.type === 'live') {
@@ -210,7 +220,7 @@ export default function SearchScreen() {
       </View>
 
       {/* Tabs */}
-      {searchIndex.length > 0 && !loadingSearchIndex && (
+      {searchIndexReady && !loadingSearchIndex && (
         <View style={[styles.tabsBar, { borderBottomColor: colors.border }]}>
           {(['all', 'live', 'vod', 'series'] as SearchTab[]).map((tab) => {
             const isSelected = activeTab === tab;
@@ -240,17 +250,16 @@ export default function SearchScreen() {
       )}
 
       {/* Main Body */}
-      {loadingSearchIndex ? (
+      {(isSearching || loadingSearchIndex) ? (
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color={colors.gold} />
-          <Text style={[styles.loadingText, { color: colors.text }]}>
-            Building Search Index...
-          </Text>
-          <Text style={[styles.loadingSubtext, { color: colors.mutedForeground }]}>
-            {searchIndexProgress || statusMessage}
-          </Text>
+          {loadingSearchIndex && (
+            <Text style={[styles.loadingText, { color: colors.mutedForeground }]}>
+              {searchIndexProgress || 'Loading search engine...'}
+            </Text>
+          )}
         </View>
-      ) : searchIndex.length === 0 ? (
+      ) : !searchIndexReady ? (
         <View style={styles.centerContainer}>
           <Feather name="database" size={64} color={colors.mutedForeground} style={{ marginBottom: 16 }} />
           <Text style={[styles.emptyTitle, { color: colors.text }]}>
@@ -260,6 +269,16 @@ export default function SearchScreen() {
             No searchable items found. You can try refreshing the database using the sync button in the header.
           </Text>
         </View>
+      ) : query.trim().length >= 2 && filteredResults.length === 0 ? (
+        <View style={styles.centerContainer}>
+          <Feather name="frown" size={64} color={colors.mutedForeground} style={{ marginBottom: 16 }} />
+          <Text style={[styles.emptyTitle, { color: colors.text }]}>
+            No Results Found
+          </Text>
+          <Text style={[styles.emptySubtitle, { color: colors.mutedForeground }]}>
+            Try searching for a different movie, series, or live channel.
+          </Text>
+        </View>
       ) : query.trim().length < 2 ? (
         <View style={styles.centerContainer}>
           <Feather name="search" size={64} color={colors.mutedForeground} style={{ marginBottom: 16 }} />
@@ -267,7 +286,7 @@ export default function SearchScreen() {
             Search Everything
           </Text>
           <Text style={[styles.emptySubtitle, { color: colors.mutedForeground }]}>
-            Type at least 2 characters to search across {searchIndex.length.toLocaleString()} items
+            Type at least 2 characters to search across all items
           </Text>
         </View>
       ) : (

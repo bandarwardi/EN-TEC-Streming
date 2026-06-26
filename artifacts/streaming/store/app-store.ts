@@ -1,5 +1,26 @@
 import { create } from 'zustand';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import AsyncStorageOriginal from '@react-native-async-storage/async-storage';
+import * as FileSystem from 'expo-file-system/legacy';
+import { readCacheString, writeCacheString, deleteCache } from '../lib/storage';
+
+const isLargeDataKey = (key: string) => key.startsWith('channels_') || key.startsWith('categories_') || key.startsWith('search_index_');
+
+const AsyncStorage = {
+  getItem: async (key: string) => {
+    if (isLargeDataKey(key)) return await readCacheString(key);
+    return await AsyncStorageOriginal.getItem(key);
+  },
+  setItem: async (key: string, value: string) => {
+    if (isLargeDataKey(key)) return await writeCacheString(key, value);
+    return await AsyncStorageOriginal.setItem(key, value);
+  },
+  removeItem: async (key: string) => {
+    if (isLargeDataKey(key)) return await deleteCache(key);
+    return await AsyncStorageOriginal.removeItem(key);
+  }
+};
+
+let globalSearchIndex: Channel[] = [];
 import { Channel, Playlist } from '../types';
 import { MOCK_PLAYLISTS, MOCK_CHANNELS, MOCK_MOVIES, MOCK_SERIES } from '../lib/mock-data';
 import { parseM3U } from '../lib/m3u-parser';
@@ -9,6 +30,22 @@ export interface PlaylistCategories {
   live: { id: string; name: string }[];
   vod: { id: string; name: string }[];
   series: { id: string; name: string }[];
+}
+
+export interface WatchedItem {
+  id: string;
+  type: 'vod' | 'series' | 'live';
+  title: string;
+  poster: string;
+  backdrop: string;
+  streamUrl: string;
+  progress: number;
+  duration: number;
+  timestamp: number;
+  quality?: string;
+  genres?: string[];
+  description?: string;
+  category?: string;
 }
 
 interface AppState {
@@ -24,11 +61,13 @@ interface AppState {
   channels: Channel[];
   loadingChannels: boolean;
 
-  searchIndex: Channel[];
   loadingSearchIndex: boolean;
+  searchIndexReady: boolean;
   searchIndexProgress: string;
   loadSearchIndex: (playlistId: string) => Promise<void>;
   buildSearchIndex: (playlistId: string, onProgress?: (msg: string) => void) => Promise<void>;
+  searchChannels: (query: string) => Promise<Channel[]>;
+  getChannelsByType: (type: 'live' | 'vod' | 'series') => Promise<Channel[]>;
   
   addPlaylist: (
     playlist: Playlist, 
@@ -75,8 +114,37 @@ interface AppState {
   };
   updateSettings: (s: Partial<AppState['settings']>) => void;
 
+  continueWatching: WatchedItem[];
+  updateContinueWatching: (item: WatchedItem) => void;
+  removeFromContinueWatching: (id: string) => void;
+
+  downloads: DownloadItem[];
+  addDownload: (item: DownloadItem) => void;
+  removeDownload: (id: string) => void;
+  updateDownloadItem: (id: string, updates: Partial<DownloadItem>) => void;
+  startDownload: (item: Omit<DownloadItem, 'status' | 'progress' | 'resumeData' | 'localUri'>) => Promise<void>;
+  pauseDownload: (id: string) => Promise<void>;
+  resumeDownload: (id: string) => Promise<void>;
+  cancelDownload: (id: string) => Promise<void>;
+
   initializeFromStorage: () => Promise<void>;
 }
+
+export interface DownloadItem {
+  id: string;
+  title: string;
+  poster: string;
+  backdrop: string;
+  quality: string;
+  streamUrl: string;
+  localUri: string;
+  type: 'movie' | 'series';
+  status: 'downloading' | 'paused' | 'completed' | 'error';
+  progress: number;
+  resumeData?: string;
+}
+
+const activeDownloads: Record<string, FileSystem.DownloadResumable> = {};
 
 const USER_AGENTS = [
   'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36',
@@ -118,6 +186,153 @@ const fetchWithXHR = (targetUrl: string, acceptHeader?: string): Promise<string>
 export const useAppStore = create<AppState>((set, get) => ({
   isLoggedIn: false,
   user: null,
+  downloads: [],
+
+  addDownload: (item) => {
+    set(state => {
+      const newDownloads = [...state.downloads.filter(d => d.id !== item.id), item];
+      AsyncStorage.setItem('downloads', JSON.stringify(newDownloads));
+      return { downloads: newDownloads };
+    });
+  },
+
+  removeDownload: (id) => {
+    set(state => {
+      const newDownloads = state.downloads.filter(d => d.id !== id);
+      AsyncStorage.setItem('downloads', JSON.stringify(newDownloads));
+      return { downloads: newDownloads };
+    });
+  },
+
+  updateDownloadItem: (id, updates) => {
+    set(state => {
+      const newDownloads = state.downloads.map(d => d.id === id ? { ...d, ...updates } : d);
+      AsyncStorage.setItem('downloads', JSON.stringify(newDownloads));
+      return { downloads: newDownloads };
+    });
+  },
+
+  startDownload: async (item) => {
+    const fileUri = (FileSystem as any).documentDirectory + `${item.id}.mp4`;
+    
+    // Create new download item state
+    const newDownload: DownloadItem = {
+      ...item,
+      status: 'downloading',
+      progress: 0,
+      localUri: fileUri
+    };
+    get().addDownload(newDownload);
+
+    try {
+      const downloadResumable = FileSystem.createDownloadResumable(
+        item.streamUrl,
+        fileUri,
+        { 
+          headers: { 
+            'User-Agent': 'VLC/3.0.18 LibVLC/3.0.18',
+            'Accept': '*/*',
+            'Accept-Encoding': 'identity',
+            'Connection': 'close',
+            'Icy-MetaData': '1'
+          } 
+        },
+        (dp) => {
+          const progress = dp.totalBytesWritten / dp.totalBytesExpectedToWrite;
+          get().updateDownloadItem(item.id, { progress });
+        }
+      );
+      
+      activeDownloads[item.id] = downloadResumable;
+      
+      const result = await downloadResumable.downloadAsync();
+      
+      if (result) {
+        get().updateDownloadItem(item.id, { status: 'completed', progress: 1 });
+      } else {
+        get().updateDownloadItem(item.id, { status: 'error' });
+      }
+    } catch (e: any) {
+      console.error("[Download Error]", e);
+      get().updateDownloadItem(item.id, { status: 'error' });
+    } finally {
+      delete activeDownloads[item.id];
+    }
+  },
+
+  pauseDownload: async (id) => {
+    const resumable = activeDownloads[id];
+    if (resumable) {
+      try {
+        const resumeData = await resumable.pauseAsync();
+        const serialized = JSON.stringify(resumeData);
+        get().updateDownloadItem(id, { status: 'paused', resumeData: serialized });
+      } catch (e) {
+        console.error("Failed to pause", e);
+      }
+    }
+  },
+
+  resumeDownload: async (id) => {
+    const download = get().downloads.find(d => d.id === id);
+    if (!download || !download.resumeData) return;
+
+    try {
+      const parsedResumeData = JSON.parse(download.resumeData);
+      const downloadResumable = FileSystem.createDownloadResumable(
+        download.streamUrl,
+        download.localUri,
+        { 
+          headers: { 
+            'User-Agent': 'VLC/3.0.18 LibVLC/3.0.18',
+            'Accept': '*/*',
+            'Accept-Encoding': 'identity',
+            'Connection': 'close',
+            'Icy-MetaData': '1'
+          } 
+        },
+        (dp) => {
+          const progress = dp.totalBytesWritten / dp.totalBytesExpectedToWrite;
+          get().updateDownloadItem(id, { progress });
+        },
+        parsedResumeData.resumeData
+      );
+
+      activeDownloads[id] = downloadResumable;
+      get().updateDownloadItem(id, { status: 'downloading' });
+      
+      const result = await downloadResumable.downloadAsync();
+      
+      if (result) {
+        get().updateDownloadItem(id, { status: 'completed', progress: 1 });
+      } else {
+        get().updateDownloadItem(id, { status: 'error' });
+      }
+    } catch (e: any) {
+      console.error("[Download Resume Error]", e);
+      get().updateDownloadItem(id, { status: 'error' });
+    } finally {
+      delete activeDownloads[id];
+    }
+  },
+
+  cancelDownload: async (id) => {
+    const download = get().downloads.find(d => d.id === id);
+    const resumable = activeDownloads[id];
+    if (resumable) {
+      try {
+        await resumable.pauseAsync(); // Stop active download safely
+      } catch (e) {}
+    }
+    delete activeDownloads[id];
+    get().removeDownload(id);
+    
+    if (download && download.localUri) {
+      try {
+        await FileSystem.deleteAsync(download.localUri, { idempotent: true });
+      } catch (e) {}
+    }
+  },
 
   login: (name, email) => {
     const userData = { name, email: email ?? '', plan: 'Premium' };
@@ -136,9 +351,40 @@ export const useAppStore = create<AppState>((set, get) => ({
   channels: [],
   loadingChannels: false,
 
-  searchIndex: [],
   loadingSearchIndex: false,
+  searchIndexReady: false,
   searchIndexProgress: '',
+
+  searchChannels: async (query: string) => {
+    if (!query) return [];
+    const q = query.toLowerCase();
+    const results: Channel[] = [];
+    for (const item of globalSearchIndex) {
+      if (results.length >= 50) break;
+      if (item.name && item.name.toLowerCase().includes(q)) {
+        results.push(item);
+      }
+    }
+    return results;
+  },
+
+
+  continueWatching: [],
+  updateContinueWatching: (item) => {
+    set((state) => {
+      const filtered = state.continueWatching.filter(i => i.id !== item.id && i.streamUrl !== item.streamUrl);
+      const newList = [item, ...filtered].sort((a, b) => b.timestamp - a.timestamp).slice(0, 30);
+      AsyncStorage.setItem('continueWatching', JSON.stringify(newList));
+      return { continueWatching: newList };
+    });
+  },
+  removeFromContinueWatching: (id) => {
+    set((state) => {
+      const newList = state.continueWatching.filter(i => i.id !== id);
+      AsyncStorage.setItem('continueWatching', JSON.stringify(newList));
+      return { continueWatching: newList };
+    });
+  },
 
   addPlaylist: async (playlist, channels, categories) => {
     const newPlaylists = [...get().playlists, playlist];
@@ -211,9 +457,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     // Auto-load search index and build it in the background if it doesn't exist
     try {
       await get().loadSearchIndex(id);
-      if (get().searchIndex.length === 0) {
+      if (globalSearchIndex.length === 0) {
         get().buildSearchIndex(id).catch((err) => {
-          console.error('[setActivePlaylist] Auto-building search index failed:', err);
+          console.error('[setActivePlaylist] Error building search index:', err);
         });
       }
     } catch (err) {
@@ -703,8 +949,26 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   initializeFromStorage: async () => {
     try {
-      const userStr = await AsyncStorage.getItem('user');
-      if (userStr) set({ isLoggedIn: true, user: JSON.parse(userStr) });
+      const storedUser = await AsyncStorage.getItem('user');
+      const storedFavs = await AsyncStorage.getItem('favorites');
+      const storedFavItems = await AsyncStorage.getItem('favoriteItems');
+      const storedSettings = await AsyncStorage.getItem('settings');
+      const storedContinueWatching = await AsyncStorage.getItem('continueWatching');
+      const storedDownloads = await AsyncStorage.getItem('downloads');
+
+      const updates: Partial<AppState> = {};
+
+      if (storedUser) {
+        updates.isLoggedIn = true;
+        updates.user = JSON.parse(storedUser);
+      }
+      if (storedFavs) updates.favorites = JSON.parse(storedFavs);
+      if (storedFavItems) updates.favoriteItems = JSON.parse(storedFavItems);
+      if (storedSettings) updates.settings = { ...get().settings, ...JSON.parse(storedSettings) };
+      if (storedContinueWatching) updates.continueWatching = JSON.parse(storedContinueWatching);
+      if (storedDownloads) updates.downloads = JSON.parse(storedDownloads);
+
+      set(updates as any);
 
       const playlistsStr = await AsyncStorage.getItem('playlists');
       let loadedPlaylists: Playlist[] = [];
@@ -737,7 +1001,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       if (finalActiveId) {
         try {
           await get().loadSearchIndex(finalActiveId);
-          if (get().searchIndex.length === 0) {
+          if (globalSearchIndex.length === 0) {
             get().buildSearchIndex(finalActiveId).catch(() => {});
           }
         } catch (err) {
@@ -749,14 +1013,22 @@ export const useAppStore = create<AppState>((set, get) => ({
       if (favsStr) set({ favorites: JSON.parse(favsStr) });
       const itemsStr = await AsyncStorage.getItem('favoriteItems');
       if (itemsStr) set({ favoriteItems: JSON.parse(itemsStr) ?? [] });
+
+      const cwStr = await AsyncStorage.getItem('continueWatching');
+      if (cwStr) set({ continueWatching: JSON.parse(cwStr) ?? [] });
     } catch (e) {
       console.error('Failed to load store', e);
     }
   },
 
+  getChannelsByType: async (type) => {
+    return globalSearchIndex.filter(item => item.type === type);
+  },
+
   loadSearchIndex: async (playlistId) => {
     if (!playlistId) {
-      set({ searchIndex: [] });
+      globalSearchIndex = [];
+      set({ searchIndexReady: false });
       return;
     }
     try {
@@ -809,13 +1081,16 @@ export const useAppStore = create<AppState>((set, get) => ({
           };
         });
 
-        set({ searchIndex: decompressed });
+        globalSearchIndex = decompressed;
+        set({ searchIndexReady: globalSearchIndex.length > 0 });
       } else {
-        set({ searchIndex: [] });
+        globalSearchIndex = [];
+        set({ searchIndexReady: false });
       }
     } catch (e) {
       console.error('Failed to load search index', e);
-      set({ searchIndex: [] });
+      globalSearchIndex = [];
+      set({ searchIndexReady: false });
     }
   },
 
@@ -854,7 +1129,8 @@ export const useAppStore = create<AppState>((set, get) => ({
         }));
 
         const items = [...MOCK_CHANNELS, ...mockMoviesMapped, ...mockSeriesMapped];
-        set({ searchIndex: items, loadingSearchIndex: false, searchIndexProgress: '' });
+        globalSearchIndex = items;
+        set({ searchIndexReady: items.length > 0, loadingSearchIndex: false, searchIndexProgress: '' });
         try {
           const compressed = items.map(ch => ({
             i: ch.id,
@@ -1013,8 +1289,8 @@ export const useAppStore = create<AppState>((set, get) => ({
         }
 
         onProgress?.('Saving search index...');
-        set({ searchIndexProgress: 'Saving index...' });
-        set({ searchIndex: items });
+        set({ searchIndexProgress: 'Saving index...', searchIndexReady: items.length > 0 });
+        globalSearchIndex = items;
         
         try {
           const compressUrl = (url: string, cfg: any): string => {
@@ -1077,7 +1353,8 @@ export const useAppStore = create<AppState>((set, get) => ({
             }
           }
         }
-        set({ searchIndex: items });
+        globalSearchIndex = items;
+        set({ searchIndexReady: items.length > 0 });
         
         try {
           const compressed = items.map(ch => ({

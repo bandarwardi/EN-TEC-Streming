@@ -79,8 +79,6 @@ function RootLayoutNav() {
           name="player"
           options={{ headerShown: false, presentation: "fullScreenModal" }}
         />
-        <Stack.Screen name="movie-detail" options={{ headerShown: false }} />
-        <Stack.Screen name="series-detail" options={{ headerShown: false }} />
         <Stack.Screen name="playlists" options={{ headerShown: false }} />
       </Stack>
     </AuthGuard>

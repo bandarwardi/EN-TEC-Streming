@@ -49,12 +49,6 @@ export const MovieCard = React.memo(function MovieCard({ movie, onPress, width =
             <QualityBadge quality={movie.quality} />
           </View>
         </View>
-        <Text style={[styles.title, { color: colors.text }]} numberOfLines={1}>
-          {movie.title}
-        </Text>
-        <Text style={[styles.meta, { color: colors.mutedForeground }]} numberOfLines={1}>
-          {movie.year} · {movie.duration}
-        </Text>
       </Animated.View>
     </Pressable>
   );

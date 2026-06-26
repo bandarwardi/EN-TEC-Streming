@@ -52,6 +52,14 @@ export default function SettingsScreen() {
           </Pressable>
         </View>
 
+        <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>Offline Content</Text>
+        <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <Pressable style={styles.row} onPress={() => router.push('/downloads')}>
+            <Text style={[styles.rowText, { color: colors.text }]}>My Downloads</Text>
+            <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
+          </Pressable>
+        </View>
+
         <Pressable 
           style={[styles.signOutButton, { borderColor: colors.destructive }]}
           onPress={handleLogout}

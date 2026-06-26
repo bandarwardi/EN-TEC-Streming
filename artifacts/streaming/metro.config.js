@@ -7,6 +7,9 @@ const workspaceRoot = path.resolve(projectRoot, '../..');
 
 const config = getDefaultConfig(projectRoot);
 
+// Force Metro's project root to be the app directory, overriding automatic monorepo root detection
+config.projectRoot = projectRoot;
+
 // 1. Watch all files within the monorepo
 config.watchFolders = [workspaceRoot];
 // 2. Let Metro know where to resolve packages and in what order

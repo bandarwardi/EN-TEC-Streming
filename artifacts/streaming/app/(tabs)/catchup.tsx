@@ -38,17 +38,29 @@ export default function CatchUpScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
-  const isLargeScreen = width >= 768 || Platform.isTV;
+  const isLargeScreen = width >= 1024 || Platform.isTV;
 
   const activePlaylistId = useAppStore((s) => s.activePlaylistId);
   const playlists = useAppStore((s) => s.playlists);
-  const channels = useAppStore((s) => s.channels);
+  const getChannelsByType = useAppStore((s) => s.getChannelsByType);
+  const searchIndexReady = useAppStore((s) => s.searchIndexReady);
 
-  const liveChannels = useMemo(() => {
+  const [liveChannels, setLiveChannels] = useState<Channel[]>([]);
+
+  useEffect(() => {
+    let active = true;
     const isMock = activePlaylistId === 'p1' || activePlaylistId === 'p2' || activePlaylistId === 'p3';
-    const sourceChannels = isMock ? MOCK_CHANNELS : channels;
-    return sourceChannels.filter((c) => c.type === 'live');
-  }, [activePlaylistId, channels]);
+    if (isMock) {
+      setLiveChannels(MOCK_CHANNELS.filter(c => c.type === 'live'));
+    } else if (searchIndexReady) {
+      getChannelsByType('live').then(channels => {
+        if (active) setLiveChannels(channels);
+      });
+    } else {
+      setLiveChannels([]);
+    }
+    return () => { active = false; };
+  }, [activePlaylistId, searchIndexReady, getChannelsByType]);
 
   const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
   const [epgList, setEpgList] = useState<EpgProgram[]>([]);
@@ -122,9 +134,7 @@ export default function CatchUpScreen() {
           const fetchUrl = `${config.host}/player_api.php?username=${config.username}&password=${config.password}&action=get_simple_data_table&stream_id=${channelId}`;
           
           const targetUrls = [
-            fetchUrl,
-            `https://corsproxy.io/?url=${encodeURIComponent(fetchUrl)}`,
-            `https://api.allorigins.win/raw?url=${encodeURIComponent(fetchUrl)}`
+            fetchUrl
           ];
 
           let text = '';
@@ -136,6 +146,9 @@ export default function CatchUpScreen() {
                 const xhr = new XMLHttpRequest();
                 xhr.open('GET', u, true);
                 xhr.timeout = 20000;
+                try {
+                  xhr.setRequestHeader('User-Agent', 'TiviMate/4.7.0');
+                } catch (_) {}
                 xhr.onload = () => {
                   if (xhr.status >= 200 && xhr.status < 300) {
                     if (xhr.responseText && xhr.responseText.trim().length > 0) resolve(xhr.responseText);
@@ -300,7 +313,9 @@ export default function CatchUpScreen() {
         const min = String(date.getMinutes()).padStart(2, '0');
         const startFormatted = `${y}-${m}-${d}:${h}-${min}`;
         
-        playUrl = `${config.host}/timeshift.php?username=${config.username}&password=${config.password}&stream=${channelId}&start=${startFormatted}`;
+        const durationMinutes = Math.max(1, Math.round((program.endTimestamp - program.startTimestamp) / 60000));
+        const ext = selectedChannel.streamUrl.includes('.m3u8') ? 'm3u8' : 'ts';
+        playUrl = `${config.host}/timeshift/${config.username}/${config.password}/${durationMinutes}/${startFormatted}/${channelId}.${ext}`;
       }
     }
 
@@ -356,13 +371,13 @@ export default function CatchUpScreen() {
               return (
                 <Pressable
                   onPress={() => setSelectedChannel(item)}
-                  style={({ focused }) => [
+                  style={({ focused }: any) => [
                     styles.tvChannelItem,
                     isSelected && { backgroundColor: 'rgba(212,168,67,0.15)', borderLeftWidth: 3, borderLeftColor: colors.gold },
                     focused && { backgroundColor: colors.gold, transform: [{ scale: 1.02 }] }
                   ]}
                 >
-                  {({ focused }) => (
+                  {({ focused }: any) => (
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
                       {item.logo ? (
                         <Image source={{ uri: item.logo }} style={{ width: 40, height: 40, borderRadius: 20 }} contentFit="cover" />
@@ -395,13 +410,13 @@ export default function CatchUpScreen() {
               <Pressable
                 key={day.dateString}
                 onPress={() => setSelectedDayIndex(idx)}
-                style={({ focused }) => [
+                style={({ focused }: any) => [
                   styles.tvDayItem,
                   isSelected && { backgroundColor: 'rgba(212,168,67,0.15)', borderLeftWidth: 3, borderLeftColor: colors.gold },
                   focused && { backgroundColor: colors.gold, transform: [{ scale: 1.05 }] }
                 ]}
               >
-                {({ focused }) => (
+                {({ focused }: any) => (
                   <Text style={[styles.tvDayText, { color: focused ? '#000' : (isSelected ? colors.gold : colors.text), fontWeight: isSelected ? 'bold' : '500' }]}>
                     {idx === 0 ? 'Today' : idx === 1 ? 'Yesterday' : day.label.split(' (')[0]}
                   </Text>
@@ -428,7 +443,7 @@ export default function CatchUpScreen() {
               renderItem={({ item }) => (
                 <Pressable
                   onPress={() => handlePlayProgram(item)}
-                  style={({ focused }) => [
+                  style={({ focused }: any) => [
                     styles.tvEpgCard,
                     { backgroundColor: colors.surface, borderColor: item.isCurrent ? colors.gold : colors.border },
                     focused && { backgroundColor: colors.surface2, transform: [{ scale: 1.02 }], borderColor: colors.gold }
@@ -574,7 +589,7 @@ const styles = StyleSheet.create({
   
   // TV Styles
   tvContainer: { flex: 1, flexDirection: 'row' },
-  tvPaneChannels: { width: 280, borderRightWidth: 1 },
+  tvPaneChannels: { width: '35%', maxWidth: 350, borderRightWidth: 1 },
   tvPaneDays: { width: 140, borderRightWidth: 1 },
   tvPaneEpg: { flex: 1 },
   tvHeader: { padding: 24, paddingBottom: 16 },

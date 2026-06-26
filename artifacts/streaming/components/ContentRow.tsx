@@ -17,7 +17,7 @@ export function ContentRow({ title, data, renderItem, onSeeAll }: ContentRowProp
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
+        <Text style={[styles.title, { color: colors.text, flex: 1, marginRight: 16 }]} numberOfLines={1}>{title}</Text>
         {onSeeAll && (
           <Pressable onPress={onSeeAll}>
             <Text style={[styles.seeAll, { color: colors.mutedForeground }]}>See all →</Text>
@@ -39,7 +39,7 @@ export function ContentRow({ title, data, renderItem, onSeeAll }: ContentRowProp
 
 const styles = StyleSheet.create({
   container: {
-    marginBottom: 24,
+    marginBottom: 40,
   },
   header: {
     flexDirection: 'row',

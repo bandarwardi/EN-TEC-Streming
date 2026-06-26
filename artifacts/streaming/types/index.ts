@@ -65,6 +65,7 @@ export interface FeaturedHero {
   title: string;
   subtitle: string;
   backdrop: any;
+  poster: any;
   description: string;
   rating: number;
   year: number;

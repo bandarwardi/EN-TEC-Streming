@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, Pressable, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, StyleSheet, TextInput, Pressable, ActivityIndicator, Alert, ScrollView } from 'react-native';
 import { useColors } from '@/hooks/useColors';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Feather } from '@expo/vector-icons';
@@ -9,9 +9,6 @@ import { router } from 'expo-router';
 
 export default function LoginScreen() {
   const colors = useColors();
-  const [tab, setTab] = useState<'signin' | 'm3u'>('signin');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [m3uUrl, setM3uUrl] = useState('');
   const [m3uName, setM3uName] = useState('');
   
@@ -21,11 +18,6 @@ export default function LoginScreen() {
 
   const [loading, setLoading] = useState(false);
   const [loadingMsg, setLoadingMsg] = useState('');
-  
-  const handleGuest = () => {
-    login('Guest User', 'guest@entec.com');
-    router.replace('/(tabs)');
-  };
 
   const handleLoadPlaylist = async () => {
     const url = m3uUrl.trim();
@@ -60,7 +52,10 @@ export default function LoginScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <ScrollView 
+      contentContainerStyle={[styles.container, { backgroundColor: colors.background }]} 
+      keyboardShouldPersistTaps="handled"
+    >
       <LinearGradient
         colors={['rgba(212,168,67,0.15)', 'transparent']}
         style={[StyleSheet.absoluteFill, { top: -200, left: -200, right: 200, bottom: 200 }]}
@@ -76,61 +71,10 @@ export default function LoginScreen() {
       </View>
       
       <View style={[styles.card, { backgroundColor: 'rgba(26,26,26,0.8)', borderColor: colors.border }]}>
-        <Text style={[styles.title, { color: colors.text }]}>Welcome back</Text>
-        <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>Sign in to start streaming in 4K.</Text>
+        <Text style={[styles.title, { color: colors.text }]}>Welcome to EN TEC</Text>
+        <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>Please add your IPTV playlist to continue.</Text>
         
-        <View style={[styles.tabs, { backgroundColor: colors.surface2 }]}>
-          <Pressable 
-            style={[styles.tab, tab === 'signin' && { backgroundColor: colors.gold }]}
-            onPress={() => setTab('signin')}
-          >
-            <Text style={[styles.tabText, { color: tab === 'signin' ? colors.primaryForeground : colors.mutedForeground }]}>Sign In</Text>
-          </Pressable>
-          <Pressable 
-            style={[styles.tab, tab === 'm3u' && { backgroundColor: colors.gold }]}
-            onPress={() => setTab('m3u')}
-          >
-            <Text style={[styles.tabText, { color: tab === 'm3u' ? colors.primaryForeground : colors.mutedForeground }]}>M3U Playlist</Text>
-          </Pressable>
-        </View>
-        
-        {tab === 'signin' ? (
-          <View style={styles.form}>
-            <View style={[styles.inputContainer, { backgroundColor: colors.surface2, borderColor: colors.border }]}>
-              <Feather name="mail" size={20} color={colors.mutedForeground} />
-              <TextInput 
-                style={[styles.input, { color: colors.text }]}
-                placeholder="Email"
-                placeholderTextColor={colors.mutedForeground}
-                value={email}
-                onChangeText={setEmail}
-              />
-            </View>
-            <View style={[styles.inputContainer, { backgroundColor: colors.surface2, borderColor: colors.border }]}>
-              <Feather name="lock" size={20} color={colors.mutedForeground} />
-              <TextInput 
-                style={[styles.input, { color: colors.text }]}
-                placeholder="Password"
-                placeholderTextColor={colors.mutedForeground}
-                secureTextEntry
-                value={password}
-                onChangeText={setPassword}
-              />
-            </View>
-            <GoldButton title="Sign In" onPress={handleGuest} style={{ marginTop: 8 }} />
-            
-            <View style={styles.divider}>
-              <View style={[styles.line, { backgroundColor: colors.border }]} />
-              <Text style={[styles.dividerText, { color: colors.mutedForeground }]}>OR</Text>
-              <View style={[styles.line, { backgroundColor: colors.border }]} />
-            </View>
-            
-            <Pressable style={[styles.outlineButton, { borderColor: colors.border }]}>
-              <Text style={[styles.outlineButtonText, { color: colors.text }]}>Continue with Google</Text>
-            </Pressable>
-          </View>
-        ) : (
-          <View style={styles.form}>
+        <View style={styles.form}>
             <View style={[styles.inputContainer, { backgroundColor: colors.surface2, borderColor: colors.border }]}>
               <Feather name="link" size={20} color={colors.mutedForeground} />
               <TextInput 
@@ -170,19 +114,14 @@ export default function LoginScreen() {
               disabled={loading}
             />
           </View>
-        )}
       </View>
-      
-      <Pressable onPress={handleGuest} style={styles.guestLink}>
-        <Text style={[styles.guestText, { color: colors.mutedForeground }]}>Continue as Guest →</Text>
-      </Pressable>
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
+    flexGrow: 1,
     justifyContent: 'center',
     padding: 20,
   },

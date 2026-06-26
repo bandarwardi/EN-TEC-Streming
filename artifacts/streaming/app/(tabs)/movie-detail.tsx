@@ -8,7 +8,8 @@ import {
   Dimensions, 
   ActivityIndicator, 
   Linking, 
-  Alert 
+  Alert,
+  useWindowDimensions
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
@@ -16,7 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
-import { GoldButton } from '@/components/GoldButton';
+import * as FileSystem from 'expo-file-system/legacy';
 import { QualityBadge } from '@/components/QualityBadge';
 import { useAppStore } from '@/store/app-store';
 import { base64Decode } from '@/lib/base64';
@@ -51,11 +52,22 @@ export default function MovieDetailScreen() {
   const getChannelsForCategory = useAppStore((s) => s.getChannelsForCategory);
   const favorites = useAppStore((s) => s.favorites);
   const toggleFavorite = useAppStore((s) => s.toggleFavorite);
+  const downloads = useAppStore((s) => s.downloads);
+  const startDownload = useAppStore((s) => s.startDownload);
+  const removeDownload = useAppStore((s) => s.removeDownload);
 
   const [loading, setLoading] = useState(true);
   const [movieInfo, setMovieInfo] = useState<any>(null);
-  const [recommendations, setRecommendations] = useState<Channel[]>([]);
+  const [actors, setActors] = useState<any[]>([]);
+  const [recommendations, setRecommendations] = useState<any[]>([]);
+  const [moreRecommendations, setMoreRecommendations] = useState<any[]>([]);
   const [actorsImages, setActorsImages] = useState<Record<string, string>>({});
+
+  const scrollViewRef = React.useRef<ScrollView>(null);
+
+  useEffect(() => {
+    scrollViewRef.current?.scrollTo({ y: 0, animated: false });
+  }, [params.id]);
 
   useEffect(() => {
     if (!movieInfo) return;
@@ -93,7 +105,7 @@ export default function MovieDetailScreen() {
     if (castNames.length === 0) return;
 
     const TMDB_API_KEY = '2eae50aadf0d62874cdc2a281e7130cd';
-    
+
     async function fetchImages() {
       const results: Record<string, string> = {};
       const promises = castNames.map(async (name) => {
@@ -122,29 +134,31 @@ export default function MovieDetailScreen() {
     fetchImages();
   }, [movieInfo]);
 
-  console.log('[MovieDetail] Rendering screen. params.id:', params.id, 'movieInfo:', !!movieInfo, 'recommendations:', recommendations.length);
-
   const movieTitle = params.title || 'Movie Detail';
   const moviePoster = params.poster || '';
-  const movieBackdrop = params.backdrop || params.poster || '';
+  const fetchedBackdrop = movieInfo?.backdrop_path && Array.isArray(movieInfo.backdrop_path) && movieInfo.backdrop_path.length > 0 
+    ? movieInfo.backdrop_path[0] 
+    : movieInfo?.backdrop_path && typeof movieInfo.backdrop_path === 'string' 
+      ? movieInfo.backdrop_path 
+      : '';
+  
+  const movieBackdrop = fetchedBackdrop || params.backdrop || params.poster || '';
   const movieDescription = params.description || 'No description available for this title.';
   const movieStreamUrl = params.streamUrl || '';
   const movieGenres = params.genres ? params.genres.split(',') : ['VOD'];
   const movieQuality = params.quality || 'HD';
 
   const isFavorite = favorites.includes(params.id || '');
-
-  // Load Main Movie Info
-  const activePlaylist = playlists.find((x) => x.id === activePlaylistId);
-  const activePlaylistUrl = activePlaylist?.url;
+  const downloadedItem = downloads.find(d => d.id === params.id);
+  const isDownloaded = downloadedItem?.status === 'completed';
+  const isDownloading = downloadedItem?.status === 'downloading' || downloadedItem?.status === 'paused';
+  const downloadProgress = downloadedItem?.progress || 0;
 
   useEffect(() => {
     let active = true;
-    console.log('[MovieDetail] first useEffect triggered. params.id:', params.id);
-
     async function loadMovieInfo() {
       setLoading(true);
-      const p = activePlaylist;
+      const p = playlists.find((x) => x.id === activePlaylistId);
       const isXtream = p && (p.url.startsWith('xtream://') || p.url.includes('/get.php?'));
 
       if (isXtream && params.id) {
@@ -166,72 +180,28 @@ export default function MovieDetailScreen() {
         const movieId = params.id.replace('xt_vod_', '');
         const fetchUrl = `${config.host}/player_api.php?username=${config.username}&password=${config.password}&action=get_vod_info&vod_id=${movieId}`;
 
-        console.log(`[MovieDetail] Fetching info from: ${fetchUrl}`);
-
-        const targetUrls = [
-          fetchUrl,
-          `https://corsproxy.io/?url=${encodeURIComponent(fetchUrl)}`,
-          `https://api.allorigins.win/raw?url=${encodeURIComponent(fetchUrl)}`
-        ];
-
-        let text = '';
-        let fetched = false;
-        for (let i = 0; i < targetUrls.length; i++) {
-          const u = targetUrls[i];
-          try {
-            text = await new Promise((resolve, reject) => {
-              const xhr = new XMLHttpRequest();
-              xhr.open('GET', u, true);
-              xhr.timeout = 20000;
-              xhr.onload = () => {
-                if (xhr.status >= 200 && xhr.status < 300) {
-                  if (xhr.responseText && xhr.responseText.trim().length > 0) resolve(xhr.responseText);
-                  else reject(new Error('Empty response'));
-                } else {
-                  reject(new Error(`HTTP status error: ${xhr.status}`));
-                }
-              };
-              xhr.onerror = () => reject(new Error('Network error'));
-              xhr.ontimeout = () => reject(new Error('Timeout'));
-              xhr.send();
-            });
-            fetched = true;
-            break;
-          } catch (e: any) {
-            console.warn(`[MovieDetail] Failed fetching from ${u}: ${e.message || e}`);
+        try {
+          const response = await fetch(fetchUrl);
+          const data = await response.json();
+          if (data && data.info && active) {
+            setMovieInfo(data.info);
           }
-        }
-
-        if (fetched && active) {
-          try {
-            const data = JSON.parse(text);
-            if (data && data.info) {
-              setMovieInfo(data.info);
-            }
-          } catch (err) {
-            console.error('Failed to parse movie info:', err);
-          }
+        } catch (err) {
+          console.error('Failed to parse movie info:', err);
         }
       }
       setLoading(false);
     }
 
     loadMovieInfo();
+    return () => { active = false; };
+  }, [activePlaylistId, params.id]);
 
-    return () => {
-      active = false;
-    };
-  }, [activePlaylistId, activePlaylistUrl, params.id]);
-
-  // Load Similar Content Recommendations
   const primaryCategory = movieGenres[0] || 'VOD';
   useEffect(() => {
     let active = true;
-    console.log('[MovieDetail] second useEffect triggered. primaryCategory:', primaryCategory, 'activeCategories:', !!activeCategories);
-
     async function loadRecommendations() {
       if (!activePlaylistId || !activeCategories) {
-        // Fallback recommendations if no active categories loaded
         if (active) setRecommendations(getFallbackRecommendations());
         return;
       }
@@ -241,48 +211,73 @@ export default function MovieDetailScreen() {
         if (cat) {
           const list = await getChannelsForCategory(activePlaylistId, 'vod', cat.id, cat.name);
           if (active) {
-            const filtered = list.filter(m => m.id !== params.id).slice(0, 8);
-            if (filtered.length > 0) {
-              setRecommendations(filtered);
-            } else {
-              setRecommendations(getFallbackRecommendations());
-            }
+            const filtered = list.filter(m => m.id !== params.id);
+            setRecommendations(filtered.slice(0, 8));
+            setMoreRecommendations(filtered.slice(8, 16));
           }
         } else {
-          if (active) setRecommendations(getFallbackRecommendations());
+          if (active) {
+            setRecommendations(getFallbackRecommendations());
+            setMoreRecommendations([]);
+          }
         }
       } catch (err) {
-        console.warn('Failed loading VOD recommendations:', err);
-        if (active) setRecommendations(getFallbackRecommendations());
+        if (active) {
+          setRecommendations(getFallbackRecommendations());
+          setMoreRecommendations([]);
+        }
       }
     }
-
     loadRecommendations();
-
-    return () => {
-      active = false;
-    };
+    return () => { active = false; };
   }, [activePlaylistId, activeCategories, primaryCategory, params.id]);
 
-  const getFallbackRecommendations = (): Channel[] => {
-    return [
-      { id: 'm_sim_1', name: 'Inception', logo: 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=300&h=450&fit=crop', category: primaryCategory, streamUrl: movieStreamUrl, type: 'vod' as const, isLive: false, current: '', next: '', quality: 'HD' as const },
-      { id: 'm_sim_2', name: 'Interstellar', logo: 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?w=300&h=450&fit=crop', category: primaryCategory, streamUrl: movieStreamUrl, type: 'vod' as const, isLive: false, current: '', next: '', quality: 'HD' as const },
-      { id: 'm_sim_3', name: 'The Dark Knight', logo: 'https://images.unsplash.com/photo-1478720568477-152d9b164e26?w=300&h=450&fit=crop', category: primaryCategory, streamUrl: movieStreamUrl, type: 'vod' as const, isLive: false, current: '', next: '', quality: 'HD' as const },
-      { id: 'm_sim_4', name: 'Avatar', logo: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=300&h=450&fit=crop', category: primaryCategory, streamUrl: movieStreamUrl, type: 'vod' as const, isLive: false, current: '', next: '', quality: 'HD' as const },
-      { id: 'm_sim_5', name: 'Gladiator', logo: 'https://images.unsplash.com/photo-1559583985-c80d8ad9b29f?w=300&h=450&fit=crop', category: primaryCategory, streamUrl: movieStreamUrl, type: 'vod' as const, isLive: false, current: '', next: '', quality: 'HD' as const }
-    ];
-  };
+  const getFallbackRecommendations = (): Channel[] => [
+    { id: 'm_sim_1', name: 'Inception', logo: 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=300&h=450&fit=crop', category: primaryCategory, streamUrl: movieStreamUrl, type: 'vod' as const, isLive: false, current: '', next: '', quality: 'HD' as const },
+    { id: 'm_sim_2', name: 'Interstellar', logo: 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?w=300&h=450&fit=crop', category: primaryCategory, streamUrl: movieStreamUrl, type: 'vod' as const, isLive: false, current: '', next: '', quality: 'HD' as const },
+    { id: 'm_sim_3', name: 'The Dark Knight', logo: 'https://images.unsplash.com/photo-1478720568477-152d9b164e26?w=300&h=450&fit=crop', category: primaryCategory, streamUrl: movieStreamUrl, type: 'vod' as const, isLive: false, current: '', next: '', quality: 'HD' as const },
+    { id: 'm_sim_4', name: 'Avatar', logo: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=300&h=450&fit=crop', category: primaryCategory, streamUrl: movieStreamUrl, type: 'vod' as const, isLive: false, current: '', next: '', quality: 'HD' as const },
+    { id: 'm_sim_5', name: 'Gladiator', logo: 'https://images.unsplash.com/photo-1559583985-c80d8ad9b29f?w=300&h=450&fit=crop', category: primaryCategory, streamUrl: movieStreamUrl, type: 'vod' as const, isLive: false, current: '', next: '', quality: 'HD' as const }
+  ];
 
   const handleWatch = () => {
+    let urlToPlay = isDownloaded && downloadedItem?.localUri ? downloadedItem.localUri : movieStreamUrl;
     router.push({
       pathname: '/player',
       params: {
-        streamUrl: movieStreamUrl,
+        id: params.id || '',
+        streamUrl: urlToPlay,
         title: movieTitle,
         quality: movieQuality,
-        isLive: 'false'
+        isLive: 'false',
+        poster: moviePoster,
+        backdrop: movieBackdrop,
+        description: movieDescription,
+        category: primaryCategory
       }
+    });
+  };
+
+  const handleDownload = async () => {
+    if (isDownloaded && downloadedItem) {
+      try {
+        await FileSystem.deleteAsync(downloadedItem.localUri, { idempotent: true });
+        removeDownload(params.id || '');
+      } catch (e) {
+        console.error("Failed to delete", e);
+      }
+      return;
+    }
+    if (isDownloading) return;
+    
+    startDownload({
+      id: params.id || '',
+      title: movieTitle,
+      poster: moviePoster,
+      backdrop: movieBackdrop,
+      quality: movieQuality,
+      streamUrl: movieStreamUrl,
+      type: 'movie'
     });
   };
 
@@ -314,48 +309,49 @@ export default function MovieDetailScreen() {
     }
   };
 
-  // Extract actors
-  const getActors = (): Actor[] => {
-    if (movieInfo?.actors_images && Array.isArray(movieInfo.actors_images)) {
-      return movieInfo.actors_images.map((actor: any, idx: number) => {
-        const img = actor.image || actor.profile_path || '';
-        const realImg = img.startsWith('http') || img ? (img.startsWith('http') ? img : `https://image.tmdb.org/t/p/w185${img}`) : (actorsImages[actor.name || actor.cast_name] || '');
-        return {
-          id: `actor_${idx}`,
-          name: actor.name || actor.cast_name || 'Unknown',
-          image: realImg,
-        };
-      });
-    }
-    if (movieInfo?.cast && typeof movieInfo.cast === 'string') {
-      const rawParts = movieInfo.cast.split(/[,;|]|\r?\n|\s{2,}|\s*-\s*|\s*\/\s*/);
-      let cleaned = rawParts.map((p: string) => p.trim()).filter((p: string) => p.length > 0);
-
-      if (cleaned.length === 1 && cleaned[0].includes(' ')) {
-        const words = cleaned[0].split(/\s+/).filter((w: string) => w.length > 0);
-        if (words.length > 3) {
-          const grouped: string[] = [];
-          for (let i = 0; i < words.length; i += 2) {
-            if (i + 1 < words.length) {
-              grouped.push(`${words[i]} ${words[i + 1]}`);
-            } else {
-              grouped.push(words[i]);
-            }
-          }
-          cleaned = grouped;
-        }
+  useEffect(() => {
+    const getActors = (): Actor[] => {
+      if (movieInfo?.actors_images && Array.isArray(movieInfo.actors_images)) {
+        return movieInfo.actors_images.map((actor: any, idx: number) => {
+          const img = actor.image || actor.profile_path || '';
+          const realImg = img.startsWith('http') || img ? (img.startsWith('http') ? img : `https://image.tmdb.org/t/p/w185${img}`) : (actorsImages[actor.name || actor.cast_name] || '');
+          return {
+            id: `actor_${idx}`,
+            name: actor.name || actor.cast_name || 'Unknown',
+            image: realImg,
+          };
+        });
       }
+      if (movieInfo?.cast && typeof movieInfo.cast === 'string') {
+        const rawParts = movieInfo.cast.split(/[,;|]|\r?\n|\s{2,}|\s*-\s*|\s*\/\s*/);
+        let cleaned = rawParts.map((p: string) => p.trim()).filter((p: string) => p.length > 0);
 
-      return cleaned.map((name: string, idx: number) => ({
-        id: `actor_c_${idx}`,
-        name,
-        image: actorsImages[name] || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=1A1A1A&color=D4A843&bold=true&size=150`,
-      }));
-    }
-    return [];
-  };
+        if (cleaned.length === 1 && cleaned[0].includes(' ')) {
+          const words = cleaned[0].split(/\s+/).filter((w: string) => w.length > 0);
+          if (words.length > 3) {
+            const grouped: string[] = [];
+            for (let i = 0; i < words.length; i += 2) {
+              if (i + 1 < words.length) {
+                grouped.push(`${words[i]} ${words[i + 1]}`);
+              } else {
+                grouped.push(words[i]);
+              }
+            }
+            cleaned = grouped;
+          }
+        }
 
-  // Get dynamic TMDb real genres
+        return cleaned.map((name: string, idx: number) => ({
+          id: `actor_c_${idx}`,
+          name,
+          image: actorsImages[name] || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=1A1A1A&color=D4A843&bold=true&size=150`,
+        }));
+      }
+      return [];
+    };
+    setActors(getActors());
+  }, [movieInfo, actorsImages]);
+
   const getGenresList = (): string[] => {
     if (movieInfo?.genre && typeof movieInfo.genre === 'string') {
       return movieInfo.genre.split(',').map((g: string) => g.trim());
@@ -363,17 +359,14 @@ export default function MovieDetailScreen() {
     return movieGenres;
   };
 
-  // Safe Rating parser
   const getRating = (): number => {
     if (!movieInfo?.rating) return 8.5;
     const parsed = parseFloat(movieInfo.rating);
     return isNaN(parsed) || parsed === 0 ? 8.5 : parsed;
   };
 
-  const actors = getActors();
   const genres = getGenresList();
   const rating = getRating();
-  const director = movieInfo?.director || '';
   const releaseDate = movieInfo?.releasedate || movieInfo?.release_date || '';
   const year = releaseDate ? releaseDate.substring(0, 4) : '2026';
   const duration = movieInfo?.duration || movieInfo?.runtime || 'VOD';
@@ -388,86 +381,91 @@ export default function MovieDetailScreen() {
       .toUpperCase();
   };
 
+  const { width, height } = useWindowDimensions();
+  const isLandscape = width > height;
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 40 }} showsVerticalScrollIndicator={false}>
+      <ScrollView ref={scrollViewRef} contentContainerStyle={{ paddingBottom: insets.bottom + 40 }} showsVerticalScrollIndicator={false}>
         
         <View style={styles.heroSection}>
-          <Image source={{ uri: movieBackdrop }} style={StyleSheet.absoluteFill} contentFit="cover" />
+          <Image source={{ uri: movieBackdrop || moviePoster }} style={StyleSheet.absoluteFill} contentFit="cover" />
           <LinearGradient
-            colors={['rgba(0,0,0,0.3)', 'rgba(10,10,10,0.8)', '#0A0A0A']}
-            style={StyleSheet.absoluteFill}
+            colors={['transparent', 'rgba(10,10,10,0.8)', colors.background]}
+            style={[StyleSheet.absoluteFill, { top: '50%' }]}
           />
-          
           <Pressable 
-            style={[styles.backBtn, { top: insets.top + 10, backgroundColor: 'rgba(0,0,0,0.5)' }]} 
+            style={[styles.backBtn, { top: insets.top + 10 }]} 
             onPress={() => router.back()}
           >
-            <Feather name="arrow-left" size={24} color="#FFF" />
+            <Feather name="arrow-left" size={28} color="#FFF" style={styles.shadowIcon} />
           </Pressable>
-          
-          <View style={styles.posterWrapper}>
-            <Image source={{ uri: moviePoster }} style={[styles.poster, { borderColor: colors.gold }]} contentFit="cover" />
-          </View>
+        </View>
+
+        <View style={styles.titleSection}>
+          <Text style={[styles.title, { color: colors.gold }]}>{movieTitle}</Text>
+          <Pressable 
+            style={styles.playPill}
+            onPress={handleWatch}
+          >
+            <Feather name="play" size={20} color="#000" />
+            <Text style={styles.playPillText}>Watch Now</Text>
+          </Pressable>
         </View>
 
         <View style={styles.content}>
-          <Text style={[styles.title, { color: colors.text }]}>{movieTitle}</Text>
-          
-          <View style={styles.metaRow}>
-            <Text style={[styles.metaText, { color: colors.mutedForeground }]}>{year}</Text>
-            <Text style={[styles.metaDot, { color: colors.mutedForeground }]}>·</Text>
-            <Text style={[styles.metaText, { color: colors.mutedForeground }]}>{duration}</Text>
-            <Text style={[styles.metaDot, { color: colors.mutedForeground }]}>·</Text>
-            <View style={styles.ratingBadge}>
-              <Feather name="star" size={14} color={colors.gold} />
-              <Text style={styles.ratingText}>{rating.toFixed(1)}</Text>
-            </View>
-            <View style={{ marginLeft: 8 }}><QualityBadge quality={movieQuality as any} /></View>
-          </View>
-          
-          {director ? (
-            <Text style={[styles.directorText, { color: colors.mutedForeground }]}>
-              Director: <Text style={{ color: colors.text, fontWeight: '600' }}>{director}</Text>
-            </Text>
-          ) : null}
+          <Text style={[styles.sectionHeading, { color: colors.text }]}>Movie Details</Text>
+          <Text style={[styles.tagline, { color: '#E8A317' }]}>Top Pick For You</Text>
 
-          <View style={styles.genres}>
-            {genres.map(g => (
-              <View key={g} style={[styles.genrePill, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-                <Text style={[styles.genreText, { color: colors.text }]}>{g}</Text>
-              </View>
-            ))}
-          </View>
-          
+          <Text style={[styles.metaRowText, { color: colors.mutedForeground }]}>
+            {year} • {duration} • {rating.toFixed(1)}/10 • {genres.slice(0, 2).join(' | ')}
+          </Text>
+
           {loading ? (
-            <ActivityIndicator size="small" color={colors.gold} style={{ marginVertical: 12 }} />
+            <ActivityIndicator size="small" color={colors.gold} style={{ marginVertical: 12, alignSelf: 'flex-start' }} />
           ) : (
-            description ? <Text style={[styles.description, { color: colors.mutedForeground }]}>{description}</Text> : null
+            description ? <Text style={[styles.description, { color: '#DDD' }]}>{description}</Text> : null
           )}
 
-          <View style={styles.actions}>
-            <GoldButton 
-              title="Watch Now" 
-              icon={<Feather name="play" size={20} color="#1A1A1A" />}
-              style={{ flex: 1 }}
-              onPress={handleWatch}
-            />
+          {actors.length > 0 && (
+             <Text style={[styles.starsText, { color: colors.mutedForeground }]}>
+               Stars: <Text style={{ color: '#DDD' }}>{actors.map(a => a.name).join(', ')}</Text>
+             </Text>
+          )}
+
+          <View style={styles.actionButtonsRow}>
+            <Pressable style={styles.actionIconBtn} onPress={handleToggleFav}>
+              <View style={styles.actionIconCircle}>
+                <Feather name={isFavorite ? "check" : "plus"} size={20} color="#FFF" />
+              </View>
+              <Text style={styles.actionIconText}>My List</Text>
+            </Pressable>
+            
+            <Pressable style={styles.actionIconBtn} onPress={handleDownload} disabled={isDownloading}>
+              <View style={styles.actionIconCircle}>
+                {isDownloading ? (
+                  <Text style={{ color: colors.gold, fontSize: 10, fontWeight: 'bold' }}>
+                    {Math.round(downloadProgress * 100)}%
+                  </Text>
+                ) : isDownloaded ? (
+                  <Feather name="trash-2" size={20} color={colors.primary} />
+                ) : (
+                  <Feather name="download" size={20} color="#FFF" />
+                )}
+              </View>
+              <Text style={styles.actionIconText}>
+                {isDownloading ? 'Downloading' : isDownloaded ? 'Delete' : 'Download'}
+              </Text>
+            </Pressable>
+
             {movieInfo?.youtube_trailer || movieInfo?.trailer ? (
-              <Pressable 
-                style={[styles.trailerBtn, { borderColor: colors.gold }]}
-                onPress={handleWatchTrailer}
-              >
-                <Feather name="video" size={20} color={colors.gold} />
-                <Text style={[styles.trailerBtnText, { color: colors.gold }]}>Trailer</Text>
+              <Pressable style={styles.actionIconBtn} onPress={handleWatchTrailer}>
+                <View style={styles.actionIconCircle}>
+                  <Feather name="video" size={20} color="#FFF" />
+                </View>
+                <Text style={styles.actionIconText}>Trailer</Text>
               </Pressable>
             ) : null}
-            <Pressable 
-              style={[styles.favBtn, { borderColor: colors.border }]}
-              onPress={handleToggleFav}
-            >
-              <Feather name="heart" size={24} color={isFavorite ? '#E53935' : colors.text} fill={isFavorite ? '#E53935' : 'transparent'} />
-            </Pressable>
           </View>
 
           {!loading && actors.length > 0 && (
@@ -475,7 +473,11 @@ export default function MovieDetailScreen() {
               <Text style={[styles.sectionTitle, { color: colors.text }]}>Cast</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.castList}>
                 {actors.map(actor => (
-                  <View key={actor.id} style={styles.castCard}>
+                  <Pressable 
+                    key={actor.id} 
+                    style={styles.castCard}
+                    onPress={undefined}
+                  >
                     {actor.image ? (
                       <Image source={{ uri: actor.image }} style={styles.castImage} contentFit="cover" />
                     ) : (
@@ -484,7 +486,7 @@ export default function MovieDetailScreen() {
                       </View>
                     )}
                     <Text style={[styles.castName, { color: colors.text }]} numberOfLines={2}>{actor.name}</Text>
-                  </View>
+                  </Pressable>
                 ))}
               </ScrollView>
             </View>
@@ -542,121 +544,114 @@ const styles = StyleSheet.create({
     height: SCREEN_HEIGHT * 0.55,
     width: '100%',
     position: 'relative',
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    paddingBottom: 24,
   },
   backBtn: {
     position: 'absolute',
     left: 20,
     width: 44,
     height: 44,
-    borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 10,
   },
-  posterWrapper: {
-    shadowColor: '#D4A843',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.2,
-    shadowRadius: 20,
-    elevation: 10,
+  shadowIcon: {
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
-  poster: {
-    width: 180,
-    aspectRatio: 2/3,
-    borderRadius: 16,
-    borderWidth: 2,
-  },
-  content: {
-    padding: 24,
+  titleSection: {
+    alignItems: 'center',
+    marginTop: -20,
+    paddingHorizontal: 24,
+    zIndex: 5,
   },
   title: {
-    fontSize: 26,
+    fontSize: 32,
     fontWeight: '900',
     textAlign: 'center',
-    marginBottom: 12,
+    marginBottom: 8,
+    textShadowColor: 'rgba(0, 0, 0, 0.5)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
   },
-  metaRow: {
+  badgeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
+    gap: 6,
+    marginBottom: 16,
   },
-  metaText: {
-    fontSize: 14,
-    fontWeight: '500',
-  },
-  metaDot: {
-    marginHorizontal: 8,
-    fontSize: 14,
-  },
-  ratingBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  ratingText: {
+  badgeText: {
     color: '#FFF',
     fontWeight: 'bold',
     fontSize: 14,
   },
-  directorText: {
-    fontSize: 13,
-    textAlign: 'center',
+  playPill: {
+    backgroundColor: '#FFF',
+    borderRadius: 30,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    minWidth: 200,
+    justifyContent: 'center',
+  },
+  playPillText: {
+    color: '#000',
+    fontWeight: 'bold',
+    fontSize: 16,
+  },
+  content: {
+    padding: 24,
+    paddingTop: 32,
+  },
+  sectionHeading: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    marginBottom: 12,
+  },
+  tagline: {
+    fontSize: 14,
+    fontWeight: 'bold',
     marginBottom: 16,
   },
-  genres: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    gap: 8,
-    marginBottom: 24,
-  },
-  genrePill: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-    borderWidth: 1,
-  },
-  genreText: {
-    fontSize: 12,
-    fontWeight: '600',
+  metaRowText: {
+    fontSize: 13,
+    marginBottom: 16,
+    lineHeight: 20,
   },
   description: {
-    fontSize: 15,
-    lineHeight: 24,
-    textAlign: 'center',
+    fontSize: 14,
+    lineHeight: 22,
+    marginBottom: 16,
+  },
+  starsText: {
+    fontSize: 13,
+    lineHeight: 20,
+    marginBottom: 24,
+  },
+  actionButtonsRow: {
+    flexDirection: 'row',
+    gap: 24,
     marginBottom: 32,
   },
-  actions: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 32,
+  actionIconBtn: {
     alignItems: 'center',
-  },
-  trailerBtn: {
-    height: 56,
-    borderRadius: 12,
-    borderWidth: 1,
-    paddingHorizontal: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
     gap: 8,
   },
-  trailerBtnText: {
-    fontWeight: 'bold',
-    fontSize: 14,
-  },
-  favBtn: {
-    width: 56,
-    height: 56,
-    borderRadius: 12,
-    borderWidth: 1,
+  actionIconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.1)',
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
+  },
+  actionIconText: {
+    color: '#FFF',
+    fontSize: 12,
   },
   castSection: {
     marginTop: 8,

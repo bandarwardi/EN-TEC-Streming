@@ -3,7 +3,7 @@ import { isLiquidGlassAvailable } from "expo-glass-effect";
 import { Tabs } from "expo-router";
 import { Icon, Label, NativeTabs } from "expo-router/unstable-native-tabs";
 import { SymbolView } from "expo-symbols";
-import { Feather } from "@expo/vector-icons";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React from "react";
 import { Platform, StyleSheet, View, useWindowDimensions } from "react-native";
 import { useColors } from "@/hooks/useColors";
@@ -39,7 +39,7 @@ function NativeTabLayout() {
 function ClassicTabLayout() {
   const colors = useColors();
   const { width } = useWindowDimensions();
-  const isLargeScreen = width >= 768 || Platform.isTV;
+  const isLargeScreen = width >= 1024 || Platform.isTV;
   const isIOS = Platform.OS === "ios";
   const isWeb = Platform.OS === "web";
 
@@ -50,12 +50,12 @@ function ClassicTabLayout() {
         <Tabs
           screenOptions={{
             headerShown: false,
-            tabBarActiveTintColor: colors.primary,
+            tabBarActiveTintColor: colors.tint,
             tabBarInactiveTintColor: colors.mutedForeground,
             tabBarStyle: {
               display: isLargeScreen ? 'none' : 'flex',
               position: "absolute",
-              backgroundColor: isIOS ? "transparent" : 'rgba(10,10,10,0.95)',
+              backgroundColor: isIOS ? "transparent" : 'rgba(17,22,32,0.95)',
               borderTopWidth: 0,
               elevation: 0,
               height: isWeb ? 84 : 70,
@@ -76,7 +76,7 @@ function ClassicTabLayout() {
                 <View
                   style={[
                     StyleSheet.absoluteFill,
-                    { backgroundColor: 'rgba(10,10,10,0.95)' },
+                    { backgroundColor: 'rgba(17,22,32,0.95)' },
                   ]}
                 />
               ) : null,
@@ -87,11 +87,11 @@ function ClassicTabLayout() {
         options={{
           title: "Home",
           tabBarIcon: ({ color, focused }) => (
-            <View style={[focused && { backgroundColor: 'rgba(212,168,67,0.15)', borderRadius: 10, padding: 6 }]}>
+            <View style={{ paddingTop: 4 }}>
               {isIOS ? (
-                <SymbolView name="house" tintColor={color} size={22} />
+                <SymbolView name="house" tintColor={color} size={24} />
               ) : (
-                <Feather name="home" size={22} color={color} />
+                <MaterialCommunityIcons name={focused ? "home" : "home-outline"} size={26} color={color} />
               )}
             </View>
           ),
@@ -102,11 +102,11 @@ function ClassicTabLayout() {
         options={{
           title: "Live TV",
           tabBarIcon: ({ color, focused }) => (
-            <View style={[focused && { backgroundColor: 'rgba(212,168,67,0.15)', borderRadius: 10, padding: 6 }]}>
+            <View style={{ paddingTop: 4 }}>
               {isIOS ? (
-                <SymbolView name="tv" tintColor={color} size={22} />
+                <SymbolView name="tv" tintColor={color} size={24} />
               ) : (
-                <Feather name="tv" size={22} color={color} />
+                <MaterialCommunityIcons name={focused ? "access-point" : "access-point"} size={26} color={color} />
               )}
             </View>
           ),
@@ -117,11 +117,11 @@ function ClassicTabLayout() {
         options={{
           title: "Movies",
           tabBarIcon: ({ color, focused }) => (
-            <View style={[focused && { backgroundColor: 'rgba(212,168,67,0.15)', borderRadius: 10, padding: 6 }]}>
+            <View style={{ paddingTop: 4 }}>
               {isIOS ? (
-                <SymbolView name="film" tintColor={color} size={22} />
+                <SymbolView name="film" tintColor={color} size={24} />
               ) : (
-                <Feather name="film" size={22} color={color} />
+                <MaterialCommunityIcons name={focused ? "movie-open" : "movie-open-outline"} size={26} color={color} />
               )}
             </View>
           ),
@@ -132,11 +132,11 @@ function ClassicTabLayout() {
         options={{
           title: "Series",
           tabBarIcon: ({ color, focused }) => (
-            <View style={[focused && { backgroundColor: 'rgba(212,168,67,0.15)', borderRadius: 10, padding: 6 }]}>
+            <View style={{ paddingTop: 4 }}>
               {isIOS ? (
-                <SymbolView name="play.tv" tintColor={color} size={22} />
+                <SymbolView name="play.tv" tintColor={color} size={24} />
               ) : (
-                <Feather name="play-circle" size={22} color={color} />
+                <MaterialCommunityIcons name={focused ? "television-play" : "television-play"} size={26} color={color} />
               )}
             </View>
           ),
@@ -147,11 +147,11 @@ function ClassicTabLayout() {
         options={{
           title: "Catch Up",
           tabBarIcon: ({ color, focused }) => (
-            <View style={[focused && { backgroundColor: 'rgba(212,168,67,0.15)', borderRadius: 10, padding: 6 }]}>
+            <View style={{ paddingTop: 4 }}>
               {isIOS ? (
-                <SymbolView name="clock" tintColor={color} size={22} />
+                <SymbolView name="clock.arrow.circlepath" tintColor={color} size={24} />
               ) : (
-                <Feather name="clock" size={22} color={color} />
+                <MaterialCommunityIcons name={focused ? "clock-time-four" : "clock-time-four-outline"} size={26} color={color} />
               )}
             </View>
           ),
@@ -162,14 +162,35 @@ function ClassicTabLayout() {
         options={{
           title: "Settings",
           tabBarIcon: ({ color, focused }) => (
-            <View style={[focused && { backgroundColor: 'rgba(212,168,67,0.15)', borderRadius: 10, padding: 6 }]}>
+            <View style={{ paddingTop: 4 }}>
               {isIOS ? (
-                <SymbolView name="gearshape" tintColor={color} size={22} />
+                <SymbolView name="gearshape" tintColor={color} size={24} />
               ) : (
-                <Feather name="settings" size={22} color={color} />
+                <MaterialCommunityIcons name={focused ? "face-man-profile" : "face-man-profile"} size={26} color={color} />
               )}
             </View>
           ),
+        }}
+      />
+      <Tabs.Screen
+        name="movie-detail"
+        options={{
+          href: null,
+          title: "Movie Detail",
+        }}
+      />
+      <Tabs.Screen
+        name="series-detail"
+        options={{
+          href: null,
+          title: "Series Detail",
+        }}
+      />
+      <Tabs.Screen
+        name="actor-detail"
+        options={{
+          href: null,
+          title: "Actor Detail",
         }}
       />
     </Tabs>
@@ -180,7 +201,7 @@ function ClassicTabLayout() {
 
 export default function TabLayout() {
   const { width } = useWindowDimensions();
-  const isLargeScreen = width >= 768 || Platform.isTV;
+  const isLargeScreen = width >= 1024 || Platform.isTV;
 
   // On large screens we always use the custom layout to show the sidebar.
   if (isLiquidGlassAvailable() && !isLargeScreen) {

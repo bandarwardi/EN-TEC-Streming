@@ -12,7 +12,7 @@ interface ChannelCardProps {
   width?: number;
 }
 
-export const ChannelCard = React.memo(function ChannelCard({ channel, onPress, width = 128 }: ChannelCardProps) {
+export const ChannelCard = React.memo(function ChannelCard({ channel, onPress, width = 160 }: ChannelCardProps) {
   const colors = useColors();
   const [isFocused, setIsFocused] = React.useState(false);
   const scaleAnim = React.useRef(new Animated.Value(1)).current;
@@ -40,29 +40,22 @@ export const ChannelCard = React.memo(function ChannelCard({ channel, onPress, w
           styles.container, 
           { 
             width, 
-            backgroundColor: colors.surface, 
-            borderColor: isFocused ? colors.gold : colors.border, 
-            borderWidth: isFocused ? 2 : 1,
             transform: [{ scale: scaleAnim }] 
           }
         ]}
       >
-        <View style={styles.topRow}>
+        <View style={[
+          styles.imageContainer,
+          {
+            borderColor: isFocused ? colors.gold : colors.border,
+            borderWidth: isFocused ? 2 : 1,
+            backgroundColor: colors.surface
+          }
+        ]}>
           <Image source={{ uri: channel.logo }} style={styles.logo} contentFit="contain" />
-          {channel.isLive ? <LiveBadge /> : <QualityBadge quality={channel.quality} />}
-        </View>
-        <View style={styles.bottomSection}>
-          <Text style={[styles.name, { color: colors.text }]} numberOfLines={1}>
-            {channel.name}
-          </Text>
-          <Text style={[styles.current, { color: colors.mutedForeground }]} numberOfLines={1}>
-            ▶ {channel.current}
-          </Text>
-          {channel.next ? (
-            <Text style={[styles.next, { color: colors.mutedForeground }]} numberOfLines={1}>
-              {channel.next}
-            </Text>
-          ) : null}
+          <View style={styles.badgeContainer}>
+            {channel.isLive ? <LiveBadge /> : <QualityBadge quality={channel.quality} />}
+          </View>
         </View>
       </Animated.View>
     </Pressable>
@@ -71,24 +64,27 @@ export const ChannelCard = React.memo(function ChannelCard({ channel, onPress, w
 
 const styles = StyleSheet.create({
   container: {
-    aspectRatio: 1,
-    borderRadius: 16,
-    borderWidth: 1,
-    padding: 12,
-    justifyContent: 'space-between',
+    gap: 8,
   },
-  topRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
+  imageContainer: {
+    aspectRatio: 16 / 9,
+    width: '100%',
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
   },
   logo: {
-    width: 48,
-    height: 48,
-    borderRadius: 8,
-    backgroundColor: '#0A0A0A',
+    width: '60%',
+    height: '60%',
+  },
+  badgeContainer: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
   },
   bottomSection: {
+    paddingHorizontal: 4,
     gap: 2,
   },
   name: {
@@ -97,9 +93,5 @@ const styles = StyleSheet.create({
   },
   current: {
     fontSize: 11,
-  },
-  next: {
-    fontSize: 11,
-    opacity: 0.7,
   }
 });

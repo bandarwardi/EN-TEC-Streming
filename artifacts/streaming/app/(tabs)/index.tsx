@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, useWindowDimensions, Platform } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, useWindowDimensions, Platform, RefreshControl } from 'react-native';
 import { useColors } from '@/hooks/useColors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -7,27 +7,39 @@ import { HeroCarousel } from '@/components/HeroCarousel';
 import { ContentRow } from '@/components/ContentRow';
 import { ChannelCard } from '@/components/ChannelCard';
 import { MovieCard } from '@/components/MovieCard';
+import { ContinueWatchingCard } from '@/components/ContinueWatchingCard';
 import { router } from 'expo-router';
 import { useAppStore } from '@/store/app-store';
 import { Channel } from '@/types';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
+import { base64Decode } from '@/lib/base64';
 
 export default function HomeScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
-  const isLargeScreen = width >= 768 || Platform.isTV;
+  const isLargeScreen = width >= 1024 || Platform.isTV;
   
   const activePlaylistId = useAppStore((s) => s.activePlaylistId);
   const activeCategories = useAppStore((s) => s.activeCategories);
   const getChannelsForCategory = useAppStore((s) => s.getChannelsForCategory);
   const setPlaybackQueue = useAppStore((s) => s.setPlaybackQueue);
+  const playlists = useAppStore((s) => s.playlists);
   
   const [loading, setLoading] = useState(true);
-  const [popularChannels, setPopularChannels] = useState<Channel[]>([]);
-  const [recentMovies, setRecentMovies] = useState<Channel[]>([]);
+  const [isScrolled, setIsScrolled] = useState(false);
+  const [contentRows, setContentRows] = useState<{title: string; type: 'live' | 'vod' | 'series'; categoryId: string; items: any[]}[]>([]);
   const [featuredItems, setFeaturedItems] = useState<any[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const continueWatching = useAppStore((s) => s.continueWatching) || [];
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    setRefreshKey(prev => prev + 1);
+  };
 
   useEffect(() => {
     let active = true;
@@ -40,58 +52,139 @@ export default function HomeScreen() {
       
       setLoading(true);
       try {
-        let channelsList: Channel[] = [];
-        let moviesList: Channel[] = [];
+        let rows: {title: string; type: 'live' | 'vod' | 'series'; categoryId: string; items: any[]}[] = [];
+        let primaryHeroPool: Channel[] = [];
+        let fallbackHeroPool: Channel[] = [];
         
-        if (activeCategories.live && activeCategories.live.length > 0) {
-          const firstLive = activeCategories.live[0];
-          channelsList = await getChannelsForCategory(activePlaylistId, 'live', firstLive.id, firstLive.name);
-        }
+        const addRow = async (type: 'live' | 'vod' | 'series', category: any) => {
+          if (!category) return;
+          const items = await getChannelsForCategory(activePlaylistId, type, category.id, category.name);
+          if (items.length > 0) {
+            if (fallbackHeroPool.length === 0) fallbackHeroPool = items;
+            if (type === 'vod' && primaryHeroPool.length === 0) primaryHeroPool = items;
+            const mapped = items.slice(0, 15).map(m => {
+              if (type === 'live') return m;
+              return {
+                id: m.id,
+                title: m.name,
+                poster: m.logo || `https://ui-avatars.com/api/?name=${encodeURIComponent(m.name)}&background=1A1A1A&color=D4A843&bold=true&size=300&format=svg`,
+                backdrop: m.logo,
+                rating: 0,
+                year: 0,
+                duration: '',
+                quality: m.quality,
+                genres: [m.category],
+                description: '',
+                streamUrl: m.streamUrl,
+              };
+            });
+            rows.push({
+              title: category.name,
+              type,
+              categoryId: category.id,
+              items: mapped
+            });
+          }
+        };
+
+        const l1 = activeCategories.live?.[0];
+        const v1 = activeCategories.vod?.[0];
+        const s1 = activeCategories.series?.[0];
+        const l2 = activeCategories.live?.[1];
+        const v2 = activeCategories.vod?.[1];
+        const s2 = activeCategories.series?.[1];
         
-        if (activeCategories.vod && activeCategories.vod.length > 0) {
-          const firstVod = activeCategories.vod[0];
-          moviesList = await getChannelsForCategory(activePlaylistId, 'vod', firstVod.id, firstVod.name);
-        }
+        await addRow('live', l1);
+        await addRow('vod', v1);
+        await addRow('series', s1);
+        await addRow('live', l2);
+        await addRow('vod', v2);
+        await addRow('series', s2);
         
         if (!active) return;
         
-        setPopularChannels(channelsList.slice(0, 10));
+        setContentRows(rows);
         
-        const mappedMovies = moviesList.map((m) => ({
-          id: m.id,
-          title: m.name,
-          poster: m.logo || `https://ui-avatars.com/api/?name=${encodeURIComponent(m.name)}&background=1A1A1A&color=D4A843&bold=true&size=300&format=svg`,
-          backdrop: m.logo,
-          rating: 0,
-          year: 0,
-          duration: '',
-          quality: m.quality,
-          genres: [m.category],
-          description: '',
-          streamUrl: m.streamUrl,
-        }));
-        setRecentMovies(mappedMovies.slice(0, 10) as any);
+        const pool = primaryHeroPool.length > 0 ? primaryHeroPool : fallbackHeroPool;
+        const shuffledPool = [...pool].sort(() => 0.5 - Math.random());
+        const top5 = shuffledPool.slice(0, 5);
         
-        const pool = moviesList.length > 0 ? moviesList : channelsList;
-        const mappedFeatured = pool.slice(0, 5).map((item) => ({
-          id: item.id,
-          title: item.name,
-          subtitle: item.type === 'live' ? 'FEATURED LIVE TV' : 'FEATURED MOVIE',
-          backdrop: { uri: item.logo || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.name)}&background=1A1A1A&color=D4A843&bold=true&size=300&format=svg` },
-          description: item.type === 'live' ? `Live Channel · ${item.category}` : `Movie VOD · ${item.category}`,
-          rating: 8.5,
-          year: 2026,
-          duration: item.type === 'live' ? 'LIVE' : 'VOD',
-          genres: [item.category],
-          streamUrl: item.streamUrl,
-          originalItem: item,
+        const activePlaylist = playlists.find(p => p.id === activePlaylistId);
+        let config: any = null;
+        if (activePlaylist && activePlaylist.url) {
+          if (activePlaylist.url.startsWith('xtream://')) {
+            try { config = JSON.parse(base64Decode(activePlaylist.url.replace('xtream://', ''))); } catch(e) {}
+          } else {
+            const match = activePlaylist.url.match(/^(https?:\/\/[^/]+)\/get\.php\?username=([^&]+)&password=([^&]+)/);
+            if (match) config = { host: match[1], username: match[2], password: match[3] };
+          }
+        }
+
+        const mappedFeatured = await Promise.all(top5.map(async (item) => {
+          let backdropUri = item.logo || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.name)}&background=1A1A1A&color=D4A843&bold=true&size=300&format=svg`;
+          let description = item.type === 'live' ? `Live Channel · ${item.category}` : `Movie VOD · ${item.category}`;
+          
+          if (item.type === 'vod' && config && item.id.startsWith('xt_vod_')) {
+            try {
+              const movieId = item.id.replace('xt_vod_', '');
+              const fetchUrl = `${config.host}/player_api.php?username=${config.username}&password=${config.password}&action=get_vod_info&vod_id=${movieId}`;
+              
+              const text = await new Promise<string>((resolve, reject) => {
+                const xhr = new XMLHttpRequest();
+                xhr.open('GET', fetchUrl, true);
+                xhr.timeout = 10000;
+                xhr.onload = () => {
+                  if (xhr.status >= 200 && xhr.status < 300) resolve(xhr.responseText || '');
+                  else reject(new Error('error'));
+                };
+                xhr.onerror = () => reject(new Error('error'));
+                xhr.ontimeout = () => reject(new Error('timeout'));
+                xhr.send();
+              });
+              
+              const data = JSON.parse(text);
+              if (data && data.info) {
+                const fetchedBackdrop = data.info.backdrop_path && Array.isArray(data.info.backdrop_path) && data.info.backdrop_path.length > 0 
+                  ? data.info.backdrop_path[0] 
+                  : data.info.backdrop_path && typeof data.info.backdrop_path === 'string' 
+                    ? data.info.backdrop_path 
+                    : '';
+                if (fetchedBackdrop) {
+                  backdropUri = fetchedBackdrop;
+                }
+                if (data.info.plot) {
+                  description = data.info.plot;
+                }
+              }
+            } catch (err) {
+              // Ignore failure for individual items
+            }
+          }
+          
+          return {
+            id: item.id,
+            title: item.name,
+            subtitle: item.type === 'live' ? 'FEATURED LIVE TV' : 'FEATURED MOVIE',
+            backdrop: { uri: backdropUri },
+            poster: { uri: item.logo },
+            description,
+            rating: 8.5,
+            year: 2026,
+            duration: item.type === 'live' ? 'LIVE' : 'VOD',
+            genres: [item.category],
+            streamUrl: item.streamUrl,
+            originalItem: item,
+          };
         }));
         
         setFeaturedItems(mappedFeatured);
       } catch (err) {
         console.error('Error loading Home content:', err);
       } finally {
-        if (active) setLoading(false);
+        if (active) {
+          setLoading(false);
+          setRefreshing(false);
+        }
       }
     }
     
@@ -100,7 +193,7 @@ export default function HomeScreen() {
     return () => {
       active = false;
     };
-  }, [activePlaylistId, activeCategories]);
+  }, [activePlaylistId, activeCategories, refreshKey]);
 
   if (loading) {
     return (
@@ -160,7 +253,7 @@ export default function HomeScreen() {
               
               <View style={styles.tvHeroActions}>
                 <Pressable
-                  style={({ focused }) => [
+                  style={({ focused }: any) => [
                     styles.tvHeroBtnPrimary,
                     { backgroundColor: focused ? colors.gold : '#FFF' },
                     focused && { transform: [{ scale: 1.05 }] }
@@ -173,7 +266,7 @@ export default function HomeScreen() {
                     }
                   }}
                 >
-                  {({ focused }) => (
+                  {({ focused }: any) => (
                     <>
                       <Feather name="play" size={24} color="#000" />
                       <Text style={[styles.tvHeroBtnPrimaryText, { color: '#000' }]}>Play Now</Text>
@@ -182,7 +275,7 @@ export default function HomeScreen() {
                 </Pressable>
                 
                 <Pressable
-                  style={({ focused }) => [
+                  style={({ focused }: any) => [
                     styles.tvHeroBtnSecondary,
                     { backgroundColor: focused ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.1)' },
                     focused && { transform: [{ scale: 1.05 }], borderColor: '#FFF' }
@@ -196,27 +289,41 @@ export default function HomeScreen() {
           </View>
         ) : null}
 
-        {/* Content Rows layered on bottom */}
         <View style={styles.tvBottomContent}>
-           {recentMovies.length > 0 && (
+           {contentRows.slice(0, 2).map((row, index) => (
             <ContentRow 
-              title="Latest Movies" 
-              data={recentMovies}
-              onSeeAll={() => router.push('/(tabs)/movies')}
-              renderItem={({ item }) => (
-                <MovieCard 
-                  movie={item} 
-                  width={160} 
-                  onPress={() => {
-                    router.push({
-                      pathname: '/movie-detail',
-                      params: { id: item.id, title: item.title, poster: item.poster, backdrop: item.backdrop || item.poster, quality: item.quality, genres: item.genres.join(','), description: item.description, streamUrl: item.streamUrl || '' },
-                    });
-                  }} 
-                />
-              )}
+              key={`tv-row-${index}`}
+              title={row.title} 
+              data={row.items}
+              onSeeAll={() => {
+                const tab = row.type === 'live' ? '/(tabs)/live' : row.type === 'vod' ? '/(tabs)/movies' : '/(tabs)/series';
+                router.push({ pathname: tab, params: { categoryId: row.categoryId } });
+              }}
+              renderItem={({ item, index: itemIndex }) => 
+                row.type === 'live' ? (
+                  <ChannelCard 
+                    channel={item} 
+                    width={200} 
+                    onPress={() => {
+                      setPlaybackQueue(row.items, itemIndex);
+                      router.push({ pathname: '/player', params: { id: item.id, streamUrl: item.streamUrl, title: item.name, isLive: 'true', current: item.current, next: item.next, quality: item.quality, logo: item.logo || '', category: item.category || '' } });
+                    }} 
+                  />
+                ) : (
+                  <MovieCard 
+                    movie={item} 
+                    width={160} 
+                    onPress={() => {
+                      router.push({
+                        pathname: '/movie-detail',
+                        params: { id: item.id, title: item.title, poster: item.poster, backdrop: item.backdrop || item.poster, quality: item.quality, genres: item.genres.join(','), description: item.description, streamUrl: item.streamUrl || '' },
+                      });
+                    }} 
+                  />
+                )
+              }
             />
-          )}
+          ))}
         </View>
       </View>
     );
@@ -225,17 +332,40 @@ export default function HomeScreen() {
   // --- Mobile Layout ---
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 80 }} showsVerticalScrollIndicator={false}>
-        <View style={[styles.header, { top: insets.top }]}>
-          <Text style={[styles.logoText, { color: colors.gold }]}>EN TEC</Text>
-          <View style={styles.headerRight}>
-            <Pressable style={styles.iconButton} onPress={() => router.push('/search')}><Feather name="search" size={20} color={colors.foreground} /></Pressable>
-            <Pressable style={styles.iconButton} onPress={() => router.push('/favorites')}><Feather name="heart" size={20} color={colors.foreground} /></Pressable>
-            <Pressable style={styles.iconButton} onPress={() => router.push('/catchup')}><Feather name="clock" size={20} color={colors.foreground} /></Pressable>
-            <Pressable style={styles.iconButton} onPress={() => router.push('/playlists')}><Feather name="folder" size={20} color={colors.foreground} /></Pressable>
-          </View>
+      <View style={[
+        styles.header, 
+        { 
+          top: 0, 
+          left: 0,
+          right: 0,
+          paddingTop: insets.top + 10,
+          paddingBottom: 10,
+          paddingHorizontal: 20,
+          marginTop: 0,
+          backgroundColor: isScrolled ? colors.background : 'transparent',
+          borderBottomWidth: isScrolled ? 1 : 0,
+          borderBottomColor: colors.border
+        }
+      ]}>
+        <Text style={[styles.logoText, { color: '#FFF' }]}>EN TEC</Text>
+        <View style={styles.headerRight}>
+          <Pressable style={styles.iconButton} onPress={() => router.push('/search')}><Feather name="search" size={20} color={colors.foreground} /></Pressable>
         </View>
-        
+      </View>
+
+      <ScrollView 
+        contentContainerStyle={{ paddingBottom: insets.bottom + 80 }} 
+        showsVerticalScrollIndicator={false}
+        contentInsetAdjustmentBehavior="never"
+        onScroll={(e) => {
+          setIsScrolled(e.nativeEvent.contentOffset.y > 50);
+        }}
+        scrollEventThrottle={16}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.gold} />
+        }
+      >
+
         {featuredItems.length > 0 ? (
           <HeroCarousel 
             items={featuredItems} 
@@ -253,45 +383,84 @@ export default function HomeScreen() {
         )}
         
         <View style={styles.content}>
-          {popularChannels.length > 0 && (
+          {continueWatching.length > 0 && (
             <ContentRow 
-              title="Popular Channels" 
-              data={popularChannels}
-              onSeeAll={() => router.push('/(tabs)/live')}
-              renderItem={({ item, index }) => (
-                <ChannelCard 
-                  channel={item} 
-                  width={128} 
-                  onPress={() => {
-                    setPlaybackQueue(popularChannels, index);
-                    router.push({ pathname: '/player', params: { id: item.id, streamUrl: item.streamUrl, title: item.name, isLive: 'true', current: item.current, next: item.next, quality: item.quality, logo: item.logo || '', category: item.category || '' } });
-                  }} 
-                />
-              )}
-            />
-          )}
-          
-          {recentMovies.length > 0 && (
-            <ContentRow 
-              title="Recently Added Movies" 
-              data={recentMovies}
-              onSeeAll={() => router.push('/(tabs)/movies')}
+              title="Continue Watching" 
+              data={continueWatching}
               renderItem={({ item }) => (
-                <MovieCard 
-                  movie={item} 
-                  width={110} 
+                <ContinueWatchingCard 
+                  item={item} 
                   onPress={() => {
-                    router.push({ pathname: '/movie-detail', params: { id: item.id, title: item.title, poster: item.poster, backdrop: item.backdrop || item.poster, quality: item.quality, genres: item.genres.join(','), description: item.description, streamUrl: item.streamUrl || '' } });
+                    router.push({ 
+                      pathname: '/player', 
+                      params: { 
+                        id: item.id,
+                        streamUrl: item.streamUrl, 
+                        title: item.title, 
+                        isLive: String(item.type === 'live'), 
+                        quality: item.quality || 'HD',
+                        poster: item.poster,
+                        backdrop: item.backdrop,
+                        description: item.description,
+                        category: item.category
+                      } 
+                    });
                   }} 
                 />
               )}
             />
           )}
 
-          {popularChannels.length === 0 && recentMovies.length === 0 && (
+          {contentRows.map((row, index) => (
+            <ContentRow 
+              key={`mobile-row-${index}`}
+              title={row.title} 
+              data={row.items}
+              onSeeAll={() => {
+                const tab = row.type === 'live' ? '/(tabs)/live' : row.type === 'vod' ? '/(tabs)/movies' : '/(tabs)/series';
+                router.push({ pathname: tab, params: { categoryId: row.categoryId } });
+              }}
+              renderItem={({ item, index: itemIndex }) => 
+                row.type === 'live' ? (
+                  <ChannelCard 
+                    channel={item} 
+                    width={160} 
+                    onPress={() => {
+                      setPlaybackQueue(row.items, itemIndex);
+                      router.push({ pathname: '/player', params: { id: item.id, streamUrl: item.streamUrl, title: item.name, isLive: 'true', current: item.current, next: item.next, quality: item.quality, logo: item.logo || '', category: item.category || '' } });
+                    }} 
+                  />
+                ) : row.type === 'series' ? (
+                  <MovieCard 
+                    movie={item} 
+                    width={110} 
+                    onPress={() => {
+                      router.push({
+                        pathname: '/series-detail',
+                        params: { id: item.id, title: item.title, poster: item.poster, backdrop: item.backdrop || item.poster, genres: item.genres.join(','), description: item.description, streamUrl: item.streamUrl || '' },
+                      });
+                    }} 
+                  />
+                ) : (
+                  <MovieCard 
+                    movie={item} 
+                    width={110} 
+                    onPress={() => {
+                      router.push({
+                        pathname: '/movie-detail',
+                        params: { id: item.id, title: item.title, poster: item.poster, backdrop: item.backdrop || item.poster, quality: item.quality, genres: item.genres.join(','), description: item.description, streamUrl: item.streamUrl || '' },
+                      });
+                    }} 
+                  />
+                )
+              }
+            />
+          ))}
+
+          {contentRows.length === 0 && (
             <View style={{ alignItems: 'center', padding: 40, gap: 12 }}>
               <Feather name="tv" size={48} color={colors.mutedForeground} />
-              <Text style={{ color: colors.text, fontSize: 16, fontWeight: 'bold' }}>Playlist has no channels</Text>
+              <Text style={{ color: colors.text, fontSize: 16, fontWeight: 'bold' }}>Playlist has no content</Text>
               <Text style={{ color: colors.mutedForeground, textAlign: 'center' }}>Add another playlist or wait for update.</Text>
             </View>
           )}
@@ -319,9 +488,11 @@ const styles = StyleSheet.create({
   tvBottomContent: { position: 'absolute', bottom: 40, left: 0, right: 0, paddingHorizontal: 64 },
   
   // Mobile Styles
-  header: { position: 'absolute', left: 20, right: 20, zIndex: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 },
-  logoText: { fontSize: 20, fontWeight: '900', textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 4 },
-  headerRight: { flexDirection: 'row', gap: 12 },
-  iconButton: { width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(0,0,0,0.4)', alignItems: 'center', justifyContent: 'center' },
-  content: { paddingTop: 32 }
+  header: { position: 'absolute', zIndex: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  logoText: { fontSize: 20, fontWeight: '900', textShadowColor: 'rgba(0,0,0,1)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 8 },
+  headerRight: { flexDirection: 'row', gap: 12, alignItems: 'center' },
+  iconButton: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  subscribeBtn: { backgroundColor: '#FFF', paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20 },
+  subscribeText: { color: '#000', fontWeight: 'bold', fontSize: 13 },
+  content: { paddingTop: 24 }
 });

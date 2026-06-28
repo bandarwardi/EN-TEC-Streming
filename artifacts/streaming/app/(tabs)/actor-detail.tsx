@@ -1,3 +1,4 @@
+import { TVFocusable } from '@/components/TVFocusable';
 import React, { useEffect, useState } from 'react';
 import { 
   View, 
@@ -147,12 +148,12 @@ export default function ActorDetailScreen() {
             style={StyleSheet.absoluteFill}
           />
           
-          <Pressable 
+          <TVFocusable 
             style={[styles.backBtn, { top: insets.top + 10 }]} 
             onPress={() => router.back()}
           >
             <Feather name="arrow-left" size={28} color="#FFF" style={styles.shadowIcon} />
-          </Pressable>
+          </TVFocusable>
 
           <View style={styles.profileContent}>
             <Image source={{ uri: profilePath }} style={[styles.profileImage, { borderColor: colors.gold }]} contentFit="cover" />

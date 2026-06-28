@@ -15,6 +15,7 @@ import { useColors } from '@/hooks/useColors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
+import { TVFocusable } from '@/components/TVFocusable';
 import { useAppStore } from '@/store/app-store';
 import { GoldButton } from '@/components/GoldButton';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -148,19 +149,19 @@ export default function PlaylistsScreen() {
     <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
       <View style={styles.header}>
         {playlists.length > 0 ? (
-          <Pressable onPress={() => router.back()} style={styles.backBtn}>
+          <TVFocusable onPress={() => router.back()} style={styles.backBtn}>
             <Feather name="arrow-left" size={24} color={colors.foreground} />
-          </Pressable>
+          </TVFocusable>
         ) : (
           <View style={{ width: 8 }} />
         )}
         <Text style={[styles.title, { color: colors.text }]}>Playlists</Text>
-        <Pressable
+        <TVFocusable
           style={[styles.addBtn, { backgroundColor: colors.gold }]}
           onPress={() => setShowAdd(true)}
         >
           <Feather name="plus" size={20} color="#1A1A1A" />
-        </Pressable>
+        </TVFocusable>
       </View>
 
       <FlatList
@@ -171,7 +172,7 @@ export default function PlaylistsScreen() {
           const isActive = item.id === activePlaylistId;
           const isRefreshing = refreshingId === item.id;
           return (
-            <Pressable
+            <TVFocusable
               style={[
                 styles.card,
                 {
@@ -215,7 +216,7 @@ export default function PlaylistsScreen() {
                 </Text>
                 {!item.isDemo && (
                   <View style={styles.actions}>
-                    <Pressable
+                    <TVFocusable
                       style={styles.actionBtn}
                       onPress={() => handleRefresh(item.id)}
                       disabled={isRefreshing}
@@ -225,17 +226,17 @@ export default function PlaylistsScreen() {
                       ) : (
                         <Feather name="refresh-cw" size={16} color={colors.mutedForeground} />
                       )}
-                    </Pressable>
-                    <Pressable
+                    </TVFocusable>
+                    <TVFocusable
                       style={styles.actionBtn}
                       onPress={() => handleDelete(item.id, item.name)}
                     >
                       <Feather name="trash-2" size={16} color={colors.destructive} />
-                    </Pressable>
+                    </TVFocusable>
                   </View>
                 )}
               </View>
-            </Pressable>
+            </TVFocusable>
           );
         }}
       />
@@ -245,7 +246,7 @@ export default function PlaylistsScreen() {
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={[StyleSheet.absoluteFill, styles.modalOverlay]}
         >
-          <Pressable style={StyleSheet.absoluteFill} onPress={() => !loading && setShowAdd(false)} />
+          <TVFocusable style={StyleSheet.absoluteFill} onPress={() => !loading && setShowAdd(false)} />
           <View
             style={[
               styles.modalContent,
@@ -254,14 +255,14 @@ export default function PlaylistsScreen() {
           >
             <View style={styles.modalHeader}>
               <Text style={[styles.modalTitle, { color: colors.text }]}>Add Playlist</Text>
-              <Pressable onPress={() => !loading && setShowAdd(false)}>
+              <TVFocusable onPress={() => !loading && setShowAdd(false)}>
                 <Feather name="x" size={24} color={colors.foreground} />
-              </Pressable>
+              </TVFocusable>
             </View>
 
             <View style={[styles.tabRow, { backgroundColor: colors.surface2 }]}>
               {(['m3u', 'xtream'] as AddTab[]).map((t) => (
-                <Pressable
+                <TVFocusable
                   key={t}
                   style={[styles.tabBtn, addTab === t && { backgroundColor: colors.gold }]}
                   onPress={() => setAddTab(t)}
@@ -274,7 +275,7 @@ export default function PlaylistsScreen() {
                   >
                     {t === 'm3u' ? 'M3U URL' : 'Xtream Codes'}
                   </Text>
-                </Pressable>
+                </TVFocusable>
               ))}
             </View>
 
@@ -360,7 +361,7 @@ export default function PlaylistsScreen() {
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
             >
-              <Pressable
+              <TVFocusable
                 style={styles.submitBtnInner}
                 onPress={addTab === 'm3u' ? handleAddM3U : handleAddXtream}
                 disabled={loading}
@@ -368,7 +369,7 @@ export default function PlaylistsScreen() {
                 <Text style={styles.submitBtnText}>
                   {loading ? 'Loading...' : addTab === 'm3u' ? 'Load Playlist' : 'Connect'}
                 </Text>
-              </Pressable>
+              </TVFocusable>
             </LinearGradient>
           </View>
         </KeyboardAvoidingView>

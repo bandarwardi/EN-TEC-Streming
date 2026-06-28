@@ -28,19 +28,8 @@ export default function DownloadsScreen() {
         { 
           text: "Delete", 
           style: "destructive",
-          onPress: async () => {
-            if (item.status === 'downloading' || item.status === 'paused') {
-              cancelDownload(item.id);
-            } else {
-              try {
-                if (item.localUri) {
-                  await FileSystem.deleteAsync(item.localUri, { idempotent: true });
-                }
-                removeDownload(item.id);
-              } catch (e) {
-                console.error(e);
-              }
-            }
+          onPress: () => {
+            cancelDownload(item.id);
           }
         }
       ]
@@ -68,8 +57,17 @@ export default function DownloadsScreen() {
         <Stack.Screen options={{ headerShown: false }} />
         
         <View style={styles.header}>
-          <Pressable onPress={() => router.back()} style={styles.backBtn}>
-            <Feather name="arrow-left" size={24} color={colors.text} />
+          <Pressable 
+            style={({ focused }: any) => [
+              styles.backBtn,
+              focused && { transform: [{ scale: 1.1 }], backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 12, borderWidth: 3, borderColor: '#FFF' }
+            ]} 
+            onPress={() => router.back()}
+            focusable={true}
+          >
+            {({ focused }: any) => (
+              <Feather name="arrow-left" size={24} color={focused ? colors.gold : colors.text} />
+            )}
           </Pressable>
           <Text style={[styles.headerTitle, { color: colors.text }]}>My Downloads</Text>
           <View style={{ width: 44 }} />
@@ -91,8 +89,17 @@ export default function DownloadsScreen() {
       <Stack.Screen options={{ headerShown: false }} />
       
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
-          <Feather name="arrow-left" size={24} color={colors.text} />
+        <Pressable 
+          style={({ focused }: any) => [
+            styles.backBtn,
+            focused && { transform: [{ scale: 1.1 }], backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 12, borderWidth: 3, borderColor: '#FFF' }
+          ]} 
+          onPress={() => router.back()}
+          focusable={true}
+        >
+          {({ focused }: any) => (
+            <Feather name="arrow-left" size={24} color={focused ? colors.gold : colors.text} />
+          )}
         </Pressable>
         <Text style={[styles.headerTitle, { color: colors.text }]}>My Downloads</Text>
         <View style={{ width: 44 }} />
@@ -105,8 +112,12 @@ export default function DownloadsScreen() {
         renderItem={({ item }) => (
           <View style={[styles.downloadCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <Pressable 
-              style={styles.cardMain} 
+              style={({ focused }: any) => [
+                styles.cardMain,
+                focused && { backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 3, borderColor: '#FFF', borderRadius: 16 }
+              ]} 
               onPress={() => item.status === 'completed' ? handlePlay(item) : null}
+              focusable={true}
             >
               <Image source={{ uri: item.poster || item.backdrop }} style={styles.thumbnail} contentFit="cover" />
               <View style={styles.info}>
@@ -143,16 +154,25 @@ export default function DownloadsScreen() {
             
             <View style={styles.actionsColumn}>
               {item.status === 'downloading' && (
-                <Pressable style={styles.actionBtn} onPress={() => pauseDownload(item.id)}>
+                <Pressable 
+                  style={({ focused }: any) => [styles.actionBtn, focused && { borderWidth: 3, borderColor: '#FFF', transform: [{ scale: 1.1 }] }]} 
+                  onPress={() => pauseDownload(item.id)} hitSlop={10} focusable={true}
+                >
                   <Feather name="pause" size={20} color={colors.text} />
                 </Pressable>
               )}
-              {item.status === 'paused' && (
-                <Pressable style={styles.actionBtn} onPress={() => resumeDownload(item.id)}>
-                  <Feather name="play" size={20} color={colors.primary} />
+              {(item.status === 'paused' || item.status === 'error') && (
+                <Pressable 
+                  style={({ focused }: any) => [styles.actionBtn, focused && { borderWidth: 3, borderColor: '#FFF', transform: [{ scale: 1.1 }] }]} 
+                  onPress={() => resumeDownload(item.id)} hitSlop={10} focusable={true}
+                >
+                  <Feather name={item.status === 'error' ? "refresh-cw" : "play"} size={20} color={item.status === 'error' ? colors.gold : colors.primary} />
                 </Pressable>
               )}
-              <Pressable style={styles.deleteBtn} onPress={() => handleDelete(item)}>
+              <Pressable 
+                style={({ focused }: any) => [styles.deleteBtn, focused && { borderWidth: 3, borderColor: '#FFF', transform: [{ scale: 1.1 }] }]} 
+                onPress={() => handleDelete(item)} hitSlop={10} focusable={true}
+              >
                 <Feather name={item.status === 'completed' ? "trash-2" : "x"} size={20} color={colors.destructive} />
               </Pressable>
             </View>

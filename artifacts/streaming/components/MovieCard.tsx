@@ -38,7 +38,7 @@ export const MovieCard = React.memo(function MovieCard({ movie, onPress, width =
       <Animated.View style={[{ width, transform: [{ scale: scaleAnim }] }]}>
         <View style={[
           styles.posterContainer,
-          { borderColor: isFocused ? colors.gold : 'transparent', borderWidth: 2 }
+          { borderColor: isFocused ? colors.gold : 'transparent', borderWidth: isFocused ? 4 : 0 }
         ]}>
           <Image source={{ uri: movie.poster }} style={styles.poster} contentFit="cover" />
           <View style={styles.badges}>

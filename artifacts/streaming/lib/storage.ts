@@ -1,6 +1,6 @@
-import * as FileSystem from 'expo-file-system/legacy';
+import * as FileSystem from 'expo-file-system';
 
-const CACHE_DIR = (FileSystem as any).documentDirectory + 'app_cache/';
+const CACHE_DIR = FileSystem.documentDirectory + 'app_cache/';
 
 let isInit = false;
 

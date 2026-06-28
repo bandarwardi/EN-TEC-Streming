@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
+import { TVFocusable } from '@/components/TVFocusable';
 import { useAppStore } from '@/store/app-store';
 import { Channel } from '@/types';
 
@@ -147,9 +148,14 @@ export default function SearchScreen() {
       item.type === 'vod' ? colors.accent : colors.gold;
 
     return (
-      <Pressable 
-        style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}
+      <TVFocusable 
+        style={({ focused }: any) => [
+          styles.card, 
+          { backgroundColor: focused ? 'rgba(255,255,255,0.05)' : colors.surface, borderColor: focused ? '#FFF' : colors.border },
+          focused && { borderWidth: 4, transform: [{ scale: 1.02 }] }
+        ]}
         onPress={() => handleItemPress(item, index)}
+        focusable={true}
       >
         <View style={styles.cardImageWrapper}>
           <Image 
@@ -184,7 +190,7 @@ export default function SearchScreen() {
             color={colors.gold} 
           />
         </View>
-      </Pressable>
+      </TVFocusable>
     );
   };
 
@@ -192,9 +198,18 @@ export default function SearchScreen() {
     <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
       {/* Search Header */}
       <View style={styles.header}>
-        <Pressable style={styles.backBtn} onPress={() => router.back()}>
-          <Feather name="arrow-left" size={22} color={colors.text} />
-        </Pressable>
+        <TVFocusable 
+          style={({ focused }: any) => [
+            styles.backBtn,
+            focused && { transform: [{ scale: 1.1 }], backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 12, borderWidth: 3, borderColor: '#FFF' }
+          ]} 
+          onPress={() => router.back()}
+          focusable={true}
+        >
+          {({ focused }: any) => (
+            <Feather name="arrow-left" size={22} color={focused ? colors.gold : colors.text} />
+          )}
+        </TVFocusable>
         <View style={[styles.searchBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
           <Feather name="search" size={18} color={colors.mutedForeground} style={{ marginRight: 8 }} />
           <TextInput
@@ -207,15 +222,24 @@ export default function SearchScreen() {
             returnKeyType="search"
           />
           {query.length > 0 && (
-            <Pressable onPress={() => setQuery('')}>
+            <TVFocusable disableBorder onPress={() => setQuery('')}>
               <Feather name="x" size={18} color={colors.text} />
-            </Pressable>
+            </TVFocusable>
           )}
         </View>
         {!loadingSearchIndex && (
-          <Pressable style={styles.syncBtn} onPress={handleBuildIndex}>
-            <Feather name="refresh-cw" size={20} color={colors.gold} />
-          </Pressable>
+          <TVFocusable 
+            style={({ focused }: any) => [
+              styles.syncBtn,
+              focused && { transform: [{ scale: 1.1 }], backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 12, borderWidth: 3, borderColor: '#FFF' }
+            ]} 
+            onPress={handleBuildIndex}
+            focusable={true}
+          >
+            {({ focused }: any) => (
+              <Feather name="refresh-cw" size={20} color={focused ? "#FFF" : colors.gold} />
+            )}
+          </TVFocusable>
         )}
       </View>
 
@@ -229,21 +253,25 @@ export default function SearchScreen() {
               tab === 'live' ? 'Live TV' : 
               tab === 'vod' ? 'Movies' : 'Series';
             return (
-              <Pressable
+              <TVFocusable
                 key={tab}
-                style={[
+                style={({ focused }: any) => [
                   styles.tabItem,
-                  isSelected && { borderBottomColor: colors.gold }
+                  isSelected && { borderBottomColor: colors.gold },
+                  focused && { backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 8, borderWidth: 3, borderColor: '#FFF' }
                 ]}
                 onPress={() => setActiveTab(tab)}
+                focusable={true}
               >
-                <Text style={[
-                  styles.tabLabel,
-                  { color: isSelected ? colors.gold : colors.text }
-                ]}>
-                  {label}
-                </Text>
-              </Pressable>
+                {({ focused }: any) => (
+                  <Text style={[
+                    styles.tabLabel,
+                    { color: isSelected || focused ? colors.gold : colors.text }
+                  ]}>
+                    {label}
+                  </Text>
+                )}
+              </TVFocusable>
             );
           })}
         </View>

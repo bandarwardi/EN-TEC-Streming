@@ -1,3 +1,4 @@
+import { TVFocusable } from '@/components/TVFocusable';
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   View, 
@@ -369,7 +370,7 @@ export default function CatchUpScreen() {
             renderItem={({ item }) => {
               const isSelected = selectedChannel?.id === item.id;
               return (
-                <Pressable
+                <TVFocusable
                   onPress={() => setSelectedChannel(item)}
                   style={({ focused }: any) => [
                     styles.tvChannelItem,
@@ -393,7 +394,7 @@ export default function CatchUpScreen() {
                       </View>
                     </View>
                   )}
-                </Pressable>
+                </TVFocusable>
               );
             }}
           />
@@ -407,7 +408,7 @@ export default function CatchUpScreen() {
           {days.map((day, idx) => {
             const isSelected = selectedDayIndex === idx;
             return (
-              <Pressable
+              <TVFocusable
                 key={day.dateString}
                 onPress={() => setSelectedDayIndex(idx)}
                 style={({ focused }: any) => [
@@ -421,7 +422,7 @@ export default function CatchUpScreen() {
                     {idx === 0 ? 'Today' : idx === 1 ? 'Yesterday' : day.label.split(' (')[0]}
                   </Text>
                 )}
-              </Pressable>
+              </TVFocusable>
             );
           })}
         </View>
@@ -441,7 +442,7 @@ export default function CatchUpScreen() {
               keyExtractor={(item) => item.id}
               contentContainerStyle={{ padding: 24, paddingBottom: 80 }}
               renderItem={({ item }) => (
-                <Pressable
+                <TVFocusable
                   onPress={() => handlePlayProgram(item)}
                   style={({ focused }: any) => [
                     styles.tvEpgCard,
@@ -471,7 +472,7 @@ export default function CatchUpScreen() {
                        <Text style={{ color: colors.gold, fontWeight: 'bold' }}>{item.isCurrent ? 'Watch Live' : 'Play Catch Up'}</Text>
                     </View>
                   )}
-                </Pressable>
+                </TVFocusable>
               )}
             />
           )}
@@ -484,7 +485,7 @@ export default function CatchUpScreen() {
   const renderChannelCard = ({ item }: { item: Channel }) => {
     const isSelected = selectedChannel?.id === item.id;
     return (
-      <Pressable 
+      <TVFocusable 
         style={[styles.channelCard, { backgroundColor: colors.surface, borderColor: isSelected ? colors.gold : colors.border }]}
         onPress={() => {
           setSelectedChannel(item);
@@ -495,19 +496,19 @@ export default function CatchUpScreen() {
           <Image source={{ uri: item.logo || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.name)}&background=1A1A1A&color=D4A843&bold=true&size=100&format=svg` }} style={styles.channelLogo} contentFit="contain" />
         </View>
         <Text style={[styles.channelName, { color: colors.text }]} numberOfLines={1}>{item.name}</Text>
-      </Pressable>
+      </TVFocusable>
     );
   };
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
       <View style={styles.header}>
-        <Pressable 
+        <TVFocusable 
           style={styles.backBtn} 
           onPress={() => selectedChannel ? setSelectedChannel(null) : router.back()}
         >
           <Feather name="arrow-left" size={24} color={colors.text} />
-        </Pressable>
+        </TVFocusable>
         <Text style={[styles.headerTitle, { color: colors.text }]}>
           {selectedChannel ? `${selectedChannel.name} - Catch Up` : 'Catch Up'}
         </Text>
@@ -534,7 +535,7 @@ export default function CatchUpScreen() {
             {days.map((day, idx) => {
               const isSelected = selectedDayIndex === idx;
               return (
-                <Pressable
+                <TVFocusable
                   key={day.dateString}
                   style={[styles.dayTabItem, isSelected && { borderBottomColor: colors.gold }]}
                   onPress={() => setSelectedDayIndex(idx)}
@@ -542,7 +543,7 @@ export default function CatchUpScreen() {
                   <Text style={[styles.dayTabLabel, { color: isSelected ? colors.gold : colors.text }]}>
                     {idx === 0 ? 'Today' : idx === 1 ? 'Yesterday' : day.label.split(' (')[0]}
                   </Text>
-                </Pressable>
+                </TVFocusable>
               );
             })}
           </View>
@@ -568,10 +569,10 @@ export default function CatchUpScreen() {
                     {item.description ? <Text style={[styles.epgDesc, { color: colors.mutedForeground }]} numberOfLines={2}>{item.description}</Text> : null}
                   </View>
                   {!item.isFuture && (
-                    <Pressable style={[styles.playBtn, { backgroundColor: item.isCurrent ? colors.gold : 'rgba(255,255,255,0.08)' }]} onPress={() => handlePlayProgram(item)}>
+                    <TVFocusable style={[styles.playBtn, { backgroundColor: item.isCurrent ? colors.gold : 'rgba(255,255,255,0.08)' }]} onPress={() => handlePlayProgram(item)}>
                       <Feather name={item.isCurrent ? 'tv' : 'play-circle'} size={18} color={item.isCurrent ? '#1A1A1A' : colors.text} />
                       <Text style={[styles.playBtnText, { color: item.isCurrent ? '#1A1A1A' : colors.text }]}>{item.isCurrent ? 'Live' : 'Catch Up'}</Text>
-                    </Pressable>
+                    </TVFocusable>
                   )}
                 </View>
               )}

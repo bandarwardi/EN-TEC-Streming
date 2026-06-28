@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
+import { TVFocusable } from '@/components/TVFocusable';
 import { useColors } from '@/hooks/useColors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -43,29 +44,48 @@ export default function SettingsScreen() {
         
         <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>Playlist Management</Text>
         <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <Pressable style={styles.row} onPress={() => router.push('/playlists')}>
+          <TVFocusable 
+            style={({ focused }: any) => [
+              styles.row,
+              focused && { backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 3, borderColor: '#FFF', borderRadius: 16 }
+            ]} 
+            onPress={() => router.push('/playlists')}
+            focusable={true}
+          >
             <Text style={[styles.rowText, { color: colors.text }]}>Playlists</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <Text style={[styles.rowValue, { color: colors.mutedForeground }]}>{playlists.length}</Text>
               <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
             </View>
-          </Pressable>
+          </TVFocusable>
         </View>
 
         <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>Offline Content</Text>
         <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <Pressable style={styles.row} onPress={() => router.push('/downloads')}>
+          <TVFocusable 
+            style={({ focused }: any) => [
+              styles.row,
+              focused && { backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 3, borderColor: '#FFF', borderRadius: 16 }
+            ]} 
+            onPress={() => router.push('/downloads')}
+            focusable={true}
+          >
             <Text style={[styles.rowText, { color: colors.text }]}>My Downloads</Text>
             <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
-          </Pressable>
+          </TVFocusable>
         </View>
 
-        <Pressable 
-          style={[styles.signOutButton, { borderColor: colors.destructive }]}
+        <TVFocusable 
+          style={({ focused }: any) => [
+            styles.signOutButton, 
+            { borderColor: colors.destructive },
+            focused && { borderWidth: 3, borderColor: '#FFF', transform: [{ scale: 1.05 }], backgroundColor: 'rgba(255,255,255,0.05)' }
+          ]}
           onPress={handleLogout}
+          focusable={true}
         >
           <Text style={[styles.signOutText, { color: colors.destructive }]}>Sign Out</Text>
-        </Pressable>
+        </TVFocusable>
         
       </ScrollView>
     </View>

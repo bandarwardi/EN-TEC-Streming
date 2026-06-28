@@ -1,3 +1,4 @@
+import { TVFocusable } from '@/components/TVFocusable';
 import React, { useEffect, useState } from 'react';
 import { 
   View, 
@@ -84,7 +85,7 @@ function EpisodeItem({ ep, seriesTitle, seriesPoster, seriesBackdrop, seriesQual
   };
 
   return (
-    <Pressable 
+    <TVFocusable 
       style={[styles.episodeCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
       onPress={() => onWatch(ep, isDownloaded && downloadedItem ? downloadedItem.localUri : ep.streamUrl)}
     >
@@ -99,7 +100,7 @@ function EpisodeItem({ ep, seriesTitle, seriesPoster, seriesBackdrop, seriesQual
         <Text style={[styles.epTitle, { color: colors.text }]} numberOfLines={1}>{ep.title}</Text>
         <Text style={[styles.epDuration, { color: colors.mutedForeground }]}>{ep.duration}</Text>
       </View>
-      <Pressable onPress={handleDownload} style={styles.epDownloadBtn} disabled={isDownloading}>
+      <TVFocusable onPress={handleDownload} style={styles.epDownloadBtn} disabled={isDownloading}>
         {isDownloading ? (
           <Text style={{ color: colors.gold, fontSize: 10, fontWeight: 'bold' }}>
             {Math.round(progress * 100)}%
@@ -109,8 +110,8 @@ function EpisodeItem({ ep, seriesTitle, seriesPoster, seriesBackdrop, seriesQual
         ) : (
           <Feather name="download" size={20} color={colors.mutedForeground} />
         )}
-      </Pressable>
-    </Pressable>
+      </TVFocusable>
+    </TVFocusable>
   );
 }
 
@@ -541,17 +542,15 @@ const description = seriesInfo?.plot || seriesDescription;
             colors={['transparent', 'rgba(10,10,10,0.8)', colors.background]}
             style={[StyleSheet.absoluteFill, { top: '50%' }]}
           />
-          <Pressable 
+          <TVFocusable 
             style={[styles.backBtn, { top: insets.top + 10 }]} 
             onPress={() => router.back()}
           >
             <Feather name="arrow-left" size={28} color="#FFF" style={styles.shadowIcon} />
-          </Pressable>
-        </View>
-
-        <View style={styles.titleSection}>
+          </TVFocusable>
+          <View style={[styles.titleSection, { position: 'absolute', bottom: 20, left: 0, right: 0, zIndex: 10 }]}>
           <Text style={[styles.title, { color: colors.gold }]}>{seriesTitle}</Text>
-          <Pressable 
+          <TVFocusable 
             style={[styles.playPill, { opacity: episodes.length === 0 ? 0.5 : 1 }]}
             onPress={handleWatchFirst}
             disabled={episodes.length === 0}
@@ -560,8 +559,9 @@ const description = seriesInfo?.plot || seriesDescription;
             <Text style={styles.playPillText}>
               {episodes.length > 0 ? `Episode ${episodes[0].number}, Season ${episodes[0].season}` : "Watch Now"}
             </Text>
-          </Pressable>
+          </TVFocusable>
         </View>
+          </View>
 
         <View style={styles.content}>
           <Text style={[styles.sectionHeading, { color: colors.text }]}>Season {episodes.length > 0 ? episodes[0].season : 1}</Text>
@@ -577,7 +577,7 @@ const description = seriesInfo?.plot || seriesDescription;
               <Text style={[styles.sectionTitle, { color: colors.text }]}>Cast</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.castList}>
                 {actors.map(actor => (
-                  <Pressable 
+                  <TVFocusable 
                     key={actor.id} 
                     style={styles.castCard}
                     onPress={undefined}
@@ -590,34 +590,34 @@ const description = seriesInfo?.plot || seriesDescription;
                       </View>
                     )}
                     <Text style={[styles.castName, { color: colors.text }]} numberOfLines={2}>{actor.name}</Text>
-                  </Pressable>
+                  </TVFocusable>
                 ))}
               </ScrollView>
             </View>
           )}
 
           <View style={styles.actionButtonsRow}>
-            <Pressable style={styles.actionIconBtn} onPress={handleToggleFav}>
+            <TVFocusable style={styles.actionIconBtn} onPress={handleToggleFav}>
               <View style={styles.actionIconCircle}>
                 <Feather name={isFavorite ? "check" : "plus"} size={20} color="#FFF" />
               </View>
               <Text style={styles.actionIconText}>My List</Text>
-            </Pressable>
+            </TVFocusable>
             
-            <Pressable style={styles.actionIconBtn}>
+            <TVFocusable style={styles.actionIconBtn}>
               <View style={styles.actionIconCircle}>
                 <Feather name="heart" size={20} color="#FFF" />
               </View>
               <Text style={styles.actionIconText}>Like</Text>
-            </Pressable>
+            </TVFocusable>
 
             {seriesInfo?.youtube_trailer || seriesInfo?.trailer ? (
-              <Pressable style={styles.actionIconBtn} onPress={handleWatchTrailer}>
+              <TVFocusable style={styles.actionIconBtn} onPress={handleWatchTrailer}>
                 <View style={styles.actionIconCircle}>
                   <Feather name="video" size={20} color="#FFF" />
                 </View>
                 <Text style={styles.actionIconText}>Trailer</Text>
-              </Pressable>
+              </TVFocusable>
             ) : null}
           </View>
 
@@ -659,7 +659,7 @@ const description = seriesInfo?.plot || seriesDescription;
               <Text style={[styles.sectionTitle, { color: colors.text }]}>Similar Content</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.similarList}>
                 {recommendations.map(item => (
-                  <Pressable
+                  <TVFocusable
                     key={item.id}
                     style={styles.similarCard}
                     onPress={() => {
@@ -677,7 +677,7 @@ const description = seriesInfo?.plot || seriesDescription;
                     }}
                   >
                     <Image source={{ uri: item.logo }} style={styles.similarImage} contentFit="cover" />
-                  </Pressable>
+                  </TVFocusable>
                 ))}
               </ScrollView>
             </View>
@@ -688,7 +688,7 @@ const description = seriesInfo?.plot || seriesDescription;
               <Text style={[styles.sectionTitle, { color: colors.text }]}>More from {primaryCategory}</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.similarList}>
                 {moreRecommendations.map(item => (
-                  <Pressable
+                  <TVFocusable
                     key={item.id}
                     style={styles.similarCard}
                     onPress={() => {
@@ -706,7 +706,7 @@ const description = seriesInfo?.plot || seriesDescription;
                     }}
                   >
                     <Image source={{ uri: item.logo }} style={styles.similarImage} contentFit="cover" />
-                  </Pressable>
+                  </TVFocusable>
                 ))}
               </ScrollView>
             </View>

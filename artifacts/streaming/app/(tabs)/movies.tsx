@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, FlatList, Pressable, ActivityIndicator, useWindowDimensions, Platform } from 'react-native';
+import { TVFocusable } from '@/components/TVFocusable';
 import { useColors } from '@/hooks/useColors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -113,7 +114,7 @@ export default function MoviesScreen() {
             renderItem={({ item }) => {
               const isSelected = selectedCategory?.id === item.id;
               return (
-                <Pressable
+                <TVFocusable
                   onPress={() => setSelectedCategory(item)}
                   style={({ focused }: any) => [
                     styles.tvCategoryItem,
@@ -129,7 +130,7 @@ export default function MoviesScreen() {
                       {item.name}
                     </Text>
                   )}
-                </Pressable>
+                </TVFocusable>
               );
             }}
           />
@@ -138,7 +139,7 @@ export default function MoviesScreen() {
         {/* Pane 2: Content (Movies Grid) */}
         <View style={styles.tvPaneContent}>
           <View style={styles.tvTopBar}>
-            <Pressable
+            <TVFocusable
               style={({ focused }: any) => [
                 styles.tvSearchBar,
                 { backgroundColor: focused ? colors.gold : colors.surface2, borderColor: focused ? colors.gold : colors.border }
@@ -153,7 +154,7 @@ export default function MoviesScreen() {
                   </Text>
                 </>
               )}
-            </Pressable>
+            </TVFocusable>
             <View style={{ flex: 1 }} />
             <Text style={[styles.count, { color: colors.mutedForeground }]}>
               {localMovies.length.toLocaleString()} titles
@@ -232,7 +233,7 @@ export default function MoviesScreen() {
             renderItem={({ item }) => {
               const isSelected = selectedCategory?.id === item.id;
               return (
-                <Pressable
+                <TVFocusable
                   onPress={() => setSelectedCategory(item)}
                   style={[
                     styles.tabPill,
@@ -250,14 +251,14 @@ export default function MoviesScreen() {
                   >
                     {item.name}
                   </Text>
-                </Pressable>
+                </TVFocusable>
               );
             }}
           />
         </View>
 
         {!isLandscape && (
-          <Pressable
+          <TVFocusable
             style={[styles.searchBar, { backgroundColor: colors.surface2, borderColor: colors.border }]}
             onPress={() => router.push('/search')}
           >
@@ -265,7 +266,7 @@ export default function MoviesScreen() {
             <Text style={[styles.searchInput, { color: colors.mutedForeground }]}>
               Search movies, categories...
             </Text>
-          </Pressable>
+          </TVFocusable>
         )}
 
         {loading ? (
@@ -310,13 +311,13 @@ export default function MoviesScreen() {
           />
         )}
 
-        <Pressable
+        <TVFocusable
           onPress={() => setSelectedCategory(null)}
           style={[styles.floatingViewAllBtn, { backgroundColor: colors.surface, borderColor: colors.border, bottom: insets.bottom + 90 }]}
         >
           <Feather name="grid" size={18} color={colors.gold} />
           <Text style={[styles.floatingViewAllText, { color: colors.text }]}>View All Categories</Text>
-        </Pressable>
+        </TVFocusable>
       </View>
     );
   }
@@ -330,7 +331,7 @@ export default function MoviesScreen() {
         </Text>
       </View>
 
-      <Pressable
+      <TVFocusable
         style={[styles.searchBar, { backgroundColor: colors.surface2, borderColor: colors.border }]}
         onPress={() => router.push('/search')}
       >
@@ -338,7 +339,7 @@ export default function MoviesScreen() {
         <Text style={[styles.searchInput, { color: colors.mutedForeground }]}>
           Search movies, categories...
         </Text>
-      </Pressable>
+      </TVFocusable>
 
       {categories.length === 0 ? (
         <View style={styles.centerAll}>
@@ -351,7 +352,7 @@ export default function MoviesScreen() {
           data={categories}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
-            <Pressable
+            <TVFocusable
               onPress={() => setSelectedCategory(item)}
               style={({ pressed }) => [
                 styles.categoryItem,
@@ -365,7 +366,7 @@ export default function MoviesScreen() {
                 <Text style={[styles.categoryName, { color: colors.text }]}>{item.name}</Text>
               </View>
               <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
-            </Pressable>
+            </TVFocusable>
           )}
           contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 80 }]}
         />

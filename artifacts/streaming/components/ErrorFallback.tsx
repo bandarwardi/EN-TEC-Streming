@@ -73,8 +73,8 @@ export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
           Something went wrong
         </Text>
 
-        <Text style={[styles.message, { color: colors.mutedForeground }]}>
-          Please reload the app to continue.
+        <Text style={[styles.message, { color: colors.mutedForeground, color: 'red', fontWeight: 'bold' }]}>
+          {formatErrorDetails()}
         </Text>
 
         <Pressable

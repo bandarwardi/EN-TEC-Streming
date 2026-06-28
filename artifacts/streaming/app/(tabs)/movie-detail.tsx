@@ -1,3 +1,4 @@
+import { TVFocusable } from '@/components/TVFocusable';
 import React, { useEffect, useState } from 'react';
 import { 
   View, 
@@ -394,32 +395,43 @@ export default function MovieDetailScreen() {
             colors={['transparent', 'rgba(10,10,10,0.8)', colors.background]}
             style={[StyleSheet.absoluteFill, { top: '50%' }]}
           />
-          <Pressable 
+          <TVFocusable 
             style={[styles.backBtn, { top: insets.top + 10 }]} 
             onPress={() => router.back()}
           >
             <Feather name="arrow-left" size={28} color="#FFF" style={styles.shadowIcon} />
-          </Pressable>
-        </View>
-
-        <View style={styles.titleSection}>
+          </TVFocusable>
+          <View style={[styles.titleSection, { position: 'absolute', bottom: 20, left: 0, right: 0, zIndex: 10 }]}>
           <Text style={[styles.title, { color: colors.gold }]}>{movieTitle}</Text>
-          <Pressable 
+          <TVFocusable 
             style={styles.playPill}
             onPress={handleWatch}
           >
             <Feather name="play" size={20} color="#000" />
             <Text style={styles.playPillText}>Watch Now</Text>
-          </Pressable>
+          </TVFocusable>
         </View>
+          </View>
 
         <View style={styles.content}>
           <Text style={[styles.sectionHeading, { color: colors.text }]}>Movie Details</Text>
           <Text style={[styles.tagline, { color: '#E8A317' }]}>Top Pick For You</Text>
 
-          <Text style={[styles.metaRowText, { color: colors.mutedForeground }]}>
-            {year} • {duration} • {rating.toFixed(1)}/10 • {genres.slice(0, 2).join(' | ')}
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <Text style={[styles.metaRowText, { color: colors.mutedForeground }]}>
+              {year} • {duration} • {rating.toFixed(1)}/10 • {genres.slice(0, 2).join(' | ')}
+            </Text>
+            {!loading && movieInfo && (
+              <View style={{ flexDirection: 'row', gap: 6, marginBottom: 16 }}>
+                {movieInfo.subtitles && movieInfo.subtitles.length > 0 && (
+                  <Text style={{ backgroundColor: 'rgba(255,255,255,0.1)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, color: '#FFF', fontSize: 10, fontWeight: 'bold' }}>CC</Text>
+                )}
+                {movieInfo.audio_track && movieInfo.audio_track.length > 0 && (
+                  <Text style={{ backgroundColor: 'rgba(255,255,255,0.1)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, color: '#FFF', fontSize: 10, fontWeight: 'bold' }}>MULTI-AUDIO</Text>
+                )}
+              </View>
+            )}
+          </View>
 
           {loading ? (
             <ActivityIndicator size="small" color={colors.gold} style={{ marginVertical: 12, alignSelf: 'flex-start' }} />
@@ -434,14 +446,14 @@ export default function MovieDetailScreen() {
           )}
 
           <View style={styles.actionButtonsRow}>
-            <Pressable style={styles.actionIconBtn} onPress={handleToggleFav}>
+            <TVFocusable style={styles.actionIconBtn} onPress={handleToggleFav}>
               <View style={styles.actionIconCircle}>
                 <Feather name={isFavorite ? "check" : "plus"} size={20} color="#FFF" />
               </View>
               <Text style={styles.actionIconText}>My List</Text>
-            </Pressable>
+            </TVFocusable>
             
-            <Pressable style={styles.actionIconBtn} onPress={handleDownload} disabled={isDownloading}>
+            <TVFocusable style={styles.actionIconBtn} onPress={handleDownload} disabled={isDownloading}>
               <View style={styles.actionIconCircle}>
                 {isDownloading ? (
                   <Text style={{ color: colors.gold, fontSize: 10, fontWeight: 'bold' }}>
@@ -456,15 +468,15 @@ export default function MovieDetailScreen() {
               <Text style={styles.actionIconText}>
                 {isDownloading ? 'Downloading' : isDownloaded ? 'Delete' : 'Download'}
               </Text>
-            </Pressable>
+            </TVFocusable>
 
             {movieInfo?.youtube_trailer || movieInfo?.trailer ? (
-              <Pressable style={styles.actionIconBtn} onPress={handleWatchTrailer}>
+              <TVFocusable style={styles.actionIconBtn} onPress={handleWatchTrailer}>
                 <View style={styles.actionIconCircle}>
                   <Feather name="video" size={20} color="#FFF" />
                 </View>
                 <Text style={styles.actionIconText}>Trailer</Text>
-              </Pressable>
+              </TVFocusable>
             ) : null}
           </View>
 
@@ -473,7 +485,7 @@ export default function MovieDetailScreen() {
               <Text style={[styles.sectionTitle, { color: colors.text }]}>Cast</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.castList}>
                 {actors.map(actor => (
-                  <Pressable 
+                  <TVFocusable 
                     key={actor.id} 
                     style={styles.castCard}
                     onPress={undefined}
@@ -486,7 +498,7 @@ export default function MovieDetailScreen() {
                       </View>
                     )}
                     <Text style={[styles.castName, { color: colors.text }]} numberOfLines={2}>{actor.name}</Text>
-                  </Pressable>
+                  </TVFocusable>
                 ))}
               </ScrollView>
             </View>
@@ -497,7 +509,7 @@ export default function MovieDetailScreen() {
               <Text style={[styles.sectionTitle, { color: colors.text }]}>Similar Content</Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.similarList}>
                 {recommendations.map(item => (
-                  <Pressable
+                  <TVFocusable
                     key={item.id}
                     style={styles.similarCard}
                     onPress={() => {
@@ -524,7 +536,7 @@ export default function MovieDetailScreen() {
                     <Text style={[styles.similarTitle, { color: colors.text }]} numberOfLines={2}>
                       {item.name}
                     </Text>
-                  </Pressable>
+                  </TVFocusable>
                 ))}
               </ScrollView>
             </View>

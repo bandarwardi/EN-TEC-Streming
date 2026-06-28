@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, FlatList, Pressable, ActivityIndicator, useWindowDimensions, Platform } from 'react-native';
+import { TVFocusable } from '@/components/TVFocusable';
 import { useColors } from '@/hooks/useColors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Feather } from '@expo/vector-icons';
@@ -115,7 +116,7 @@ export default function LiveScreen() {
             renderItem={({ item }) => {
               const isSelected = selectedCategory?.id === item.id;
               return (
-                <Pressable
+                <TVFocusable
                   onPress={() => setSelectedCategory(item)}
                   style={({ focused }: any) => [
                     styles.tvCategoryItem,
@@ -131,7 +132,7 @@ export default function LiveScreen() {
                       {item.name}
                     </Text>
                   )}
-                </Pressable>
+                </TVFocusable>
               );
             }}
           />
@@ -154,7 +155,7 @@ export default function LiveScreen() {
               renderItem={({ item }) => {
                 const isSelected = selectedChannel?.id === item.id;
                 return (
-                  <Pressable
+                  <TVFocusable
                     onPress={() => setSelectedChannel(item)}
                     style={({ focused }: any) => [
                       styles.tvChannelItem,
@@ -181,7 +182,7 @@ export default function LiveScreen() {
                         </View>
                       </View>
                     )}
-                  </Pressable>
+                  </TVFocusable>
                 );
               }}
             />
@@ -198,7 +199,7 @@ export default function LiveScreen() {
               <View style={[styles.tvPlayerInfo, { backgroundColor: 'rgba(20,20,20,0.95)', borderTopColor: colors.border }]}>
                 <Text style={[styles.tvPlayerTitle, { color: colors.text }]} numberOfLines={2} adjustsFontSizeToFit>{selectedChannel.name}</Text>
                 <Text style={{ color: colors.mutedForeground, marginTop: 4 }}>Now Playing • {selectedChannel.category}</Text>
-                <Pressable
+                <TVFocusable
                   style={({ focused }: any) => [
                     styles.tvFullscreenBtn,
                     { backgroundColor: focused ? colors.gold : colors.surface2, borderColor: focused ? colors.gold : colors.border }
@@ -225,7 +226,7 @@ export default function LiveScreen() {
                       <Text style={{ color: focused ? '#000' : colors.text, fontWeight: 'bold' }}>Full Screen</Text>
                     </>
                   )}
-                </Pressable>
+                </TVFocusable>
               </View>
             </>
           ) : (
@@ -263,7 +264,7 @@ export default function LiveScreen() {
             renderItem={({ item }) => {
               const isSelected = selectedCategory?.id === item.id;
               return (
-                <Pressable
+                <TVFocusable
                   onPress={() => setSelectedCategory(item)}
                   style={[
                     styles.tabPill,
@@ -284,7 +285,7 @@ export default function LiveScreen() {
                   >
                     {item.name}
                   </Text>
-                </Pressable>
+                </TVFocusable>
               );
             }}
           />
@@ -334,13 +335,13 @@ export default function LiveScreen() {
           />
         )}
 
-        <Pressable
+        <TVFocusable
           onPress={() => setSelectedCategory(null)}
           style={[styles.floatingViewAllBtn, { backgroundColor: colors.surface, borderColor: colors.border, bottom: insets.bottom + 90 }]}
         >
           <Feather name="grid" size={18} color={colors.gold} />
           <Text style={[styles.floatingViewAllText, { color: colors.text }]}>View All Categories</Text>
-        </Pressable>
+        </TVFocusable>
       </View>
     );
   }
@@ -364,7 +365,7 @@ export default function LiveScreen() {
           data={categories}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
-            <Pressable
+            <TVFocusable
               onPress={() => setSelectedCategory(item)}
               style={({ pressed }) => [
                 styles.categoryItem,
@@ -378,7 +379,7 @@ export default function LiveScreen() {
                 <Text style={[styles.categoryName, { color: colors.text }]}>{item.name}</Text>
               </View>
               <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
-            </Pressable>
+            </TVFocusable>
           )}
           contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 80 }]}
         />

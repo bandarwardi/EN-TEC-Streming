@@ -10,10 +10,12 @@ import {
   Linking,
   Animated,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import * as Clipboard from 'expo-clipboard';
 import { useLocalSearchParams, router } from 'expo-router';
+import { TVFocusable } from '@/components/TVFocusable';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { StatusBar } from 'expo-status-bar';
 import { Feather, Ionicons } from '@expo/vector-icons';
@@ -68,6 +70,7 @@ export default function PlayerScreen() {
   const [seeking, setSeeking] = useState(false);
   const [seekPreview, setSeekPreview] = useState(0);
   const [errorToastVisible, setErrorToastVisible] = useState(false);
+  const [aspectMode, setAspectMode] = useState(0); // 0: Fit, 1: Fill, 2: Stretch, 3: 4:3
   const errorToastOpacity = useRef(new Animated.Value(0)).current;
   const errorToastY = useRef(new Animated.Value(-80)).current;
   const videoViewRef = useRef<any>(null);
@@ -184,6 +187,32 @@ export default function PlayerScreen() {
     }
     scheduleHide();
   }, [showControls, controlsOpacity, scheduleHide]);
+
+  const toggleAspectMode = () => {
+    setAspectMode(prev => (prev + 1) % 4);
+    showControlsNow();
+  };
+
+  const toggleSubtitles = () => {
+    if (!player) return;
+    const tracks = player.availableSubtitleTracks || [];
+    if (tracks.length === 0) {
+      Alert.alert("Subtitles (CC)", "No embedded subtitles found for this stream.");
+      return;
+    }
+    
+    const currentIndex = tracks.findIndex(t => t === player.subtitleTrack);
+    const nextIndex = currentIndex + 1;
+    
+    if (nextIndex >= tracks.length) {
+      player.subtitleTrack = null;
+      Alert.alert("Subtitles (CC)", "Off");
+    } else {
+      player.subtitleTrack = tracks[nextIndex];
+      Alert.alert("Subtitles (CC)", tracks[nextIndex].language || (tracks[nextIndex] as any).label || (tracks[nextIndex] as any).title || `Track ${nextIndex + 1}`);
+    }
+    showControlsNow();
+  };
 
   // Tap on empty area: toggle controls immediately
   const handleBackgroundTap = useCallback(() => {
@@ -411,17 +440,27 @@ export default function PlayerScreen() {
       <StatusBar hidden />
 
       {/* ── Layer 1: Video (pointerEvents none so it never eats touches) ── */}
-      <View style={StyleSheet.absoluteFill} pointerEvents="none">
+      <View style={[StyleSheet.absoluteFill, { justifyContent: 'center', alignItems: 'center' }]} pointerEvents="none">
         {player && (
-          <VideoView
-            ref={videoViewRef}
-            player={player}
-            style={StyleSheet.absoluteFill}
-            nativeControls={false}
-            contentFit="contain"
-            allowsPictureInPicture={true}
-            startsPictureInPictureAutomatically={true}
-          />
+          <View style={
+            aspectMode === 3 
+              ? { height: '100%', aspectRatio: 4/3, backgroundColor: '#000' }
+              : StyleSheet.absoluteFill
+          }>
+            <VideoView
+              ref={videoViewRef}
+              player={player}
+              style={StyleSheet.absoluteFill}
+              nativeControls={false}
+              contentFit={
+                aspectMode === 0 ? "contain" :
+                aspectMode === 1 ? "cover" :
+                "fill"
+              }
+              allowsPictureInPicture={true}
+              startsPictureInPictureAutomatically={true}
+            />
+          </View>
         )}
       </View>
 
@@ -458,52 +497,64 @@ export default function PlayerScreen() {
             style={[styles.topBar, { paddingTop: Platform.OS === 'ios' ? insets.top + 8 : 20 }]}
             pointerEvents="box-none"
           >
-            <Pressable 
+            <TVFocusable 
               onPress={() => router.back()} 
               style={({ focused }: any) => [
                 styles.iconBtn,
-                focused && { transform: [{ scale: 1.1 }], backgroundColor: colors.gold }
+                focused && { transform: [{ scale: 1.1 }], backgroundColor: colors.gold, borderWidth: 3, borderColor: '#FFF' }
               ]}
             >
               {({ focused }: any) => (
                 <Feather name="arrow-left" size={22} color={focused ? "#0A0A0A" : "#FFF"} />
               )}
-            </Pressable>
+            </TVFocusable>
 
             <View style={styles.titleBlock} pointerEvents="none">
               <Text style={styles.titleText} numberOfLines={1}>{title}</Text>
-              {isLive && current ? (
-                <Text style={styles.subtitleText} numberOfLines={1}>{current}</Text>
-              ) : null}
+              
             </View>
 
             <View style={styles.topActions} pointerEvents="box-none">
-              <Pressable 
+              <TVFocusable 
                 style={({ focused }: any) => [
-                  styles.iconBtn,
-                  focused && { transform: [{ scale: 1.1 }], backgroundColor: colors.gold }
+                  styles.aspectBtn,
+                  focused && { transform: [{ scale: 1.1 }], backgroundColor: colors.gold, borderColor: '#FFF' }
                 ]} 
-                onPress={handlePiP}
+                onPress={toggleAspectMode}
               >
                 {({ focused }: any) => (
-                  <Feather name="minimize" size={20} color={focused ? "#0A0A0A" : "#FFF"} />
+                  <Text style={[styles.aspectBtnText, focused && { color: '#0A0A0A' }]}>
+                    {aspectMode === 0 ? 'FIT' : aspectMode === 1 ? 'FILL' : aspectMode === 2 ? 'STRETCH' : '4:3'}
+                  </Text>
                 )}
-              </Pressable>
-              <Pressable 
+              </TVFocusable>
+              <TVFocusable 
                 style={({ focused }: any) => [
                   styles.iconBtn,
-                  focused && { transform: [{ scale: 1.1 }], backgroundColor: colors.gold }
+                  focused && { transform: [{ scale: 1.1 }], backgroundColor: colors.gold, borderWidth: 3, borderColor: '#FFF' }
+                ]} 
+                onPress={toggleSubtitles}
+                focusable={true}
+              >
+                {({ focused }: any) => (
+                  <Feather name="message-square" size={20} color={focused ? "#0A0A0A" : "#FFF"} />
+                )}
+              </TVFocusable>
+              <TVFocusable 
+                style={({ focused }: any) => [
+                  styles.iconBtn,
+                  focused && { transform: [{ scale: 1.1 }], backgroundColor: colors.gold, borderWidth: 3, borderColor: '#FFF' }
                 ]} 
                 onPress={toggleMute}
               >
                 {({ focused }: any) => (
                   <Feather name={isMuted ? 'volume-x' : 'volume-2'} size={20} color={focused ? "#0A0A0A" : "#FFF"} />
                 )}
-              </Pressable>
-              <Pressable 
+              </TVFocusable>
+              <TVFocusable 
                 style={({ focused }: any) => [
                   styles.iconBtn,
-                  focused && { transform: [{ scale: 1.1 }], backgroundColor: colors.gold }
+                  focused && { transform: [{ scale: 1.1 }], backgroundColor: colors.gold, borderWidth: 3, borderColor: '#FFF' }
                 ]} 
                 onPress={handleToggleFavorite}
               >
@@ -515,18 +566,18 @@ export default function PlayerScreen() {
                     fill={isFavorite ? '#E53935' : 'transparent'}
                   />
                 )}
-              </Pressable>
+              </TVFocusable>
             </View>
           </View>
 
           {/* Center play controls */}
           <View style={styles.centerRow} pointerEvents="box-none">
             {isLive ? (
-              <Pressable
+              <TVFocusable
                 style={({ focused }: any) => [
                   styles.centerBtn, 
                   playbackQueue.length <= 1 && { opacity: 0.3 },
-                  focused && { transform: [{ scale: 1.1 }] }
+                  focused && { transform: [{ scale: 1.1 }], backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 12, borderWidth: 3, borderColor: '#FFF' }
                 ]}
                 onPress={handlePrevChannel}
                 disabled={playbackQueue.length <= 1}
@@ -537,12 +588,12 @@ export default function PlayerScreen() {
                     <Text style={[styles.seekLabel, focused && { color: colors.gold }]}>Prev Channel</Text>
                   </>
                 )}
-              </Pressable>
+              </TVFocusable>
             ) : (
-              <Pressable 
+              <TVFocusable 
                 style={({ focused }: any) => [
                   styles.centerBtn,
-                  focused && { transform: [{ scale: 1.1 }] }
+                  focused && { transform: [{ scale: 1.1 }], backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 12, borderWidth: 3, borderColor: '#FFF' }
                 ]} 
                 onPress={() => handleSeekBy(-10)}
                 focusable={true}
@@ -553,13 +604,13 @@ export default function PlayerScreen() {
                     <Text style={[styles.seekLabel, focused && { color: colors.gold }]}>10</Text>
                   </>
                 )}
-              </Pressable>
+              </TVFocusable>
             )}
 
-            <Pressable 
+            <TVFocusable 
               style={({ focused }: any) => [
                 styles.playBtn,
-                focused && { transform: [{ scale: 1.1 }], shadowColor: colors.gold, shadowOpacity: 0.8, shadowRadius: 10 }
+                focused && { transform: [{ scale: 1.1 }], backgroundColor: colors.gold, borderWidth: 3, borderColor: '#FFF', shadowColor: colors.gold, shadowOpacity: 0.8, shadowRadius: 10 }
               ]} 
               onPress={togglePlay}
               focusable={true}
@@ -568,14 +619,14 @@ export default function PlayerScreen() {
               {({ focused }: any) => (
                 <Feather name={isPlaying ? 'pause' : 'play'} size={38} color={focused ? "#0A0A0A" : "#FFF"} />
               )}
-            </Pressable>
+            </TVFocusable>
 
             {isLive ? (
-              <Pressable
+              <TVFocusable
                 style={({ focused }: any) => [
                   styles.centerBtn, 
                   playbackQueue.length <= 1 && { opacity: 0.3 },
-                  focused && { transform: [{ scale: 1.1 }] }
+                  focused && { transform: [{ scale: 1.1 }], backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 12, borderWidth: 3, borderColor: '#FFF' }
                 ]}
                 onPress={handleNextChannel}
                 disabled={playbackQueue.length <= 1}
@@ -587,12 +638,12 @@ export default function PlayerScreen() {
                     <Text style={[styles.seekLabel, focused && { color: colors.gold }]}>Next Channel</Text>
                   </>
                 )}
-              </Pressable>
+              </TVFocusable>
             ) : (
-              <Pressable 
+              <TVFocusable 
                 style={({ focused }: any) => [
                   styles.centerBtn,
-                  focused && { transform: [{ scale: 1.1 }] }
+                  focused && { transform: [{ scale: 1.1 }], backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 12, borderWidth: 3, borderColor: '#FFF' }
                 ]} 
                 onPress={() => handleSeekBy(10)}
                 focusable={true}
@@ -603,7 +654,7 @@ export default function PlayerScreen() {
                     <Text style={[styles.seekLabel, focused && { color: colors.gold }]}>10</Text>
                   </>
                 )}
-              </Pressable>
+              </TVFocusable>
             )}
           </View>
 
@@ -636,12 +687,7 @@ export default function PlayerScreen() {
                 </View>
                 <View style={styles.liveInfo}>
                   <Text style={styles.liveChannel} numberOfLines={1}>{title}</Text>
-                  {current ? (
-                    <Text style={styles.liveProgram} numberOfLines={1}>
-                      Now: {current}
-                      {next ? `  ·  Next: ${next}` : ''}
-                    </Text>
-                  ) : null}
+                  
                 </View>
               </View>
             ) : (
@@ -732,6 +778,16 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     alignItems: 'center', justifyContent: 'center',
     backgroundColor: 'rgba(255,255,255,0.12)',
+  },
+  aspectBtn: {
+    paddingHorizontal: 12, height: 40,
+    borderRadius: 8,
+    alignItems: 'center', justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.12)',
+    borderWidth: 2, borderColor: 'transparent'
+  },
+  aspectBtnText: {
+    color: 'rgba(255,255,255,0.8)', fontSize: 13, fontWeight: 'bold'
   },
   titleBlock: { flex: 1 },
   titleText: { color: '#FFF', fontSize: 17, fontWeight: 'bold' },

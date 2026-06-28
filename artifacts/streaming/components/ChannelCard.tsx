@@ -48,8 +48,8 @@ export const ChannelCard = React.memo(function ChannelCard({ channel, onPress, w
           styles.imageContainer,
           {
             borderColor: isFocused ? colors.gold : colors.border,
-            borderWidth: isFocused ? 2 : 1,
-            backgroundColor: colors.surface
+            borderWidth: isFocused ? 4 : 1,
+            backgroundColor: isFocused ? 'rgba(255,255,255,0.05)' : colors.surface
           }
         ]}>
           <Image source={{ uri: channel.logo }} style={styles.logo} contentFit="contain" />

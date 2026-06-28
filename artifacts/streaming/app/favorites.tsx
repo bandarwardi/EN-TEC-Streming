@@ -84,11 +84,13 @@ export default function FavoritesScreen() {
     return (
       <View style={[styles.cardContainer, isLive ? styles.liveWidth : styles.vodWidth]}>
         <Pressable
-          style={[
+          style={({ focused }: any) => [
             styles.card,
-            { backgroundColor: colors.surface, borderColor: colors.border }
+            { backgroundColor: focused ? 'rgba(255,255,255,0.05)' : colors.surface, borderColor: focused ? '#FFF' : colors.border },
+            focused && { borderWidth: 4, transform: [{ scale: 1.05 }] }
           ]}
           onPress={() => handleItemPress(item, index)}
+          focusable={true}
         >
           <View style={isLive ? styles.liveLogoWrapper : styles.posterWrapper}>
             <Image
@@ -98,8 +100,13 @@ export default function FavoritesScreen() {
             />
 
             <Pressable
-              style={[styles.removeFavBtn, { backgroundColor: 'rgba(0,0,0,0.6)' }]}
+              style={({ focused }: any) => [
+                styles.removeFavBtn, 
+                { backgroundColor: 'rgba(0,0,0,0.6)' },
+                focused && { borderWidth: 3, borderColor: '#FFF', transform: [{ scale: 1.2 }] }
+              ]}
               onPress={() => toggleFavorite(item)}
+              focusable={true}
             >
               <Feather name="heart" size={16} color="#E53935" fill="#E53935" />
             </Pressable>
@@ -134,8 +141,17 @@ export default function FavoritesScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
       <View style={styles.header}>
-        <Pressable style={styles.backBtn} onPress={() => router.back()}>
-          <Feather name="arrow-left" size={24} color={colors.text} />
+        <Pressable 
+          style={({ focused }: any) => [
+            styles.backBtn,
+            focused && { transform: [{ scale: 1.1 }], backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 12, borderWidth: 3, borderColor: '#FFF' }
+          ]} 
+          onPress={() => router.back()}
+          focusable={true}
+        >
+          {({ focused }: any) => (
+            <Feather name="arrow-left" size={24} color={focused ? colors.gold : colors.text} />
+          )}
         </Pressable>
         <Text style={[styles.headerTitle, { color: colors.text }]}>Favorites</Text>
         <View style={{ width: 40 }} />
@@ -147,18 +163,22 @@ export default function FavoritesScreen() {
           return (
             <Pressable
               key={tab.type}
-              style={[
+              style={({ focused }: any) => [
                 styles.tabItem,
-                isSelected && { borderBottomColor: colors.gold }
+                isSelected && { borderBottomColor: colors.gold },
+                focused && { backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 8, borderWidth: 3, borderColor: '#FFF' }
               ]}
               onPress={() => setActiveTab(tab.type)}
+              focusable={true}
             >
-              <Text style={[
-                styles.tabLabel,
-                { color: isSelected ? colors.gold : colors.mutedForeground }
-              ]}>
-                {tab.label}
-              </Text>
+              {({ focused }: any) => (
+                <Text style={[
+                  styles.tabLabel,
+                  { color: isSelected || focused ? colors.gold : colors.text }
+                ]}>
+                  {tab.label}
+                </Text>
+              )}
             </Pressable>
           );
         })}

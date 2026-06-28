@@ -1,10 +1,11 @@
 import React from 'react';
-import { View, StyleSheet, Pressable, Platform, useWindowDimensions, ScrollView } from 'react-native';
+import { View, StyleSheet, Platform, useWindowDimensions, ScrollView } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useRouter, usePathname } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SymbolView } from 'expo-symbols';
+import { TVFocusable } from './TVFocusable';
 
 const TABS = [
   { name: 'search', icon: 'search', iosIcon: 'magnifyingglass', path: '/search' },
@@ -45,16 +46,16 @@ export function TVSidebar() {
           const isReallyActive = tab.path === '/' ? pathname === '/' : isActive;
 
           return (
-            <Pressable
+            <TVFocusable
               key={tab.name}
               onPress={() => router.push(tab.path as any)}
               style={({ focused }: any) => [
                 styles.iconBtn,
                 { marginBottom: 16 },
-                isReallyActive && { backgroundColor: 'rgba(212,168,67,0.15)' },
-                focused && { transform: [{ scale: 1.15 }], backgroundColor: colors.gold, borderColor: colors.gold, borderWidth: 2 }
+                isReallyActive && { backgroundColor: 'rgba(212,168,67,0.15)' }
               ]}
               focusable={true}
+              scaleAmount={1.15}
             >
               {({ focused }: any) => {
                 const tint = focused ? '#0A0A0A' : (isReallyActive ? colors.gold : colors.mutedForeground);
@@ -68,7 +69,7 @@ export function TVSidebar() {
                   />
                 );
               }}
-            </Pressable>
+            </TVFocusable>
           );
         })}
       </ScrollView>

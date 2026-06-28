@@ -8,6 +8,7 @@ import { ContentRow } from '@/components/ContentRow';
 import { ChannelCard } from '@/components/ChannelCard';
 import { MovieCard } from '@/components/MovieCard';
 import { ContinueWatchingCard } from '@/components/ContinueWatchingCard';
+import { TVFocusable } from '@/components/TVFocusable';
 import { router } from 'expo-router';
 import { useAppStore } from '@/store/app-store';
 import { Channel } from '@/types';
@@ -18,7 +19,7 @@ import { base64Decode } from '@/lib/base64';
 export default function HomeScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
   const isLargeScreen = width >= 1024 || Platform.isTV;
   
   const activePlaylistId = useAppStore((s) => s.activePlaylistId);
@@ -209,12 +210,12 @@ export default function HomeScreen() {
       <View style={[styles.container, { backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center', padding: 20 }]}>
         <Feather name="tv" size={48} color={colors.mutedForeground} />
         <Text style={{ color: colors.text, fontSize: 18, fontWeight: 'bold', marginTop: 12 }}>No playlist active</Text>
-        <Pressable 
+        <TVFocusable 
           style={{ marginTop: 16, backgroundColor: colors.gold, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8 }}
           onPress={() => router.push('/playlists')}
         >
           <Text style={{ color: '#1A1A1A', fontWeight: 'bold' }}>Manage Playlists</Text>
-        </Pressable>
+        </TVFocusable>
       </View>
     );
   }
@@ -225,106 +226,108 @@ export default function HomeScreen() {
     
     return (
       <View style={[styles.container, { backgroundColor: '#000' }]}>
-        {heroItem ? (
-          <View style={StyleSheet.absoluteFill}>
-            <Image source={heroItem.backdrop} style={StyleSheet.absoluteFill} contentFit="cover" />
-            <LinearGradient
-              colors={['transparent', 'rgba(0,0,0,0.6)', '#000']}
-              locations={[0, 0.4, 1]}
-              style={StyleSheet.absoluteFill}
-            />
-            <LinearGradient
-              colors={['#000', 'transparent']}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 0.5, y: 0 }}
-              style={StyleSheet.absoluteFill}
-            />
-            <View style={[styles.tvHeroContent, { paddingTop: insets.top + 60 }]}>
-              <Text style={[styles.tvHeroSubtitle, { color: colors.gold }]}>{heroItem.subtitle}</Text>
-              <Text style={styles.tvHeroTitle} numberOfLines={2}>{heroItem.title}</Text>
-              <View style={styles.tvHeroMeta}>
-                <Text style={styles.tvHeroMetaText}>{heroItem.year}</Text>
-                <View style={styles.tvHeroDot} />
-                <Text style={styles.tvHeroMetaText}>{heroItem.duration}</Text>
-                <View style={styles.tvHeroDot} />
-                <Text style={styles.tvHeroMetaText}>{heroItem.genres.join(', ')}</Text>
-              </View>
-              <Text style={styles.tvHeroDesc} numberOfLines={3}>{heroItem.description}</Text>
-              
-              <View style={styles.tvHeroActions}>
-                <Pressable
-                  style={({ focused }: any) => [
-                    styles.tvHeroBtnPrimary,
-                    { backgroundColor: focused ? colors.gold : '#FFF' },
-                    focused && { transform: [{ scale: 1.05 }] }
-                  ]}
-                  onPress={() => {
-                    if (heroItem.subtitle.includes('LIVE')) {
-                      router.push({ pathname: '/player', params: { streamUrl: heroItem.streamUrl || '', title: heroItem.title, isLive: 'true', quality: 'HD' } });
-                    } else {
-                      router.push({ pathname: '/movie-detail', params: { id: heroItem.id, title: heroItem.title, poster: heroItem.backdrop?.uri, backdrop: heroItem.backdrop?.uri, quality: 'HD', genres: heroItem.genres.join(','), description: heroItem.description, streamUrl: heroItem.streamUrl || '' } });
-                    }
-                  }}
-                >
-                  {({ focused }: any) => (
-                    <>
-                      <Feather name="play" size={24} color="#000" />
-                      <Text style={[styles.tvHeroBtnPrimaryText, { color: '#000' }]}>Play Now</Text>
-                    </>
-                  )}
-                </Pressable>
+        <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
+          {heroItem ? (
+            <View style={{ width: '100%', height: height * 0.75 }}>
+              <Image source={heroItem.backdrop} style={StyleSheet.absoluteFill} contentFit="cover" />
+              <LinearGradient
+                colors={['transparent', 'rgba(0,0,0,0.6)', '#000']}
+                locations={[0, 0.4, 1]}
+                style={StyleSheet.absoluteFill}
+              />
+              <LinearGradient
+                colors={['#000', 'transparent']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 0.5, y: 0 }}
+                style={StyleSheet.absoluteFill}
+              />
+              <View style={[styles.tvHeroContent, { position: 'absolute', bottom: 120, left: 0 }]}>
+                <Text style={[styles.tvHeroSubtitle, { color: colors.gold }]}>{heroItem.subtitle}</Text>
+                <Text style={styles.tvHeroTitle} numberOfLines={2}>{heroItem.title}</Text>
+                <View style={styles.tvHeroMeta}>
+                  <Text style={styles.tvHeroMetaText}>{heroItem.year}</Text>
+                  <View style={styles.tvHeroDot} />
+                  <Text style={styles.tvHeroMetaText}>{heroItem.duration}</Text>
+                  <View style={styles.tvHeroDot} />
+                  <Text style={styles.tvHeroMetaText}>{heroItem.genres.join(', ')}</Text>
+                </View>
+                <Text style={styles.tvHeroDesc} numberOfLines={3}>{heroItem.description}</Text>
                 
-                <Pressable
-                  style={({ focused }: any) => [
-                    styles.tvHeroBtnSecondary,
-                    { backgroundColor: focused ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.1)' },
-                    focused && { transform: [{ scale: 1.05 }], borderColor: '#FFF' }
-                  ]}
-                >
-                  <Feather name="info" size={24} color="#FFF" />
-                  <Text style={styles.tvHeroBtnSecondaryText}>More Info</Text>
-                </Pressable>
+                <View style={styles.tvHeroActions}>
+                  <TVFocusable
+                    style={({ focused }: any) => [
+                      styles.tvHeroBtnPrimary,
+                      { backgroundColor: focused ? colors.gold : '#FFF' }
+                    ]}
+                    onPress={() => {
+                      if (heroItem.subtitle.includes('LIVE')) {
+                        router.push({ pathname: '/player', params: { streamUrl: heroItem.streamUrl || '', title: heroItem.title, isLive: 'true', quality: 'HD' } });
+                      } else {
+                        router.push({ pathname: '/movie-detail', params: { id: heroItem.id, title: heroItem.title, poster: heroItem.backdrop?.uri, backdrop: heroItem.backdrop?.uri, quality: 'HD', genres: heroItem.genres.join(','), description: heroItem.description, streamUrl: heroItem.streamUrl || '' } });
+                      }
+                    }}
+                    scaleAmount={1.05}
+                  >
+                    {({ focused }: any) => (
+                      <>
+                        <Feather name="play" size={24} color="#000" />
+                        <Text style={[styles.tvHeroBtnPrimaryText, { color: '#000' }]}>Play Now</Text>
+                      </>
+                    )}
+                  </TVFocusable>
+                  
+                  <TVFocusable
+                    style={({ focused }: any) => [
+                      styles.tvHeroBtnSecondary,
+                      { backgroundColor: focused ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.1)' }
+                    ]}
+                    scaleAmount={1.05}
+                  >
+                    <Feather name="info" size={24} color="#FFF" />
+                    <Text style={styles.tvHeroBtnSecondaryText}>More Info</Text>
+                  </TVFocusable>
+                </View>
               </View>
             </View>
-          </View>
-        ) : null}
+          ) : null}
 
-        <View style={styles.tvBottomContent}>
-           {contentRows.slice(0, 2).map((row, index) => (
-            <ContentRow 
-              key={`tv-row-${index}`}
-              title={row.title} 
-              data={row.items}
-              onSeeAll={() => {
-                const tab = row.type === 'live' ? '/(tabs)/live' : row.type === 'vod' ? '/(tabs)/movies' : '/(tabs)/series';
-                router.push({ pathname: tab, params: { categoryId: row.categoryId } });
-              }}
-              renderItem={({ item, index: itemIndex }) => 
-                row.type === 'live' ? (
-                  <ChannelCard 
-                    channel={item} 
-                    width={200} 
-                    onPress={() => {
-                      setPlaybackQueue(row.items, itemIndex);
-                      router.push({ pathname: '/player', params: { id: item.id, streamUrl: item.streamUrl, title: item.name, isLive: 'true', current: item.current, next: item.next, quality: item.quality, logo: item.logo || '', category: item.category || '' } });
-                    }} 
-                  />
-                ) : (
-                  <MovieCard 
-                    movie={item} 
-                    width={160} 
-                    onPress={() => {
-                      router.push({
-                        pathname: '/movie-detail',
-                        params: { id: item.id, title: item.title, poster: item.poster, backdrop: item.backdrop || item.poster, quality: item.quality, genres: item.genres.join(','), description: item.description, streamUrl: item.streamUrl || '' },
-                      });
-                    }} 
-                  />
-                )
-              }
-            />
-          ))}
-        </View>
+          <View style={styles.tvBottomContent}>
+            {contentRows.slice(0, 2).map((row, index) => (
+              <ContentRow 
+                key={`tv-row-${index}`}
+                title={row.title} 
+                data={row.items}
+                onSeeAll={() => {
+                  const tab = row.type === 'live' ? '/(tabs)/live' : row.type === 'vod' ? '/(tabs)/movies' : '/(tabs)/series';
+                  router.push({ pathname: tab, params: { categoryId: row.categoryId } });
+                }}
+                renderItem={({ item, index: itemIndex }) => 
+                  row.type === 'live' ? (
+                    <ChannelCard 
+                      channel={item} 
+                      width={200} 
+                      onPress={() => {
+                        setPlaybackQueue(row.items, itemIndex);
+                        router.push({ pathname: '/player', params: { id: item.id, streamUrl: item.streamUrl, title: item.name, isLive: 'true', current: item.current, next: item.next, quality: item.quality, logo: item.logo || '', category: item.category || '' } });
+                      }} 
+                    />
+                  ) : (
+                    <MovieCard 
+                      movie={item} 
+                      width={160} 
+                      onPress={() => {
+                        router.push({
+                          pathname: '/movie-detail',
+                          params: { id: item.id, title: item.title, poster: item.poster, backdrop: item.backdrop || item.poster, quality: item.quality, genres: item.genres.join(','), description: item.description, streamUrl: item.streamUrl || '' },
+                        });
+                      }} 
+                    />
+                  )
+                }
+              />
+            ))}
+          </View>
+        </ScrollView>
       </View>
     );
   }
@@ -349,7 +352,9 @@ export default function HomeScreen() {
       ]}>
         <Text style={[styles.logoText, { color: '#FFF' }]}>EN TEC</Text>
         <View style={styles.headerRight}>
-          <Pressable style={styles.iconButton} onPress={() => router.push('/search')}><Feather name="search" size={20} color={colors.foreground} /></Pressable>
+          <TVFocusable style={styles.iconButton} onPress={() => router.push('/search')}>
+            <Feather name="search" size={20} color={colors.foreground} />
+          </TVFocusable>
         </View>
       </View>
 
@@ -473,9 +478,9 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   // TV Styles
-  tvHeroContent: { paddingHorizontal: 64, width: '60%' },
+  tvHeroContent: { paddingHorizontal: 64, width: '60%', position: 'absolute', bottom: 120 },
   tvHeroSubtitle: { fontSize: 16, fontWeight: 'bold', letterSpacing: 2, marginBottom: 12 },
-  tvHeroTitle: { fontSize: 64, fontWeight: '900', color: '#FFF', textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 4 }, textShadowRadius: 10, marginBottom: 16 },
+  tvHeroTitle: { fontSize: 48, fontWeight: '900', color: '#FFF', textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 4 }, textShadowRadius: 10, marginBottom: 16 },
   tvHeroMeta: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 24 },
   tvHeroMetaText: { color: 'rgba(255,255,255,0.8)', fontSize: 16, fontWeight: '600' },
   tvHeroDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: 'rgba(255,255,255,0.5)' },
@@ -485,7 +490,7 @@ const styles = StyleSheet.create({
   tvHeroBtnPrimaryText: { fontSize: 18, fontWeight: 'bold' },
   tvHeroBtnSecondary: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 32, paddingVertical: 16, borderRadius: 30, borderWidth: 2, borderColor: 'transparent' },
   tvHeroBtnSecondaryText: { color: '#FFF', fontSize: 18, fontWeight: 'bold' },
-  tvBottomContent: { position: 'absolute', bottom: 40, left: 0, right: 0, paddingHorizontal: 64 },
+  tvBottomContent: { paddingHorizontal: 64, marginTop: -80 },
   
   // Mobile Styles
   header: { position: 'absolute', zIndex: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },

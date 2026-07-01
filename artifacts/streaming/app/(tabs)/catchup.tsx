@@ -499,7 +499,7 @@ export default function CatchUpScreen() {
               <Lineicons icon={MonitorBulk} size={16} color={colors.text} />
             )}
           </View>
-          <Text style={[styles.listName, { color: colors.text }]} numberOfLines={2}>{item.name}</Text>
+          <Text style={[styles.listName, { color: colors.text }]} numberOfLines={1} ellipsizeMode="tail">{item.name}</Text>
         </View>
         <Lineicons icon={ArrowRightBulk} size={20} color={colors.mutedForeground} />
       </TVFocusable>

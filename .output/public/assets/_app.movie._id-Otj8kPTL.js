@@ -1,0 +1,1 @@
+import{t,j as o}from"./index-BIOif-LG.js";const s=({error:e})=>(typeof window<"u"&&t.error("Failed to load movie",{description:e.message}),o.jsx("div",{className:"p-10 text-center text-destructive",children:e.message}));export{s as errorComponent};

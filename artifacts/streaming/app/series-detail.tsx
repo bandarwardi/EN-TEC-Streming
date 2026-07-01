@@ -15,7 +15,7 @@ import { useLocalSearchParams, router } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Lineicons } from '@lineiconshq/react-native-lineicons';
-import { PlayBulk, CheckCircle1Bulk, Download1Bulk, ArrowLeftBulk, HeartBulk, CameraMovie1Bulk, QuestionMarkCircleBulk, PlusBulk } from '@lineiconshq/free-icons';
+import { PlayBulk, CheckCircle1Bulk, Download1Bulk, ArrowLeftBulk, HeartBulk, CameraMovie1Bulk } from '@lineiconshq/free-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { GoldButton } from '@/components/GoldButton';
@@ -610,16 +610,9 @@ const description = seriesInfo?.plot || seriesDescription;
           <View style={styles.actionButtonsRow}>
             <TVFocusable style={styles.actionIconBtn} onPress={handleToggleFav}>
               <View style={styles.actionIconCircle}>
-                <Lineicons icon={isFavorite  ? QuestionMarkCircleBulk : PlusBulk} size={20} color="#FFF" />
+                <Lineicons icon={HeartBulk} size={20} color={isFavorite ? '#E53935' : '#FFF'} />
               </View>
-              <Text style={styles.actionIconText}>My List</Text>
-            </TVFocusable>
-            
-            <TVFocusable style={styles.actionIconBtn}>
-              <View style={styles.actionIconCircle}>
-                <Lineicons icon={HeartBulk} size={20} color="#FFF" />
-              </View>
-              <Text style={styles.actionIconText}>Like</Text>
+              <Text style={styles.actionIconText}>Favorite</Text>
             </TVFocusable>
 
             {seriesInfo?.youtube_trailer || seriesInfo?.trailer ? (

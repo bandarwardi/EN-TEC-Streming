@@ -583,7 +583,7 @@ export default function PlayerScreen() {
                 onPress={toggleMute}
               >
                 {({ focused }: any) => (
-                  <Lineicons icon={isMuted  ? QuestionMarkCircleBulk : QuestionMarkCircleBulk} size={20} color={focused ? "#0A0A0A" : "#FFF"} />
+                  <Lineicons icon={isMuted ? VolumeMuteBulk : VolumeHighBulk} size={20} color={focused ? "#0A0A0A" : "#FFF"} />
                 )}
               </TVFocusable>
               <TVFocusable 

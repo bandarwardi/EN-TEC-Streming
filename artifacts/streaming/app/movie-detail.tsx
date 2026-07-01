@@ -16,7 +16,7 @@ import { useLocalSearchParams, router } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Lineicons } from '@lineiconshq/react-native-lineicons';
-import { ArrowLeftBulk, PlayBulk, Trash3Bulk, Download1Bulk, CameraMovie1Bulk, QuestionMarkCircleBulk, PlusBulk } from '@lineiconshq/free-icons';
+import { ArrowLeftBulk, PlayBulk, Trash3Bulk, Download1Bulk, CameraMovie1Bulk, HeartBulk } from '@lineiconshq/free-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -459,9 +459,9 @@ export default function MovieDetailScreen() {
           <View style={styles.actionButtonsRow}>
             <TVFocusable style={styles.actionIconBtn} onPress={handleToggleFav}>
               <View style={styles.actionIconCircle}>
-                <Lineicons icon={isFavorite  ? QuestionMarkCircleBulk : PlusBulk} size={20} color="#FFF" />
+                <Lineicons icon={HeartBulk} size={20} color={isFavorite ? '#E53935' : '#FFF'} />
               </View>
-              <Text style={styles.actionIconText}>My List</Text>
+              <Text style={styles.actionIconText}>Favorite</Text>
             </TVFocusable>
             
             <TVFocusable style={styles.actionIconBtn} onPress={handleDownload} disabled={isDownloading}>

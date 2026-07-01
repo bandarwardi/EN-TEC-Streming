@@ -1,0 +1,1 @@
+import{t,j as s}from"./index-BIOif-LG.js";const r=({error:e})=>(typeof window<"u"&&t.error("Failed to load series",{description:e.message}),s.jsx("div",{className:"p-10 text-center text-destructive",children:e.message}));export{r as errorComponent};

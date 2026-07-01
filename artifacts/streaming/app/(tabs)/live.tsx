@@ -256,19 +256,6 @@ export default function LiveScreen() {
               {localChannels.length.toLocaleString()} channels
             </Text>
           </View>
-          <TVFocusable
-            onPress={() => setSelectedCategory(null)}
-            style={({ focused }: any) => [
-              { paddingHorizontal: 12, paddingVertical: 8, backgroundColor: focused ? colors.gold : colors.surface2, borderRadius: 8, borderWidth: 1, borderColor: focused ? '#000' : colors.border, flexDirection: 'row', alignItems: 'center', gap: 6 }
-            ]}
-          >
-            {({ focused }: any) => (
-               <>
-                 <Lineicons icon={DashboardSquare1Bulk} size={20} color={focused ? '#000' : colors.gold} />
-                 {!isLandscape && <Text style={{ color: focused ? '#000' : colors.text, fontSize: 13, fontWeight: 'bold' }}>Categories</Text>}
-               </>
-            )}
-          </TVFocusable>
         </View>
 
         {!isLandscape && (<View style={[styles.horizontalTabsContainer, { marginBottom: 12 }]}>
@@ -360,11 +347,11 @@ export default function LiveScreen() {
                       </View>
                     )}
                     <View style={styles.mobileChannelListTextContainer}>
-                      <Text style={[styles.mobileChannelListName, { color: focused ? '#000' : colors.text }]} numberOfLines={2}>
+                      <Text style={[styles.mobileChannelListName, { color: focused ? '#000' : colors.text }]} numberOfLines={1} ellipsizeMode="tail">
                         {item.name}
                       </Text>
                       {item.current && (
-                        <Text style={[styles.mobileChannelListCurrent, { color: focused ? '#333' : colors.mutedForeground }]} numberOfLines={2}>
+                        <Text style={[styles.mobileChannelListCurrent, { color: focused ? '#333' : colors.mutedForeground }]} numberOfLines={1} ellipsizeMode="tail">
                           {item.current}
                         </Text>
                       )}
@@ -390,7 +377,7 @@ export default function LiveScreen() {
 
         <TVFocusable
           onPress={() => setSelectedCategory(null)}
-          style={[styles.floatingViewAllBtn, { backgroundColor: colors.surface, borderColor: colors.border, bottom: insets.bottom + 90 }]}
+          style={[styles.floatingViewAllBtn, { backgroundColor: colors.surface, borderColor: colors.gold, bottom: insets.bottom + 90 }]}
         >
           <Lineicons icon={DashboardSquare1Bulk} size={18} color={colors.gold} />
           <Text style={[styles.floatingViewAllText, { color: colors.text }]}>View All Categories</Text>
@@ -429,7 +416,7 @@ export default function LiveScreen() {
                 <View style={[styles.categoryIconBg, { backgroundColor: colors.gold + '15' }]}>
                   <Lineicons icon={MonitorBulk} size={18} color={colors.gold} />
                 </View>
-                <Text style={[styles.categoryName, { color: colors.text }]}>{item.name}</Text>
+                <Text style={[styles.categoryName, { color: colors.text }]} numberOfLines={1} ellipsizeMode="tail">{item.name}</Text>
               </View>
               <Lineicons icon={ArrowRightBulk} size={18} color={colors.mutedForeground} />
             </TVFocusable>
@@ -520,8 +507,8 @@ const styles = StyleSheet.create({
   gridItem: { flex: 1, padding: 6 },
   listContent: { paddingHorizontal: 20, paddingTop: 4 },
   categoryItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 14, borderRadius: 14, borderWidth: 1, marginBottom: 10 },
-  categoryLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  categoryLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
   categoryIconBg: { width: 38, height: 38, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  categoryName: { fontSize: 16, fontWeight: '600' },
+  categoryName: { fontSize: 16, fontWeight: '600', flex: 1 },
   emptyTitle: { fontSize: 18, fontWeight: 'bold' },
 });

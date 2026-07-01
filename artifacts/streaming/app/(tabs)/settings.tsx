@@ -76,6 +76,21 @@ export default function SettingsScreen() {
           </TVFocusable>
         </View>
 
+        <Text style={[styles.sectionTitle, { color: colors.mutedForeground }]}>Saved Content</Text>
+        <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          <TVFocusable 
+            style={({ focused }: any) => [
+              styles.row,
+              focused && { backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 3, borderColor: '#FFF', borderRadius: 16 }
+            ]} 
+            onPress={() => router.push('/favorites')}
+            focusable={true}
+          >
+            <Text style={[styles.rowText, { color: colors.text }]}>My Favorites</Text>
+            <Lineicons icon={ArrowRightBulk} size={16} color={colors.mutedForeground} />
+          </TVFocusable>
+        </View>
+
         <TVFocusable 
           style={({ focused }: any) => [
             styles.signOutButton, 

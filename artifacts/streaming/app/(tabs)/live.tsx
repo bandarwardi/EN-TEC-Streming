@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, FlatList, Pressable, ActivityIndicator, useWindowDimensions, Platform } from 'react-native';
+import { Image } from 'expo-image';
 import { TVFocusable } from '@/components/TVFocusable';
 import { useColors } from '@/hooks/useColors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Feather } from '@expo/vector-icons';
+import { Lineicons } from '@lineiconshq/react-native-lineicons';
+import { MonitorBulk, ExpandSquare4Bulk, DashboardSquare1Bulk, Folder1Bulk, ArrowRightBulk } from '@lineiconshq/free-icons';
 import { ChannelCard } from '@/components/ChannelCard';
 import { router, useNavigation, useLocalSearchParams } from 'expo-router';
 import { useAppStore } from '@/store/app-store';
@@ -14,7 +16,8 @@ export default function LiveScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
+  const isLandscape = width > height;
   const mobileNumColumns = Math.max(2, Math.floor((width - 40) / 160));
   const isLargeScreen = width >= 1024 || Platform.isTV;
 
@@ -168,11 +171,11 @@ export default function LiveScreen() {
                         {item.logo ? (
                            <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.1)', overflow: 'hidden' }}>
                              {/* FastImage equivalent or normal image could go here, omitting for brevity */}
-                             <Feather name="tv" size={20} color={focused ? '#000' : colors.text} style={{ padding: 10 }} />
+                             <Lineicons icon={MonitorBulk} size={20} color={focused ? '#000' : colors.text} style={{ padding: 10 }} />
                            </View>
                         ) : (
                           <View style={[styles.tvChannelIconPlaceholder, { backgroundColor: focused ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.05)' }]}>
-                            <Feather name="tv" size={20} color={focused ? '#000' : colors.text} />
+                            <Lineicons icon={MonitorBulk} size={20} color={focused ? '#000' : colors.text} />
                           </View>
                         )}
                         <View style={{ flex: 1 }}>
@@ -222,7 +225,7 @@ export default function LiveScreen() {
                 >
                   {({ focused }: any) => (
                     <>
-                      <Feather name="maximize" size={16} color={focused ? '#000' : colors.text} />
+                      <Lineicons icon={ExpandSquare4Bulk} size={16} color={focused ? '#000' : colors.text} />
                       <Text style={{ color: focused ? '#000' : colors.text, fontWeight: 'bold' }}>Full Screen</Text>
                     </>
                   )}
@@ -231,7 +234,7 @@ export default function LiveScreen() {
             </>
           ) : (
             <View style={styles.centerAll}>
-              <Feather name="tv" size={48} color={colors.mutedForeground} />
+              <Lineicons icon={MonitorBulk} size={48} color={colors.mutedForeground} />
               <Text style={{ color: colors.mutedForeground, marginTop: 16 }}>Select a channel to play</Text>
             </View>
           )}
@@ -245,15 +248,30 @@ export default function LiveScreen() {
     return (
       <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
         <View style={styles.header}>
-          <Text style={[styles.title, { color: colors.text }]} numberOfLines={1}>
-            {selectedCategory.name}
-          </Text>
-          <Text style={[styles.count, { color: colors.mutedForeground }]}>
-            {localChannels.length.toLocaleString()} channels
-          </Text>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.title, { color: colors.text }]} numberOfLines={2}>
+              {selectedCategory.name}
+            </Text>
+            <Text style={[styles.count, { color: colors.mutedForeground }]}>
+              {localChannels.length.toLocaleString()} channels
+            </Text>
+          </View>
+          <TVFocusable
+            onPress={() => setSelectedCategory(null)}
+            style={({ focused }: any) => [
+              { paddingHorizontal: 12, paddingVertical: 8, backgroundColor: focused ? colors.gold : colors.surface2, borderRadius: 8, borderWidth: 1, borderColor: focused ? '#000' : colors.border, flexDirection: 'row', alignItems: 'center', gap: 6 }
+            ]}
+          >
+            {({ focused }: any) => (
+               <>
+                 <Lineicons icon={DashboardSquare1Bulk} size={20} color={focused ? '#000' : colors.gold} />
+                 {!isLandscape && <Text style={{ color: focused ? '#000' : colors.text, fontSize: 13, fontWeight: 'bold' }}>Categories</Text>}
+               </>
+            )}
+          </TVFocusable>
         </View>
 
-        <View style={[styles.horizontalTabsContainer, { marginBottom: 12 }]}>
+        {!isLandscape && (<View style={[styles.horizontalTabsContainer, { marginBottom: 12 }]}>
           <FlatList
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -290,6 +308,7 @@ export default function LiveScreen() {
             }}
           />
         </View>
+        )}
 
         {loading ? (
           <View style={styles.centerAll}>
@@ -297,41 +316,75 @@ export default function LiveScreen() {
           </View>
         ) : localChannels.length === 0 ? (
           <View style={styles.centerAll}>
-            <Feather name="tv" size={48} color={colors.mutedForeground} />
+            <Lineicons icon={MonitorBulk} size={48} color={colors.mutedForeground} />
             <Text style={[styles.emptyTitle, { color: colors.text, marginTop: 12 }]}>No channels found</Text>
           </View>
         ) : (
           <FlatList
-            key={`channels_grid_${mobileNumColumns}`}
+            key="mobile_channels"
             data={localChannels}
             keyExtractor={(item) => item.id}
-            numColumns={mobileNumColumns}
             renderItem={({ item, index }) => (
-              <View style={[styles.gridItem, { width: `${100 / mobileNumColumns}%`, maxWidth: `${100 / mobileNumColumns}%` }]}>
-                <ChannelCard
-                  channel={item}
-                  width={'100%' as any}
-                  onPress={() => {
-                    setPlaybackQueue(localChannels, index);
-                    router.push({
-                      pathname: '/player',
-                      params: {
-                        id: item.id,
-                        streamUrl: item.streamUrl,
-                        title: item.name,
-                        isLive: 'true',
-                        current: item.current,
-                        next: item.next,
-                        quality: item.quality,
-                        logo: item.logo || '',
-                        category: item.category || '',
-                      },
-                    });
-                  }}
-                />
-              </View>
+              <TVFocusable
+                onPress={() => {
+                  setPlaybackQueue(localChannels, index);
+                  router.push({
+                    pathname: '/player',
+                    params: {
+                      id: item.id,
+                      streamUrl: item.streamUrl,
+                      title: item.name,
+                      isLive: 'true',
+                      current: item.current,
+                      next: item.next,
+                      quality: item.quality,
+                      logo: item.logo || '',
+                      category: item.category || '',
+                    },
+                  });
+                }}
+                style={({ focused }: any) => [
+                  styles.mobileChannelListContent,
+                  { backgroundColor: focused ? colors.surface : colors.surface2, borderColor: focused ? colors.gold : colors.border }
+                ]}
+              >
+                {({ focused }: any) => (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', width: '100%', padding: 12, gap: 12 }}>
+                    {item.logo ? (
+                       <View style={styles.mobileChannelListLogoContainer}>
+                         <Image source={{ uri: item.logo }} style={styles.mobileChannelListLogo} contentFit="contain" />
+                       </View>
+                    ) : (
+                      <View style={styles.mobileChannelListLogoPlaceholder}>
+                        <Lineicons icon={MonitorBulk} size={24} color={focused ? '#000' : colors.text} />
+                      </View>
+                    )}
+                    <View style={styles.mobileChannelListTextContainer}>
+                      <Text style={[styles.mobileChannelListName, { color: focused ? '#000' : colors.text }]} numberOfLines={2}>
+                        {item.name}
+                      </Text>
+                      {item.current && (
+                        <Text style={[styles.mobileChannelListCurrent, { color: focused ? '#333' : colors.mutedForeground }]} numberOfLines={2}>
+                          {item.current}
+                        </Text>
+                      )}
+                    </View>
+                    <View style={styles.mobileChannelListBadgeContainer}>
+                       {true ? (
+                          <View style={{ backgroundColor: '#E53935', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                            <Text style={{ color: '#FFF', fontSize: 10, fontWeight: 'bold' }}>LIVE</Text>
+                          </View>
+                       ) : (
+                          <View style={{ backgroundColor: 'rgba(255,255,255,0.1)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                            <Text style={{ color: '#FFF', fontSize: 10, fontWeight: 'bold' }}>{item.quality || 'HD'}</Text>
+                          </View>
+                       )}
+                    </View>
+                  </View>
+                )}
+              </TVFocusable>
             )}
-            contentContainerStyle={[styles.gridContent, { paddingBottom: insets.bottom + 120 }]}
+            contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 120, paddingHorizontal: 20, paddingTop: 10 }]}
           />
         )}
 
@@ -339,7 +392,7 @@ export default function LiveScreen() {
           onPress={() => setSelectedCategory(null)}
           style={[styles.floatingViewAllBtn, { backgroundColor: colors.surface, borderColor: colors.border, bottom: insets.bottom + 90 }]}
         >
-          <Feather name="grid" size={18} color={colors.gold} />
+          <Lineicons icon={DashboardSquare1Bulk} size={18} color={colors.gold} />
           <Text style={[styles.floatingViewAllText, { color: colors.text }]}>View All Categories</Text>
         </TVFocusable>
       </View>
@@ -356,7 +409,7 @@ export default function LiveScreen() {
       </View>
       {categories.length === 0 ? (
         <View style={styles.centerAll}>
-          <Feather name="folder" size={48} color={colors.mutedForeground} />
+          <Lineicons icon={Folder1Bulk} size={48} color={colors.mutedForeground} />
           <Text style={[styles.emptyTitle, { color: colors.text, marginTop: 12 }]}>No categories found</Text>
         </View>
       ) : (
@@ -374,11 +427,11 @@ export default function LiveScreen() {
             >
               <View style={styles.categoryLeft}>
                 <View style={[styles.categoryIconBg, { backgroundColor: colors.gold + '15' }]}>
-                  <Feather name="tv" size={18} color={colors.gold} />
+                  <Lineicons icon={MonitorBulk} size={18} color={colors.gold} />
                 </View>
                 <Text style={[styles.categoryName, { color: colors.text }]}>{item.name}</Text>
               </View>
-              <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
+              <Lineicons icon={ArrowRightBulk} size={18} color={colors.mutedForeground} />
             </TVFocusable>
           )}
           contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 80 }]}
@@ -389,6 +442,50 @@ export default function LiveScreen() {
 }
 
 const styles = StyleSheet.create({
+  mobileChannelListContent: {
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 8,
+    overflow: 'hidden'
+  },
+  mobileChannelListLogoContainer: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
+    backgroundColor: '#FFF',
+    padding: 2
+  },
+  mobileChannelListLogo: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+    borderRadius: 6
+  },
+  mobileChannelListLogoPlaceholder: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  mobileChannelListTextContainer: {
+    flex: 1,
+    justifyContent: 'center'
+  },
+  mobileChannelListName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 4
+  },
+  mobileChannelListCurrent: {
+    fontSize: 13
+  },
+  mobileChannelListBadgeContainer: {
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+
   container: { flex: 1 },
   centerAll: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   

@@ -14,7 +14,8 @@ import {
 } from 'react-native';
 import { useColors } from '@/hooks/useColors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Feather } from '@expo/vector-icons';
+import { Lineicons } from '@lineiconshq/react-native-lineicons';
+import { MonitorBulk, ArrowRightBulk, ArrowLeftBulk, StopwatchBulk, PlayBulk } from '@lineiconshq/free-icons';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { useAppStore } from '@/store/app-store';
@@ -39,12 +40,12 @@ export default function CatchUpScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
-  const isLargeScreen = width >= 1024 || Platform.isTV;
+  const isLargeScreen = width >= 800 || Platform.isTV;
 
   const activePlaylistId = useAppStore((s) => s.activePlaylistId);
   const playlists = useAppStore((s) => s.playlists);
   const getChannelsByType = useAppStore((s) => s.getChannelsByType);
-  const searchIndexReady = useAppStore((s) => s.searchIndexReady);
+  
 
   const [liveChannels, setLiveChannels] = useState<Channel[]>([]);
 
@@ -52,16 +53,14 @@ export default function CatchUpScreen() {
     let active = true;
     const isMock = activePlaylistId === 'p1' || activePlaylistId === 'p2' || activePlaylistId === 'p3';
     if (isMock) {
-      setLiveChannels(MOCK_CHANNELS.filter(c => c.type === 'live'));
-    } else if (searchIndexReady) {
-      getChannelsByType('live').then(channels => {
+      setLiveChannels(MOCK_CHANNELS.filter(c => c.type === 'live' && c.hasArchive));
+    } else {
+      getChannelsByType('live').then((channels: any[]) => {
         if (active) setLiveChannels(channels);
       });
-    } else {
-      setLiveChannels([]);
     }
     return () => { active = false; };
-  }, [activePlaylistId, searchIndexReady, getChannelsByType]);
+  }, [activePlaylistId, getChannelsByType]);
 
   const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
   const [epgList, setEpgList] = useState<EpgProgram[]>([]);
@@ -384,7 +383,7 @@ export default function CatchUpScreen() {
                         <Image source={{ uri: item.logo }} style={{ width: 40, height: 40, borderRadius: 20 }} contentFit="cover" />
                       ) : (
                         <View style={[styles.tvChannelIconPlaceholder, { backgroundColor: focused ? 'rgba(0,0,0,0.1)' : 'rgba(255,255,255,0.05)' }]}>
-                          <Feather name="tv" size={20} color={focused ? '#000' : colors.text} />
+                          <Lineicons icon={MonitorBulk} size={20} color={focused ? '#000' : colors.text} />
                         </View>
                       )}
                       <View style={{ flex: 1 }}>
@@ -468,7 +467,7 @@ export default function CatchUpScreen() {
                   </View>
                   {!item.isFuture && (
                     <View style={{ marginTop: 8, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                       <Feather name={item.isCurrent ? 'tv' : 'play-circle'} size={16} color={colors.gold} />
+                       <Lineicons icon={item.isCurrent  ? MonitorBulk : PlayBulk} size={16} color={colors.gold} />
                        <Text style={{ color: colors.gold, fontWeight: 'bold' }}>{item.isCurrent ? 'Watch Live' : 'Play Catch Up'}</Text>
                     </View>
                   )}
@@ -482,49 +481,56 @@ export default function CatchUpScreen() {
   }
 
   // --- Mobile Layout ---
-  const renderChannelCard = ({ item }: { item: Channel }) => {
+  const renderChannelListItem = ({ item }: { item: Channel }) => {
     const isSelected = selectedChannel?.id === item.id;
     return (
       <TVFocusable 
-        style={[styles.channelCard, { backgroundColor: colors.surface, borderColor: isSelected ? colors.gold : colors.border }]}
+        style={[styles.listItem, { backgroundColor: colors.surface, borderColor: isSelected ? colors.gold : colors.border }]}
         onPress={() => {
           setSelectedChannel(item);
           setEpgList([]);
         }}
       >
-        <View style={styles.channelLogoWrapper}>
-          <Image source={{ uri: item.logo || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.name)}&background=1A1A1A&color=D4A843&bold=true&size=100&format=svg` }} style={styles.channelLogo} contentFit="contain" />
+        <View style={styles.listLeft}>
+          <View style={[styles.listIconBg, { backgroundColor: colors.surface2 }]}>
+            {item.logo ? (
+              <Image source={{ uri: item.logo }} style={{ width: 28, height: 28, borderRadius: 6 }} contentFit="contain" />
+            ) : (
+              <Lineicons icon={MonitorBulk} size={16} color={colors.text} />
+            )}
+          </View>
+          <Text style={[styles.listName, { color: colors.text }]} numberOfLines={2}>{item.name}</Text>
         </View>
-        <Text style={[styles.channelName, { color: colors.text }]} numberOfLines={1}>{item.name}</Text>
+        <Lineicons icon={ArrowRightBulk} size={20} color={colors.mutedForeground} />
       </TVFocusable>
     );
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
-      <View style={styles.header}>
-        <TVFocusable 
-          style={styles.backBtn} 
-          onPress={() => selectedChannel ? setSelectedChannel(null) : router.back()}
-        >
-          <Feather name="arrow-left" size={24} color={colors.text} />
-        </TVFocusable>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>
-          {selectedChannel ? `${selectedChannel.name} - Catch Up` : 'Catch Up'}
-        </Text>
-        <View style={{ width: 40 }} />
-      </View>
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      {selectedChannel && (
+        <View style={[styles.header, { paddingBottom: 0 }]}>
+          <TVFocusable 
+            style={[styles.backBtn, { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }]} 
+            onPress={() => setSelectedChannel(null)}
+          >
+            <Lineicons icon={ArrowLeftBulk} size={20} color={colors.text} />
+          </TVFocusable>
+          <Text style={[styles.headerTitle, { color: colors.text, flex: 1, marginLeft: 12 }]} numberOfLines={1}>
+            {selectedChannel.name}
+          </Text>
+        </View>
+      )}
 
       {!selectedChannel ? (
         <FlatList
           data={catchupChannels}
           keyExtractor={(item) => item.id}
-          renderItem={renderChannelCard}
-          numColumns={2}
-          contentContainerStyle={[styles.channelsGrid, { paddingBottom: insets.bottom + 20 }]}
+          renderItem={renderChannelListItem}
+          contentContainerStyle={{ padding: 20, paddingTop: 10, paddingBottom: insets.bottom + 20 }}
           ListEmptyComponent={
             <View style={styles.emptyState}>
-              <Feather name="clock" size={48} color={colors.mutedForeground} style={{ marginBottom: 16 }} />
+              <Lineicons icon={StopwatchBulk} size={48} color={colors.mutedForeground} style={{ marginBottom: 16 }} />
               <Text style={[styles.emptyText, { color: colors.text }]}>No catch-up channels available</Text>
             </View>
           }
@@ -570,7 +576,7 @@ export default function CatchUpScreen() {
                   </View>
                   {!item.isFuture && (
                     <TVFocusable style={[styles.playBtn, { backgroundColor: item.isCurrent ? colors.gold : 'rgba(255,255,255,0.08)' }]} onPress={() => handlePlayProgram(item)}>
-                      <Feather name={item.isCurrent ? 'tv' : 'play-circle'} size={18} color={item.isCurrent ? '#1A1A1A' : colors.text} />
+                      <Lineicons icon={item.isCurrent  ? MonitorBulk : PlayBulk} size={18} color={item.isCurrent ? '#1A1A1A' : colors.text} />
                       <Text style={[styles.playBtnText, { color: item.isCurrent ? '#1A1A1A' : colors.text }]}>{item.isCurrent ? 'Live' : 'Catch Up'}</Text>
                     </TVFocusable>
                   )}
@@ -603,14 +609,15 @@ const styles = StyleSheet.create({
   tvEpgCard: { padding: 20, borderRadius: 12, borderWidth: 1, marginBottom: 16, gap: 12 },
 
   // Mobile Styles
-  header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, height: 56 },
-  backBtn: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
-  headerTitle: { fontSize: 20, fontWeight: 'bold' },
-  channelsGrid: { padding: 8 },
-  channelCard: { flex: 1, margin: 8, borderRadius: 12, borderWidth: 1, padding: 16, alignItems: 'center', justifyContent: 'center' },
-  channelLogoWrapper: { width: 80, height: 60, alignItems: 'center', justifyContent: 'center', marginBottom: 8 },
-  channelLogo: { width: '100%', height: '100%' },
-  channelName: { fontSize: 14, fontWeight: 'bold', textAlign: 'center' },
+  header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingVertical: 12 },
+  backBtn: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  headerTitle: { fontSize: 18, fontWeight: 'bold' },
+  
+  // List Styles
+  listItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 14, borderRadius: 14, borderWidth: 1, marginBottom: 10 },
+  listLeft: { flexDirection: 'row', alignItems: 'center', gap: 12, flex: 1 },
+  listIconBg: { width: 42, height: 42, borderRadius: 10, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  listName: { fontSize: 15, fontWeight: '600', flex: 1},
   daysBar: { flexDirection: 'row', borderBottomWidth: 1 },
   dayTabItem: { flex: 1, alignItems: 'center', paddingVertical: 14, borderBottomWidth: 2, borderBottomColor: 'transparent' },
   dayTabLabel: { fontSize: 13, fontWeight: 'bold' },
@@ -625,5 +632,4 @@ const styles = StyleSheet.create({
   playBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 10, borderRadius: 8 },
   playBtnText: { fontSize: 13, fontWeight: 'bold' },
   emptyState: { alignItems: 'center', justifyContent: 'center', padding: 40, marginTop: 80 },
-  emptyText: { fontSize: 18, fontWeight: 'bold' },
-});
+  emptyText: { fontSize: 18, fontWeight: 'bold' }});

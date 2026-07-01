@@ -9,9 +9,11 @@ import {
 } from 'react-native';
 import { useColors } from '@/hooks/useColors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Feather } from '@expo/vector-icons';
+import { Lineicons } from '@lineiconshq/react-native-lineicons';
+import { HeartBulk, ArrowLeftBulk } from '@lineiconshq/free-icons';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
+import { TVFocusable } from '@/components/TVFocusable';
 import { useAppStore } from '@/store/app-store';
 import { Channel } from '@/types';
 
@@ -83,7 +85,7 @@ export default function FavoritesScreen() {
 
     return (
       <View style={[styles.cardContainer, isLive ? styles.liveWidth : styles.vodWidth]}>
-        <Pressable
+        <TVFocusable
           style={({ focused }: any) => [
             styles.card,
             { backgroundColor: focused ? 'rgba(255,255,255,0.05)' : colors.surface, borderColor: focused ? '#FFF' : colors.border },
@@ -99,7 +101,7 @@ export default function FavoritesScreen() {
               contentFit={isLive ? "contain" : "cover"}
             />
 
-            <Pressable
+            <TVFocusable
               style={({ focused }: any) => [
                 styles.removeFavBtn, 
                 { backgroundColor: 'rgba(0,0,0,0.6)' },
@@ -108,8 +110,8 @@ export default function FavoritesScreen() {
               onPress={() => toggleFavorite(item)}
               focusable={true}
             >
-              <Feather name="heart" size={16} color="#E53935" fill="#E53935" />
-            </Pressable>
+              <Lineicons icon={HeartBulk} size={16} color="#E53935" fill="#E53935" />
+            </TVFocusable>
 
             {isLive && (
               <View style={styles.liveIndicator}>
@@ -127,7 +129,7 @@ export default function FavoritesScreen() {
               {item.category}
             </Text>
           </View>
-        </Pressable>
+        </TVFocusable>
       </View>
     );
   };
@@ -141,7 +143,7 @@ export default function FavoritesScreen() {
   return (
     <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
       <View style={styles.header}>
-        <Pressable 
+        <TVFocusable 
           style={({ focused }: any) => [
             styles.backBtn,
             focused && { transform: [{ scale: 1.1 }], backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 12, borderWidth: 3, borderColor: '#FFF' }
@@ -150,9 +152,9 @@ export default function FavoritesScreen() {
           focusable={true}
         >
           {({ focused }: any) => (
-            <Feather name="arrow-left" size={24} color={focused ? colors.gold : colors.text} />
+            <Lineicons icon={ArrowLeftBulk} size={24} color={focused ? colors.gold : colors.text} />
           )}
-        </Pressable>
+        </TVFocusable>
         <Text style={[styles.headerTitle, { color: colors.text }]}>Favorites</Text>
         <View style={{ width: 40 }} />
       </View>
@@ -161,7 +163,7 @@ export default function FavoritesScreen() {
         {tabs.map((tab) => {
           const isSelected = activeTab === tab.type;
           return (
-            <Pressable
+            <TVFocusable
               key={tab.type}
               style={({ focused }: any) => [
                 styles.tabItem,
@@ -179,7 +181,7 @@ export default function FavoritesScreen() {
                   {tab.label}
                 </Text>
               )}
-            </Pressable>
+            </TVFocusable>
           );
         })}
       </View>
@@ -196,7 +198,7 @@ export default function FavoritesScreen() {
         ]}
         ListEmptyComponent={
           <View style={styles.emptyState}>
-            <Feather name="heart" size={48} color={colors.mutedForeground} style={{ marginBottom: 16 }} />
+            <Lineicons icon={HeartBulk} size={48} color={colors.mutedForeground} style={{ marginBottom: 16 }} />
             <Text style={[styles.emptyText, { color: colors.text }]}>
               No favorites added yet
             </Text>

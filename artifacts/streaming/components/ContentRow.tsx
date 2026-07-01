@@ -1,6 +1,7 @@
 import React from 'react';
-import { View, Text, StyleSheet, FlatList, Pressable } from 'react-native';
+import { View, Text, StyleSheet, FlatList } from 'react-native';
 import { useColors } from '@/hooks/useColors';
+import { TVFocusable } from '@/components/TVFocusable';
 
 interface ContentRowProps {
   title: string;
@@ -19,9 +20,19 @@ export function ContentRow({ title, data, renderItem, onSeeAll }: ContentRowProp
       <View style={styles.header}>
         <Text style={[styles.title, { color: colors.text, flex: 1, marginRight: 16 }]} numberOfLines={1}>{title}</Text>
         {onSeeAll && (
-          <Pressable onPress={onSeeAll}>
-            <Text style={[styles.seeAll, { color: colors.mutedForeground }]}>See all →</Text>
-          </Pressable>
+          <TVFocusable 
+            onPress={onSeeAll}
+            style={({ focused }: any) => [
+              { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16 },
+              focused && { backgroundColor: 'rgba(212,168,67,0.2)' }
+            ]}
+            disableBorder
+            scaleAmount={1.05}
+          >
+            {({ focused }: any) => (
+              <Text style={[styles.seeAll, { color: focused ? colors.gold : colors.mutedForeground }]}>See all →</Text>
+            )}
+          </TVFocusable>
         )}
       </View>
       <FlatList

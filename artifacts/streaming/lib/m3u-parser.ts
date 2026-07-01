@@ -25,8 +25,8 @@ export function parseM3U(m3uContent: string) {
       
       const typeStr = name.toLowerCase() + category.toLowerCase();
       let type: 'live' | 'vod' | 'series' = 'live';
-      if (typeStr.includes('series') || typeStr.includes('season')) type = 'series';
-      else if (typeStr.includes('movie') || typeStr.includes('cinema')) type = 'vod';
+      if (typeStr.includes('series') || typeStr.includes('season') || typeStr.includes('مسلسل')) type = 'series';
+      else if (typeStr.includes('movie') || typeStr.includes('cinema') || typeStr.includes('film') || typeStr.includes('vod') || typeStr.includes('فيلم') || typeStr.includes('افلام') || typeStr.includes('box office')) type = 'vod';
       
       currentInfo = {
         name,

@@ -1,3 +1,5 @@
+import { Lineicons } from '@lineiconshq/react-native-lineicons';
+import { VolumeMuteBulk, VolumeLowBulk, VolumeHighBulk } from '@lineiconshq/free-icons';
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
   View,
@@ -18,7 +20,7 @@ import { useLocalSearchParams, router } from 'expo-router';
 import { TVFocusable } from '@/components/TVFocusable';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { StatusBar } from 'expo-status-bar';
-import { Feather, Ionicons } from '@expo/vector-icons';
+import { QuestionMarkCircleBulk, ArrowLeftBulk, Message2Bulk, HeartBulk, PreviousStep2Bulk, ShiftLeftBulk, NextStep2Bulk, ShiftRightBulk, Ban2Bulk, PauseBulk, PlayBulk } from '@lineiconshq/free-icons';
 import { useColors } from '@/hooks/useColors';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -67,10 +69,12 @@ export default function PlayerScreen() {
   const [hasError, setHasError] = useState(false);
   const [isBuffering, setIsBuffering] = useState(true);
   const [isMuted, setIsMuted] = useState(false);
+  const [isLiveSync, setIsLiveSync] = useState(true);
   const [seeking, setSeeking] = useState(false);
   const [seekPreview, setSeekPreview] = useState(0);
   const [errorToastVisible, setErrorToastVisible] = useState(false);
   const [aspectMode, setAspectMode] = useState(0); // 0: Fit, 1: Fill, 2: Stretch, 3: 4:3
+  const retryCount = useRef(0);
   const errorToastOpacity = useRef(new Animated.Value(0)).current;
   const errorToastY = useRef(new Animated.Value(-80)).current;
   const videoViewRef = useRef<any>(null);
@@ -137,8 +141,8 @@ export default function PlayerScreen() {
         setDuration(dur);
         progressRef.current = { time, duration: dur };
         setIsPlaying(player.playing ?? false);
-        if (player.status === 'error') setHasError(true);
-        if (player.status === 'readyToPlay') setIsBuffering(false);
+        if (player.status === 'error' && !hasError) setHasError(true);
+        if (player.status === 'readyToPlay') { setIsBuffering(false); retryCount.current = 0; }
         if (player.status === 'loading') setIsBuffering(true);
       } catch (_) {}
     }, 500);
@@ -147,6 +151,13 @@ export default function PlayerScreen() {
 
   useEffect(() => {
     return () => {
+      // Stop the player to prevent audio leaking after navigation
+      try {
+        if (player) {
+          player.pause();
+          player.muted = true;
+        }
+      } catch(e) {}
       const p = progressRef.current;
       if (!isLive && p.duration > 0) {
         if (p.time > p.duration - 30) {
@@ -254,7 +265,6 @@ export default function PlayerScreen() {
 
   useEffect(() => {
     if (hasError) {
-      // Show animated toast then auto-navigate back
       setErrorToastVisible(true);
       Animated.parallel([
         Animated.timing(errorToastOpacity, { toValue: 1, duration: 300, useNativeDriver: true }),
@@ -266,9 +276,21 @@ export default function PlayerScreen() {
           Animated.timing(errorToastOpacity, { toValue: 0, duration: 300, useNativeDriver: true }),
           Animated.timing(errorToastY, { toValue: -80, duration: 300, useNativeDriver: true }),
         ]).start(() => {
-          router.back();
+          if (player && retryCount.current < 5) {
+            retryCount.current += 1;
+            setHasError(false);
+            setErrorToastVisible(false);
+            setIsBuffering(true);
+            // Simply try to play again - don't use player.replace() 
+            // as it creates overlapping audio decoders
+            try {
+              player.play();
+            } catch(e) {}
+          } else {
+            router.back();
+          }
         });
-      }, 2500);
+      }, 3000);
 
       return () => clearTimeout(timer);
     }
@@ -394,6 +416,19 @@ export default function PlayerScreen() {
     });
   };
 
+  const toggleLiveSync = () => {
+    setIsLiveSync(prev => {
+       const next = !prev;
+       if (next) {
+          Alert.alert("Live Sync: ON", "If network buffers, the stream will automatically snap to the live edge.");
+       } else {
+          Alert.alert("Resume Mode", "If network buffers, the stream will continue from where it stopped.");
+       }
+       return next;
+    });
+    showControlsNow();
+  };
+
   const toggleMute = () => {
     if (!player) return;
     const next = !isMuted;
@@ -426,7 +461,7 @@ export default function PlayerScreen() {
     return (
       <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
         <StatusBar hidden />
-        <Feather name="alert-circle" size={48} color="#E53935" />
+        <Lineicons icon={QuestionMarkCircleBulk} size={48} color="#E53935" />
         <Text style={styles.errorTitle}>No stream URL provided</Text>
         <Pressable style={styles.retryBtn} onPress={() => router.back()}>
           <Text style={styles.retryText}>Go Back</Text>
@@ -505,7 +540,7 @@ export default function PlayerScreen() {
               ]}
             >
               {({ focused }: any) => (
-                <Feather name="arrow-left" size={22} color={focused ? "#0A0A0A" : "#FFF"} />
+                <Lineicons icon={ArrowLeftBulk} size={22} color={focused ? "#0A0A0A" : "#FFF"} />
               )}
             </TVFocusable>
 
@@ -537,7 +572,7 @@ export default function PlayerScreen() {
                 focusable={true}
               >
                 {({ focused }: any) => (
-                  <Feather name="message-square" size={20} color={focused ? "#0A0A0A" : "#FFF"} />
+                  <Lineicons icon={Message2Bulk} size={20} color={focused ? "#0A0A0A" : "#FFF"} />
                 )}
               </TVFocusable>
               <TVFocusable 
@@ -548,7 +583,7 @@ export default function PlayerScreen() {
                 onPress={toggleMute}
               >
                 {({ focused }: any) => (
-                  <Feather name={isMuted ? 'volume-x' : 'volume-2'} size={20} color={focused ? "#0A0A0A" : "#FFF"} />
+                  <Lineicons icon={isMuted  ? QuestionMarkCircleBulk : QuestionMarkCircleBulk} size={20} color={focused ? "#0A0A0A" : "#FFF"} />
                 )}
               </TVFocusable>
               <TVFocusable 
@@ -559,8 +594,8 @@ export default function PlayerScreen() {
                 onPress={handleToggleFavorite}
               >
                 {({ focused }: any) => (
-                  <Feather
-                    name="heart"
+                  <Lineicons
+                    icon={HeartBulk}
                     size={20}
                     color={focused ? "#0A0A0A" : (isFavorite ? '#E53935' : '#FFF')}
                     fill={isFavorite ? '#E53935' : 'transparent'}
@@ -584,7 +619,7 @@ export default function PlayerScreen() {
               >
                 {({ focused }: any) => (
                   <>
-                    <Ionicons name="play-skip-back" size={32} color={focused ? colors.gold : "#FFF"} />
+                    <Lineicons icon={PreviousStep2Bulk} size={32} color={focused ? colors.gold : "#FFF"} />
                     <Text style={[styles.seekLabel, focused && { color: colors.gold }]}>Prev Channel</Text>
                   </>
                 )}
@@ -600,7 +635,7 @@ export default function PlayerScreen() {
               >
                 {({ focused }: any) => (
                   <>
-                    <Ionicons name="play-back" size={32} color={focused ? colors.gold : "#FFF"} />
+                    <Lineicons icon={ShiftLeftBulk} size={32} color={focused ? colors.gold : "#FFF"} />
                     <Text style={[styles.seekLabel, focused && { color: colors.gold }]}>10</Text>
                   </>
                 )}
@@ -617,7 +652,7 @@ export default function PlayerScreen() {
               hasTVPreferredFocus={true}
             >
               {({ focused }: any) => (
-                <Feather name={isPlaying ? 'pause' : 'play'} size={38} color={focused ? "#0A0A0A" : "#FFF"} />
+                <Lineicons icon={isPlaying  ? PauseBulk : PlayBulk} size={38} color={focused ? "#0A0A0A" : "#FFF"} />
               )}
             </TVFocusable>
 
@@ -634,7 +669,7 @@ export default function PlayerScreen() {
               >
                 {({ focused }: any) => (
                   <>
-                    <Ionicons name="play-skip-forward" size={32} color={focused ? colors.gold : "#FFF"} />
+                    <Lineicons icon={NextStep2Bulk} size={32} color={focused ? colors.gold : "#FFF"} />
                     <Text style={[styles.seekLabel, focused && { color: colors.gold }]}>Next Channel</Text>
                   </>
                 )}
@@ -650,7 +685,7 @@ export default function PlayerScreen() {
               >
                 {({ focused }: any) => (
                   <>
-                    <Ionicons name="play-forward" size={32} color={focused ? colors.gold : "#FFF"} />
+                    <Lineicons icon={ShiftRightBulk} size={32} color={focused ? colors.gold : "#FFF"} />
                     <Text style={[styles.seekLabel, focused && { color: colors.gold }]}>10</Text>
                   </>
                 )}
@@ -669,12 +704,7 @@ export default function PlayerScreen() {
             <View style={styles.volumeTrack}>
               <View style={[styles.volumeFill, { height: `${volume * 100}%` }]} />
             </View>
-            <Feather
-              name={volume === 0 ? 'volume-x' : volume < 0.5 ? 'volume-1' : 'volume-2'}
-              size={14}
-              color="rgba(255,255,255,0.6)"
-              style={{ marginTop: 6 }}
-            />
+            <Lineicons icon={volume === 0 ? VolumeMuteBulk : volume < 0.5 ? VolumeLowBulk : VolumeHighBulk} size={18} color="rgba(255,255,255,0.6)" style={{ marginTop: 6 }} />
           </View>
 
           {/* Bottom bar */}
@@ -737,11 +767,11 @@ export default function PlayerScreen() {
           pointerEvents="none"
         >
           <View style={styles.errorToastIconBg}>
-            <Feather name="wifi-off" size={20} color="#FFF" />
+            <Lineicons icon={Ban2Bulk} size={20} color="#FFF" />
           </View>
           <View style={styles.errorToastTextBlock}>
-            <Text style={styles.errorToastTitle}>Content Unavailable</Text>
-            <Text style={styles.errorToastSub}>Returning automatically...</Text>
+            <Text style={styles.errorToastTitle}>Connection Issue</Text>
+            <Text style={styles.errorToastSub}>Reconnecting...</Text>
           </View>
         </Animated.View>
       )}

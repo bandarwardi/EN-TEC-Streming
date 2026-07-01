@@ -3,7 +3,8 @@ import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { TVFocusable } from '@/components/TVFocusable';
 import { useColors } from '@/hooks/useColors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Feather } from '@expo/vector-icons';
+import { Lineicons } from '@lineiconshq/react-native-lineicons';
+import { StarFatBulk, ArrowRightBulk } from '@lineiconshq/free-icons';
 import { useAppStore } from '@/store/app-store';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
@@ -37,7 +38,7 @@ export default function SettingsScreen() {
             colors={['#D4A843', '#A67C2E']}
             style={styles.planBadge}
           >
-            <Feather name="star" size={12} color="#1A1A1A" />
+            <Lineicons icon={StarFatBulk} size={12} color="#1A1A1A" />
             <Text style={styles.planText}>Premium 4K</Text>
           </LinearGradient>
         </View>
@@ -55,7 +56,7 @@ export default function SettingsScreen() {
             <Text style={[styles.rowText, { color: colors.text }]}>Playlists</Text>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <Text style={[styles.rowValue, { color: colors.mutedForeground }]}>{playlists.length}</Text>
-              <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
+              <Lineicons icon={ArrowRightBulk} size={16} color={colors.mutedForeground} />
             </View>
           </TVFocusable>
         </View>
@@ -71,7 +72,7 @@ export default function SettingsScreen() {
             focusable={true}
           >
             <Text style={[styles.rowText, { color: colors.text }]}>My Downloads</Text>
-            <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
+            <Lineicons icon={ArrowRightBulk} size={16} color={colors.mutedForeground} />
           </TVFocusable>
         </View>
 

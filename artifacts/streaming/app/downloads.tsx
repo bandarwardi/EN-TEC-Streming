@@ -3,7 +3,9 @@ import { View, Text, StyleSheet, FlatList, Pressable, Alert } from 'react-native
 import { Stack, useRouter } from 'expo-router';
 import { useAppStore } from '@/store/app-store';
 import { useColors } from '@/hooks/useColors';
-import { Feather } from '@expo/vector-icons';
+import { TVFocusable } from '@/components/TVFocusable';
+import { Lineicons } from '@lineiconshq/react-native-lineicons';
+import { ArrowLeftBulk, CloudDownloadBulk, PauseBulk, RefreshCircle1ClockwiseBulk, PlayBulk, Trash3Bulk, XmarkBulk } from '@lineiconshq/free-icons';
 import { Image } from 'expo-image';
 import * as FileSystem from 'expo-file-system/legacy';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -57,7 +59,7 @@ export default function DownloadsScreen() {
         <Stack.Screen options={{ headerShown: false }} />
         
         <View style={styles.header}>
-          <Pressable 
+          <TVFocusable 
             style={({ focused }: any) => [
               styles.backBtn,
               focused && { transform: [{ scale: 1.1 }], backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 12, borderWidth: 3, borderColor: '#FFF' }
@@ -66,15 +68,15 @@ export default function DownloadsScreen() {
             focusable={true}
           >
             {({ focused }: any) => (
-              <Feather name="arrow-left" size={24} color={focused ? colors.gold : colors.text} />
+              <Lineicons icon={ArrowLeftBulk} size={24} color={focused ? colors.gold : colors.text} />
             )}
-          </Pressable>
+          </TVFocusable>
           <Text style={[styles.headerTitle, { color: colors.text }]}>My Downloads</Text>
           <View style={{ width: 44 }} />
         </View>
 
         <View style={styles.emptyState}>
-          <Feather name="download-cloud" size={64} color={colors.mutedForeground} />
+          <Lineicons icon={CloudDownloadBulk} size={64} color={colors.mutedForeground} />
           <Text style={[styles.emptyText, { color: colors.text }]}>No downloaded content yet</Text>
           <Text style={[styles.emptySubText, { color: colors.mutedForeground }]}>
             Movies and episodes you download will appear here for offline viewing.
@@ -89,7 +91,7 @@ export default function DownloadsScreen() {
       <Stack.Screen options={{ headerShown: false }} />
       
       <View style={styles.header}>
-        <Pressable 
+        <TVFocusable 
           style={({ focused }: any) => [
             styles.backBtn,
             focused && { transform: [{ scale: 1.1 }], backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 12, borderWidth: 3, borderColor: '#FFF' }
@@ -98,9 +100,9 @@ export default function DownloadsScreen() {
           focusable={true}
         >
           {({ focused }: any) => (
-            <Feather name="arrow-left" size={24} color={focused ? colors.gold : colors.text} />
+            <Lineicons icon={ArrowLeftBulk} size={24} color={focused ? colors.gold : colors.text} />
           )}
-        </Pressable>
+        </TVFocusable>
         <Text style={[styles.headerTitle, { color: colors.text }]}>My Downloads</Text>
         <View style={{ width: 44 }} />
       </View>
@@ -111,7 +113,7 @@ export default function DownloadsScreen() {
         contentContainerStyle={styles.listContent}
         renderItem={({ item }) => (
           <View style={[styles.downloadCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <Pressable 
+            <TVFocusable 
               style={({ focused }: any) => [
                 styles.cardMain,
                 focused && { backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 3, borderColor: '#FFF', borderRadius: 16 }
@@ -150,31 +152,31 @@ export default function DownloadsScreen() {
                   <Text style={[styles.status, { color: colors.destructive }]}>Download Failed</Text>
                 )}
               </View>
-            </Pressable>
+            </TVFocusable>
             
             <View style={styles.actionsColumn}>
               {item.status === 'downloading' && (
-                <Pressable 
+                <TVFocusable 
                   style={({ focused }: any) => [styles.actionBtn, focused && { borderWidth: 3, borderColor: '#FFF', transform: [{ scale: 1.1 }] }]} 
                   onPress={() => pauseDownload(item.id)} hitSlop={10} focusable={true}
                 >
-                  <Feather name="pause" size={20} color={colors.text} />
-                </Pressable>
+                  <Lineicons icon={PauseBulk} size={20} color={colors.text} />
+                </TVFocusable>
               )}
               {(item.status === 'paused' || item.status === 'error') && (
-                <Pressable 
+                <TVFocusable 
                   style={({ focused }: any) => [styles.actionBtn, focused && { borderWidth: 3, borderColor: '#FFF', transform: [{ scale: 1.1 }] }]} 
                   onPress={() => resumeDownload(item.id)} hitSlop={10} focusable={true}
                 >
-                  <Feather name={item.status === 'error' ? "refresh-cw" : "play"} size={20} color={item.status === 'error' ? colors.gold : colors.primary} />
-                </Pressable>
+                  <Lineicons icon={item.status === 'error'  ? RefreshCircle1ClockwiseBulk : PlayBulk} size={20} color={item.status === 'error' ? colors.gold : colors.primary} />
+                </TVFocusable>
               )}
-              <Pressable 
+              <TVFocusable 
                 style={({ focused }: any) => [styles.deleteBtn, focused && { borderWidth: 3, borderColor: '#FFF', transform: [{ scale: 1.1 }] }]} 
                 onPress={() => handleDelete(item)} hitSlop={10} focusable={true}
               >
-                <Feather name={item.status === 'completed' ? "trash-2" : "x"} size={20} color={colors.destructive} />
-              </Pressable>
+                <Lineicons icon={item.status === 'completed'  ? Trash3Bulk : XmarkBulk} size={20} color={colors.destructive} />
+              </TVFocusable>
             </View>
           </View>
         )}

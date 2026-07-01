@@ -3,7 +3,8 @@ import { View, Text, StyleSheet, FlatList, Pressable, ActivityIndicator, useWind
 import { TVFocusable } from '@/components/TVFocusable';
 import { useColors } from '@/hooks/useColors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Feather } from '@expo/vector-icons';
+import { Lineicons } from '@lineiconshq/react-native-lineicons';
+import { Search1Bulk, MonitorBulk, DashboardSquare1Bulk, Folder1Bulk, ArrowRightBulk } from '@lineiconshq/free-icons';
 import { MovieCard } from '@/components/MovieCard';
 import { router, useNavigation, useLocalSearchParams } from 'expo-router';
 import { useAppStore } from '@/store/app-store';
@@ -148,7 +149,7 @@ export default function MoviesScreen() {
             >
               {({ focused }: any) => (
                 <>
-                  <Feather name="search" size={18} color={focused ? '#000' : colors.mutedForeground} />
+                  <Lineicons icon={Search1Bulk} size={18} color={focused ? '#000' : colors.mutedForeground} />
                   <Text style={[styles.tvSearchText, { color: focused ? '#000' : colors.mutedForeground }]}>
                     Search movies, categories...
                   </Text>
@@ -167,7 +168,7 @@ export default function MoviesScreen() {
             </View>
           ) : localMovies.length === 0 ? (
             <View style={styles.centerAll}>
-              <Feather name="film" size={48} color={colors.mutedForeground} />
+              <Lineicons icon={MonitorBulk} size={48} color={colors.mutedForeground} />
               <Text style={[styles.emptyTitle, { color: colors.text, marginTop: 12 }]}>No movies found</Text>
             </View>
           ) : (
@@ -212,14 +213,29 @@ export default function MoviesScreen() {
     return (
       <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
         {!isLandscape && (
-          <View style={styles.header}>
-            <Text style={[styles.title, { color: colors.text }]} numberOfLines={1}>
+        <View style={styles.header}>
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.title, { color: colors.text }]} numberOfLines={2}>
               {selectedCategory.name}
             </Text>
             <Text style={[styles.count, { color: colors.mutedForeground }]}>
-              {localMovies.length.toLocaleString()} titles
+              {localMovies.length.toLocaleString()} channels
             </Text>
           </View>
+          <TVFocusable
+            onPress={() => setSelectedCategory(null)}
+            style={({ focused }: any) => [
+              { paddingHorizontal: 12, paddingVertical: 8, backgroundColor: focused ? colors.gold : colors.surface2, borderRadius: 8, borderWidth: 1, borderColor: focused ? '#000' : colors.border, flexDirection: 'row', alignItems: 'center', gap: 6 }
+            ]}
+          >
+            {({ focused }: any) => (
+               <>
+                 <Lineicons icon={DashboardSquare1Bulk} size={20} color={focused ? '#000' : colors.gold} />
+                 {!isLandscape && <Text style={{ color: focused ? '#000' : colors.text, fontSize: 13, fontWeight: 'bold' }}>Categories</Text>}
+               </>
+            )}
+          </TVFocusable>
+        </View>
         )}
 
         <View style={[styles.horizontalTabsContainer, { marginBottom: 12 }, isLandscape && { marginBottom: 8 }]}>
@@ -262,7 +278,7 @@ export default function MoviesScreen() {
             style={[styles.searchBar, { backgroundColor: colors.surface2, borderColor: colors.border }]}
             onPress={() => router.push('/search')}
           >
-            <Feather name="search" size={16} color={colors.mutedForeground} />
+            <Lineicons icon={Search1Bulk} size={16} color={colors.mutedForeground} />
             <Text style={[styles.searchInput, { color: colors.mutedForeground }]}>
               Search movies, categories...
             </Text>
@@ -275,7 +291,7 @@ export default function MoviesScreen() {
           </View>
         ) : localMovies.length === 0 ? (
           <View style={styles.centerAll}>
-            <Feather name="film" size={48} color={colors.mutedForeground} />
+            <Lineicons icon={MonitorBulk} size={48} color={colors.mutedForeground} />
             <Text style={[styles.emptyTitle, { color: colors.text, marginTop: 12 }]}>No movies found</Text>
           </View>
         ) : (
@@ -315,7 +331,7 @@ export default function MoviesScreen() {
           onPress={() => setSelectedCategory(null)}
           style={[styles.floatingViewAllBtn, { backgroundColor: colors.surface, borderColor: colors.border, bottom: insets.bottom + 90 }]}
         >
-          <Feather name="grid" size={18} color={colors.gold} />
+          <Lineicons icon={DashboardSquare1Bulk} size={18} color={colors.gold} />
           <Text style={[styles.floatingViewAllText, { color: colors.text }]}>View All Categories</Text>
         </TVFocusable>
       </View>
@@ -335,7 +351,7 @@ export default function MoviesScreen() {
         style={[styles.searchBar, { backgroundColor: colors.surface2, borderColor: colors.border }]}
         onPress={() => router.push('/search')}
       >
-        <Feather name="search" size={16} color={colors.mutedForeground} />
+        <Lineicons icon={Search1Bulk} size={16} color={colors.mutedForeground} />
         <Text style={[styles.searchInput, { color: colors.mutedForeground }]}>
           Search movies, categories...
         </Text>
@@ -343,7 +359,7 @@ export default function MoviesScreen() {
 
       {categories.length === 0 ? (
         <View style={styles.centerAll}>
-          <Feather name="folder" size={48} color={colors.mutedForeground} />
+          <Lineicons icon={Folder1Bulk} size={48} color={colors.mutedForeground} />
           <Text style={[styles.emptyTitle, { color: colors.text, marginTop: 12 }]}>No categories found</Text>
         </View>
       ) : (
@@ -361,11 +377,11 @@ export default function MoviesScreen() {
             >
               <View style={styles.categoryLeft}>
                 <View style={[styles.categoryIconBg, { backgroundColor: colors.gold + '15' }]}>
-                  <Feather name="film" size={18} color={colors.gold} />
+                  <Lineicons icon={MonitorBulk} size={18} color={colors.gold} />
                 </View>
                 <Text style={[styles.categoryName, { color: colors.text }]}>{item.name}</Text>
               </View>
-              <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
+              <Lineicons icon={ArrowRightBulk} size={18} color={colors.mutedForeground} />
             </TVFocusable>
           )}
           contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 80 }]}
@@ -376,6 +392,50 @@ export default function MoviesScreen() {
 }
 
 const styles = StyleSheet.create({
+  mobileChannelListContent: {
+    borderRadius: 12,
+    borderWidth: 1,
+    marginBottom: 8,
+    overflow: 'hidden'
+  },
+  mobileChannelListLogoContainer: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
+    backgroundColor: '#FFF',
+    padding: 2
+  },
+  mobileChannelListLogo: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+    borderRadius: 6
+  },
+  mobileChannelListLogoPlaceholder: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  mobileChannelListTextContainer: {
+    flex: 1,
+    justifyContent: 'center'
+  },
+  mobileChannelListName: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    marginBottom: 4
+  },
+  mobileChannelListCurrent: {
+    fontSize: 13
+  },
+  mobileChannelListBadgeContainer: {
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+
   container: { flex: 1 },
   centerAll: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   

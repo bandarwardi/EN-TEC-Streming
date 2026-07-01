@@ -1,6 +1,7 @@
+import { Lineicons } from '@lineiconshq/react-native-lineicons';
+import { Home2Bulk, CloudBolt1Bulk, CameraMovie1Bulk, MonitorBulk, StopwatchBulk, Gear1Bulk } from '@lineiconshq/free-icons';
 import React from 'react';
 import { View, StyleSheet, Platform, useWindowDimensions, ScrollView } from 'react-native';
-import { Feather } from '@expo/vector-icons';
 import { useRouter, usePathname } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -8,13 +9,12 @@ import { SymbolView } from 'expo-symbols';
 import { TVFocusable } from './TVFocusable';
 
 const TABS = [
-  { name: 'search', icon: 'search', iosIcon: 'magnifyingglass', path: '/search' },
-  { name: 'home', icon: 'home', iosIcon: 'house', path: '/' },
-  { name: 'live', icon: 'tv', iosIcon: 'tv', path: '/live' },
-  { name: 'movies', icon: 'film', iosIcon: 'film', path: '/movies' },
-  { name: 'series', icon: 'play-circle', iosIcon: 'play.tv', path: '/series' },
-  { name: 'catchup', icon: 'clock', iosIcon: 'clock', path: '/catchup' },
-  { name: 'settings', icon: 'settings', iosIcon: 'gearshape', path: '/settings' },
+  { name: 'index', path: '/', icon: Home2Bulk, label: 'Home', iosIcon: 'house' },
+  { name: 'live', path: '/live', icon: CloudBolt1Bulk, label: 'Live TV', iosIcon: 'tv' },
+  { name: 'movies', path: '/movies', icon: CameraMovie1Bulk, label: 'Movies', iosIcon: 'film' },
+  { name: 'series', path: '/series', icon: MonitorBulk, label: 'Series', iosIcon: 'play.tv' },
+  { name: 'catchup', path: '/catchup', icon: StopwatchBulk, label: 'Catch Up', iosIcon: 'clock.arrow.circlepath' },
+  { name: 'settings', path: '/settings', icon: Gear1Bulk, label: 'Settings', iosIcon: 'gearshape' }
 ];
 
 export function TVSidebar() {
@@ -58,15 +58,11 @@ export function TVSidebar() {
               scaleAmount={1.15}
             >
               {({ focused }: any) => {
-                const tint = focused ? '#0A0A0A' : (isReallyActive ? colors.gold : colors.mutedForeground);
+                const tint = (focused || isReallyActive) ? colors.gold : colors.mutedForeground;
                 return isIOS ? (
                   <SymbolView name={tab.iosIcon as any} tintColor={tint} size={24} />
                 ) : (
-                  <Feather 
-                    name={tab.icon as any} 
-                    size={24} 
-                    color={tint} 
-                  />
+                  <Lineicons icon={tab.icon as any} size={24} color={tint} />
                 );
               }}
             </TVFocusable>

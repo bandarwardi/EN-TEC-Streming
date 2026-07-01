@@ -1,4 +1,5 @@
-import { Feather } from "@expo/vector-icons";
+import { Lineicons } from '@lineiconshq/react-native-lineicons';
+import { QuestionMarkCircleBulk, XmarkBulk } from '@lineiconshq/free-icons';
 import { reloadAppAsync } from "expo";
 import React, { useState } from "react";
 import {
@@ -64,7 +65,7 @@ export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
             },
           ]}
         >
-          <Feather name="alert-circle" size={20} color={colors.foreground} />
+          <Lineicons icon={QuestionMarkCircleBulk} size={20} color={colors.foreground} />
         </Pressable>
       ) : null}
 
@@ -73,7 +74,7 @@ export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
           Something went wrong
         </Text>
 
-        <Text style={[styles.message, { color: colors.mutedForeground, color: 'red', fontWeight: 'bold' }]}>
+        <Text style={[styles.message, { color: 'red', fontWeight: 'bold' }]}>
           {formatErrorDetails()}
         </Text>
 
@@ -131,7 +132,7 @@ export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
                     { opacity: pressed ? 0.6 : 1 },
                   ]}
                 >
-                  <Feather name="x" size={24} color={colors.foreground} />
+                  <Lineicons icon={XmarkBulk} size={24} color={colors.foreground} />
                 </Pressable>
               </View>
 

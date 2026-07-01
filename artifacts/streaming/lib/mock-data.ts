@@ -1,9 +1,9 @@
 import { Channel, Playlist, Movie, Series, FeaturedHero } from '../types';
 
 export const MOCK_HEROES: FeaturedHero[] = [
-  { id: 'h1', title: 'Karuppu 2026', subtitle: 'ACTION', backdrop: require('../assets/images/hero3.png'), description: 'The ultimate Tamil action saga...', rating: 8.7, year: 2026, duration: '2h 41m', genres: ['Action', 'Drama'] },
-  { id: 'h2', title: 'FIFA World Cup 2026', subtitle: 'LIVE · SPORTS', backdrop: require('../assets/images/hero1.png'), description: 'The greatest tournament on Earth...', rating: 9.5, year: 2026, duration: 'LIVE', genres: ['Sports', 'Live'] },
-  { id: 'h3', title: 'Dune: Part Two', subtitle: 'SCI-FI', backdrop: require('../assets/images/hero2.png'), description: 'Paul Atreides unites with Chani...', rating: 8.8, year: 2024, duration: '2h 46m', genres: ['Sci-Fi', 'Adventure'] }
+  { id: 'h1', title: 'Karuppu 2026', subtitle: 'ACTION', backdrop: require('../assets/images/hero3.png'), poster: require('../assets/images/hero3.png'), description: 'The ultimate Tamil action saga...', rating: 8.7, year: 2026, duration: '2h 41m', genres: ['Action', 'Drama'] },
+  { id: 'h2', title: 'FIFA World Cup 2026', subtitle: 'LIVE · SPORTS', backdrop: require('../assets/images/hero1.png'), poster: require('../assets/images/hero1.png'), description: 'The greatest tournament on Earth...', rating: 9.5, year: 2026, duration: 'LIVE', genres: ['Sports', 'Live'] },
+  { id: 'h3', title: 'Dune: Part Two', subtitle: 'SCI-FI', backdrop: require('../assets/images/hero2.png'), poster: require('../assets/images/hero2.png'), description: 'Paul Atreides unites with Chani...', rating: 8.8, year: 2024, duration: '2h 46m', genres: ['Sci-Fi', 'Adventure'] }
 ];
 
 export const MOCK_PLAYLISTS: Playlist[] = [

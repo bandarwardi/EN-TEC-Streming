@@ -105,6 +105,9 @@ interface AppState {
   favorites: string[];
   favoriteItems: Channel[];
   toggleFavorite: (item: Channel) => void;
+  globalAlert: { title: string; message: string; buttonText: string; onPress: () => void; } | null;
+  showGlobalAlert: (title: string, message: string, buttonText: string, onPress: () => void) => void;
+  hideGlobalAlert: () => void;
 
   settings: {
     quality: 'Auto' | '4K' | '1080p' | '720p';
@@ -185,6 +188,9 @@ const fetchWithXHR = (targetUrl: string, acceptHeader?: string): Promise<string>
 
 export const useAppStore = create<AppState>((set, get) => ({
   isLoggedIn: false,
+  globalAlert: null,
+  showGlobalAlert: (title, message, buttonText, onPress) => set({ globalAlert: { title, message, buttonText, onPress } }),
+  hideGlobalAlert: () => set({ globalAlert: null }),
   user: null,
   downloads: [],
 
@@ -454,16 +460,13 @@ export const useAppStore = create<AppState>((set, get) => ({
       }
     }
 
-    // Auto-load search index and build it in the background if it doesn't exist
+    // Auto-load search index and build it in the background
     try {
-      await get().loadSearchIndex(id);
-      if (globalSearchIndex.length === 0) {
-        get().buildSearchIndex(id).catch((err) => {
-          console.error('[setActivePlaylist] Error building search index:', err);
-        });
-      }
+      get().loadSearchIndex(id).catch((err) => {
+        console.error('[setActivePlaylist] Error building search index:', err);
+      });
     } catch (err) {
-      console.error('[setActivePlaylist] Failed loading/building search index:', err);
+      console.error('[setActivePlaylist] Failed starting search index build:', err);
     }
   },
 
@@ -762,6 +765,60 @@ export const useAppStore = create<AppState>((set, get) => ({
           console.warn('[getChannelsForCategory] Failed to parse Xtream configuration from URL:', p.url);
           return [];
         }
+
+        // Verify account first to prevent HTML errors on expired playlists
+        try {
+          const authUrl = `${config.host}/player_api.php?username=${config.username}&password=${config.password}`;
+          const targetUrls = [
+            authUrl,
+            `https://corsproxy.io/?url=${encodeURIComponent(authUrl)}`,
+            `https://api.allorigins.win/raw?url=${encodeURIComponent(authUrl)}`
+          ];
+          
+          let authText = '';
+          let authFetched = false;
+          for (const u of targetUrls) {
+            try {
+              authText = await new Promise((resolve, reject) => {
+                const xhr = new XMLHttpRequest();
+                xhr.open('GET', u, true);
+                xhr.timeout = 10000;
+                xhr.onload = () => {
+                  if (xhr.status >= 200 && xhr.status < 300) {
+                    if (xhr.responseText) resolve(xhr.responseText);
+                    else reject(new Error('Empty response'));
+                  }
+                  else reject(new Error(`Auth HTTP ${xhr.status}`));
+                };
+                xhr.onerror = () => reject(new Error('Auth Network error'));
+                xhr.ontimeout = () => reject(new Error('Auth Timeout'));
+                xhr.send();
+              });
+              authFetched = true;
+              break;
+            } catch (e) {
+              // ignore and try next
+            }
+          }
+          
+          if (authFetched) {
+            const authParsed = JSON.parse(authText);
+            if (!authParsed || !authParsed.user_info || authParsed.user_info.auth === 0 || authParsed.user_info.status !== 'Active') {
+              console.warn('[getChannelsForCategory] Account is invalid or expired. Silently returning empty array to avoid annoying errors.');
+              
+              get().showGlobalAlert('Subscription Expired', 'Your current subscription has expired. Please add a new valid playlist.', 'OK', () => { 
+                get().hideGlobalAlert();
+                const { router } = require('expo-router');
+                router.replace('/playlists'); 
+              });
+
+              return []; // Silently return empty array to prevent UI crash/annoying errors
+            }
+          }
+        } catch (e: any) {
+          console.warn('[getChannelsForCategory] Auth check failed to parse (likely expired and returned HTML). Silently returning empty array.');
+          return [];
+        }
         
         let action = '';
         if (type === 'live') action = 'get_live_streams';
@@ -1033,22 +1090,145 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
     set({ loadingSearchIndex: true });
     try {
-      // Disabled to prevent OOM crash
-      AsyncStorage.removeItem(`search_index_${playlistId}`).catch(() => {});
-      globalSearchIndex = [];
-      set({ searchIndexReady: false, loadingSearchIndex: false });
+      // We no longer read a massive single search_index. 
+      // We build it in memory from chunks.
+      await get().buildSearchIndex(playlistId);
     } catch (e) {
-      console.error('Failed to clear search index', e);
+      console.error('Failed to load search index', e);
       globalSearchIndex = [];
       set({ searchIndexReady: false, loadingSearchIndex: false });
     }
   },
 
-  buildSearchIndex: async (playlistId, onProgress) => {
-    // Disabled to prevent OOM crashes on Android TV.
-    // Fetching 150MB of JSON to build a search index causes the app to crash.
-    globalSearchIndex = [];
-    set({ searchIndexReady: false, loadingSearchIndex: false });
-    onProgress?.('Search index disabled (Live Fetch mode)');
+    buildSearchIndex: async (playlistId, onProgress) => {
+    set({ loadingSearchIndex: true, searchIndexReady: false });
+    onProgress?.('Building search index...');
+    
+    try {
+      let tempIndex = [];
+      const playlist = get().playlists.find(x => x.id === playlistId);
+      const isXtream = playlist && (playlist.url.startsWith('xtream://') || playlist.url.includes('/get.php?'));
+      
+      if (isXtream) {
+        // Xtream Codes API: fetch all streams from server
+        let config = null;
+        if (playlist.url.startsWith('xtream://')) {
+          config = JSON.parse(atob(playlist.url.replace('xtream://', '')));
+        } else {
+          const match = playlist.url.match(/^(https?:\/\/[^/]+)\/get\.php\?username=([^&]+)&password=([^&]+)/);
+          if (match) config = { host: match[1], username: match[2], password: match[3] };
+        }
+        
+        if (config) {
+          const catMap = new Map();
+          const categories = get().activeCategories;
+          if (categories) {
+            for (const t of ['live', 'vod', 'series']) {
+              for (const cat of (categories[t as keyof PlaylistCategories] || [])) {
+                catMap.set(String(cat.id), cat.name);
+              }
+            }
+          }
+          const actions = [
+            { action: 'get_live_streams', type: 'live', name: 'Live TV' },
+            { action: 'get_vod_streams', type: 'vod', name: 'Movies' },
+            { action: 'get_series', type: 'series', name: 'Series' }
+          ];
+          
+          for (const a of actions) {
+            onProgress?.(`Fetching ${a.name} database...`);
+            try {
+              const url = `${config.host}/player_api.php?username=${config.username}&password=${config.password}&action=${a.action}`;
+              const res = await fetch(url);
+              const data = await res.json();
+              if (Array.isArray(data)) {
+                for (const item of data) {
+                  if (!item || !item.name) continue;
+                  let quality = 'HD';
+                  if (item.name.toUpperCase().includes('4K') || item.name.toUpperCase().includes('UHD')) quality = '4K';
+                  else if (item.name.toUpperCase().includes('FHD') || item.name.toUpperCase().includes('1080')) quality = 'FHD';
+                  
+                  let streamUrl = '';
+                  let id = '';
+                  let logo = '';
+                  
+                  if (a.type === 'live' && item.stream_id) {
+                    streamUrl = `${config.host}/live/${config.username}/${config.password}/${item.stream_id}.m3u8`;
+                    id = `xt_live_${item.stream_id}`;
+                    logo = item.stream_icon || '';
+                  } else if (a.type === 'vod' && item.stream_id) {
+                    const ext = item.container_extension || 'mp4';
+                    streamUrl = `${config.host}/movie/${config.username}/${config.password}/${item.stream_id}.${ext}`;
+                    id = `xt_vod_${item.stream_id}`;
+                    logo = item.stream_icon || '';
+                  } else if (a.type === 'series' && item.series_id) {
+                    streamUrl = `${config.host}/series/${config.username}/${config.password}/${item.series_id}.m3u8`;
+                    id = `xt_series_${item.series_id}`;
+                    logo = item.cover || '';
+                  }
+                  
+                  if (id) {
+                    tempIndex.push({
+                      id,
+                      name: item.name,
+                      type: a.type,
+                      logo,
+                      category: catMap.get(String(item.category_id)) || item.category_name || (item.name ? item.name.split(/[:|-]/)[0].trim() : 'Unknown'),
+                      streamUrl,
+                      current: a.type === 'live' ? 'Live Stream' : (a.type === 'vod' ? 'Movie' : (item.plot || 'TV Series')),
+                      next: '',
+                      quality,
+                      isLive: a.type === 'live'
+                    });
+                  }
+                }
+              }
+            } catch (e) {
+              console.warn(`Failed fetching ${a.action} for search index`, e);
+            }
+          }
+        }
+      } else {
+        // Standard M3U: read from local chunks
+        const catsJson = await AsyncStorage.getItem(`categories_${playlistId}`);
+        if (catsJson) {
+          const categories = JSON.parse(catsJson);
+          const types = ['live', 'vod', 'series'];
+          
+          for (const type of types) {
+            const typeCats = categories[type] || [];
+            for (const cat of typeCats) {
+              const chunkJson = await AsyncStorage.getItem(`channels_${playlistId}_${type}_${cat.id}`);
+              if (chunkJson) {
+                const chunk = JSON.parse(chunkJson);
+                for (const c of chunk) {
+                  tempIndex.push({
+                    id: c.id,
+                    name: c.name,
+                    type: c.type,
+                    logo: c.logo,
+                    category: c.category,
+                    streamUrl: c.streamUrl,
+                    current: c.current || '',
+                    next: c.next || '',
+                    quality: c.quality || 'Auto',
+                    isLive: c.type === 'live'
+                  });
+                }
+              }
+            }
+          }
+        }
+      }
+      
+      globalSearchIndex = tempIndex;
+      set({ searchIndexReady: true, loadingSearchIndex: false });
+      onProgress?.('Search index ready!');
+    } catch (e) {
+      console.error('Failed to build search index:', e);
+      globalSearchIndex = [];
+      set({ searchIndexReady: false, loadingSearchIndex: false });
+      onProgress?.('Failed to build index.');
+    }
   },
 }));

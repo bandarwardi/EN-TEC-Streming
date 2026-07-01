@@ -1,13 +1,15 @@
+import { Lineicons } from '@lineiconshq/react-native-lineicons';
+import { Home2Bulk, CloudBolt1Bulk, CameraMovie1Bulk, MonitorBulk, StopwatchBulk, Gear1Bulk } from '@lineiconshq/free-icons';
 import { BlurView } from "expo-blur";
 import { isLiquidGlassAvailable } from "expo-glass-effect";
 import { Tabs } from "expo-router";
 import { Icon, Label, NativeTabs } from "expo-router/unstable-native-tabs";
 import { SymbolView } from "expo-symbols";
-import { MaterialCommunityIcons } from "@expo/vector-icons";
 import React from "react";
 import { Platform, StyleSheet, View, useWindowDimensions } from "react-native";
 import { useColors } from "@/hooks/useColors";
 import { TVSidebar } from "@/components/TVSidebar";
+import { GlobalHeader } from "@/components/GlobalHeader";
 
 function NativeTabLayout() {
   return (
@@ -28,10 +30,7 @@ function NativeTabLayout() {
         <Icon sf={{ default: "play.tv", selected: "play.tv.fill" }} />
         <Label>Series</Label>
       </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="settings">
-        <Icon sf={{ default: "gearshape", selected: "gearshape.fill" }} />
-        <Label>Settings</Label>
-      </NativeTabs.Trigger>
+
     </NativeTabs>
   );
 }
@@ -49,7 +48,8 @@ function ClassicTabLayout() {
       <View style={styles.contentContainer}>
         <Tabs
           screenOptions={{
-            headerShown: false,
+            headerShown: true,
+            header: () => <GlobalHeader />,
             tabBarActiveTintColor: colors.tint,
             tabBarInactiveTintColor: colors.mutedForeground,
             tabBarStyle: {
@@ -91,7 +91,7 @@ function ClassicTabLayout() {
               {isIOS ? (
                 <SymbolView name="house" tintColor={color} size={24} />
               ) : (
-                <MaterialCommunityIcons name={focused ? "home" : "home-outline"} size={26} color={color} />
+                <Lineicons icon={Home2Bulk} size={26} color={color} />
               )}
             </View>
           ),
@@ -106,7 +106,7 @@ function ClassicTabLayout() {
               {isIOS ? (
                 <SymbolView name="tv" tintColor={color} size={24} />
               ) : (
-                <MaterialCommunityIcons name={focused ? "access-point" : "access-point"} size={26} color={color} />
+                <Lineicons icon={CloudBolt1Bulk} size={26} color={color} />
               )}
             </View>
           ),
@@ -121,7 +121,7 @@ function ClassicTabLayout() {
               {isIOS ? (
                 <SymbolView name="film" tintColor={color} size={24} />
               ) : (
-                <MaterialCommunityIcons name={focused ? "movie-open" : "movie-open-outline"} size={26} color={color} />
+                <Lineicons icon={CameraMovie1Bulk} size={26} color={color} />
               )}
             </View>
           ),
@@ -136,7 +136,7 @@ function ClassicTabLayout() {
               {isIOS ? (
                 <SymbolView name="play.tv" tintColor={color} size={24} />
               ) : (
-                <MaterialCommunityIcons name={focused ? "television-play" : "television-play"} size={26} color={color} />
+                <Lineicons icon={MonitorBulk} size={26} color={color} />
               )}
             </View>
           ),
@@ -151,7 +151,7 @@ function ClassicTabLayout() {
               {isIOS ? (
                 <SymbolView name="clock.arrow.circlepath" tintColor={color} size={24} />
               ) : (
-                <MaterialCommunityIcons name={focused ? "clock-time-four" : "clock-time-four-outline"} size={26} color={color} />
+                <Lineicons icon={StopwatchBulk} size={26} color={color} />
               )}
             </View>
           ),
@@ -160,39 +160,13 @@ function ClassicTabLayout() {
       <Tabs.Screen
         name="settings"
         options={{
+          href: null,
           title: "Settings",
-          tabBarIcon: ({ color, focused }) => (
-            <View style={{ paddingTop: 4 }}>
-              {isIOS ? (
-                <SymbolView name="gearshape" tintColor={color} size={24} />
-              ) : (
-                <MaterialCommunityIcons name={focused ? "face-man-profile" : "face-man-profile"} size={26} color={color} />
-              )}
-            </View>
-          ),
         }}
       />
-      <Tabs.Screen
-        name="movie-detail"
-        options={{
-          href: null,
-          title: "Movie Detail",
-        }}
-      />
-      <Tabs.Screen
-        name="series-detail"
-        options={{
-          href: null,
-          title: "Series Detail",
-        }}
-      />
-      <Tabs.Screen
-        name="actor-detail"
-        options={{
-          href: null,
-          title: "Actor Detail",
-        }}
-      />
+      
+      
+      
     </Tabs>
       </View>
     </View>

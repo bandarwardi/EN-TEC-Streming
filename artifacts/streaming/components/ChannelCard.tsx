@@ -54,7 +54,7 @@ export const ChannelCard = React.memo(function ChannelCard({ channel, onPress, w
         ]}>
           <Image source={{ uri: channel.logo }} style={styles.logo} contentFit="contain" />
           <View style={styles.badgeContainer}>
-            {channel.isLive ? <LiveBadge /> : <QualityBadge quality={channel.quality} />}
+            {channel.isLive && <LiveBadge />}
           </View>
         </View>
       </Animated.View>

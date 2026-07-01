@@ -3,8 +3,10 @@ import { View, Text, StyleSheet, Pressable, ScrollView, useWindowDimensions, Mod
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { FeaturedHero } from '@/types';
+import { TVFocusable } from '@/components/TVFocusable';
 import { useColors } from '@/hooks/useColors';
-import { Feather } from '@expo/vector-icons';
+import { Lineicons } from '@lineiconshq/react-native-lineicons';
+import { PlayBulk, MenuMeatballs1Bulk, QuestionMarkCircleBulk, PlusBulk } from '@lineiconshq/free-icons';
 import { useAppStore } from '@/store/app-store';
 
 interface HeroCarouselProps {
@@ -114,7 +116,7 @@ export function HeroCarousel({ items, onPlay, onInfo }: HeroCarouselProps) {
                 <Text style={styles.title} numberOfLines={2}>{item.title}</Text>
 
                 <View style={styles.actions}>
-                  <Pressable
+                  <TVFocusable borderThickness={3}
                     style={({ focused }: any) => [
                       styles.circleButton,
                       { backgroundColor: isFav ? 'rgba(212,168,67,0.2)' : 'rgba(255,255,255,0.15)' },
@@ -123,25 +125,25 @@ export function HeroCarousel({ items, onPlay, onInfo }: HeroCarouselProps) {
                     onPress={() => handleToggleFavorite(item)}
                   >
                     {({ focused }: any) => (
-                      <Feather name={isFav ? 'check' : 'plus'} size={20} color="#FFF" />
+                      <Lineicons icon={isFav  ? QuestionMarkCircleBulk : PlusBulk} size={20} color="#FFF" />
                     )}
-                  </Pressable>
+                  </TVFocusable>
 
-                  <Pressable
+                  <TVFocusable borderThickness={3}
                     style={({ focused }: any) => [
                       styles.playButton,
-                      focused && { transform: [{ scale: 1.05 }], backgroundColor: 'rgba(255,255,255,0.9)' }
+                      focused && { transform: [{ scale: 1.05 }], backgroundColor: '#EDC363' }
                     ]}
                     onPress={() => onPlay(item)}>
                     {({ focused }: any) => (
                       <>
-                        <Feather name="play" size={20} color="#0A0A0A" />
+                        <Lineicons icon={PlayBulk} size={20} color="#1A1A1A" style={{ marginLeft: 4 }} />
                         <Text style={styles.playButtonText}>Watch Now</Text>
                       </>
                     )}
-                  </Pressable>
+                  </TVFocusable>
 
-                  <Pressable
+                  <TVFocusable borderThickness={3}
                     style={({ focused }: any) => [
                       styles.circleButton,
                       { backgroundColor: 'rgba(255,255,255,0.15)' },
@@ -149,9 +151,9 @@ export function HeroCarousel({ items, onPlay, onInfo }: HeroCarouselProps) {
                     ]}
                     onPress={() => setSelectedItemForActionSheet(item)}>
                     {({ focused }: any) => (
-                      <Feather name="more-horizontal" size={20} color="#FFF" />
+                      <Lineicons icon={MenuMeatballs1Bulk} size={20} color="#FFF" />
                     )}
-                  </Pressable>
+                  </TVFocusable>
                 </View>
               </View>
             </View>
@@ -201,7 +203,7 @@ export function HeroCarousel({ items, onPlay, onInfo }: HeroCarouselProps) {
               </Text>
 
               <View style={styles.actionSheetButtons}>
-                <Pressable
+                <TVFocusable borderThickness={3}
                   style={styles.actionSheetBtn}
                   onPress={() => {
                     onPlay(selectedItemForActionSheet);
@@ -209,22 +211,22 @@ export function HeroCarousel({ items, onPlay, onInfo }: HeroCarouselProps) {
                   }}
                 >
                   <View style={styles.actionSheetIconWrapper}>
-                    <Feather name="play" size={20} color="#FFF" />
+                    <Lineicons icon={PlayBulk} size={20} color="#FFF" />
                   </View>
                   <Text style={styles.actionSheetBtnText}>Watch Now</Text>
-                </Pressable>
+                </TVFocusable>
 
-                <Pressable
+                <TVFocusable borderThickness={3}
                   style={styles.actionSheetBtn}
                   onPress={() => handleToggleFavorite(selectedItemForActionSheet)}
                 >
                   <View style={styles.actionSheetIconWrapper}>
-                    <Feather name={favorites.includes(selectedItemForActionSheet.id) ? 'check' : 'plus'} size={20} color="#FFF" />
+                    <Lineicons icon={favorites.includes(selectedItemForActionSheet.id)  ? QuestionMarkCircleBulk : PlusBulk} size={20} color="#FFF" />
                   </View>
                   <Text style={styles.actionSheetBtnText}>My List</Text>
-                </Pressable>
+                </TVFocusable>
 
-                <Pressable
+                <TVFocusable borderThickness={3}
                   style={styles.actionSheetBtn}
                   onPress={() => {
                     onInfo(selectedItemForActionSheet);
@@ -232,10 +234,10 @@ export function HeroCarousel({ items, onPlay, onInfo }: HeroCarouselProps) {
                   }}
                 >
                   <View style={styles.actionSheetIconWrapper}>
-                    <Feather name="info" size={20} color="#FFF" />
+                    <Lineicons icon={QuestionMarkCircleBulk} size={20} color="#FFF" />
                   </View>
                   <Text style={styles.actionSheetBtnText}>More Info</Text>
-                </Pressable>
+                </TVFocusable>
               </View>
             </TouchableOpacity>
           )}
@@ -297,19 +299,20 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   playButton: {
-    backgroundColor: '#FFF',
+    backgroundColor: '#D4A843',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     flex: 1,
-    paddingVertical: 12,
-    borderRadius: 30,
+    height: 48,
+    maxWidth: 220,
+    borderRadius: 24,
     gap: 8,
   },
   playButtonText: {
-    color: '#0A0A0A',
+    color: '#1A1A1A',
     fontWeight: 'bold',
-    fontSize: 15,
+    fontSize: 16,
   },
   circleButton: {
     width: 48,

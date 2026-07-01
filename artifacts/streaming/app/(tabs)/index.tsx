@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, useWindowDimensions, Platform, RefreshControl } from 'react-native';
 import { useColors } from '@/hooks/useColors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Feather } from '@expo/vector-icons';
+import { Lineicons } from '@lineiconshq/react-native-lineicons';
+import { MonitorBulk, PlayBulk, QuestionMarkCircleBulk } from '@lineiconshq/free-icons';
 import { HeroCarousel } from '@/components/HeroCarousel';
 import { ContentRow } from '@/components/ContentRow';
 import { ChannelCard } from '@/components/ChannelCard';
@@ -61,7 +62,7 @@ export default function HomeScreen() {
           if (!category) return;
           const items = await getChannelsForCategory(activePlaylistId, type, category.id, category.name);
           if (items.length > 0) {
-            if (fallbackHeroPool.length === 0) fallbackHeroPool = items;
+            if (fallbackHeroPool.length === 0 && type !== 'live') fallbackHeroPool = items;
             if (type === 'vod' && primaryHeroPool.length === 0) primaryHeroPool = items;
             const mapped = items.slice(0, 15).map(m => {
               if (type === 'live') return m;
@@ -208,7 +209,7 @@ export default function HomeScreen() {
   if (!activePlaylistId) {
     return (
       <View style={[styles.container, { backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center', padding: 20 }]}>
-        <Feather name="tv" size={48} color={colors.mutedForeground} />
+        <Lineicons icon={MonitorBulk} size={48} color={colors.mutedForeground} />
         <Text style={{ color: colors.text, fontSize: 18, fontWeight: 'bold', marginTop: 12 }}>No playlist active</Text>
         <TVFocusable 
           style={{ marginTop: 16, backgroundColor: colors.gold, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8 }}
@@ -243,7 +244,7 @@ export default function HomeScreen() {
               />
               <View style={[styles.tvHeroContent, { position: 'absolute', bottom: 120, left: 0 }]}>
                 <Text style={[styles.tvHeroSubtitle, { color: colors.gold }]}>{heroItem.subtitle}</Text>
-                <Text style={styles.tvHeroTitle} numberOfLines={2}>{heroItem.title}</Text>
+                <Text style={styles.tvHeroTitle} numberOfLines={1}>{heroItem.title}</Text>
                 <View style={styles.tvHeroMeta}>
                   <Text style={styles.tvHeroMetaText}>{heroItem.year}</Text>
                   <View style={styles.tvHeroDot} />
@@ -251,7 +252,7 @@ export default function HomeScreen() {
                   <View style={styles.tvHeroDot} />
                   <Text style={styles.tvHeroMetaText}>{heroItem.genres.join(', ')}</Text>
                 </View>
-                <Text style={styles.tvHeroDesc} numberOfLines={3}>{heroItem.description}</Text>
+                <Text style={styles.tvHeroDesc} numberOfLines={2}>{heroItem.description}</Text>
                 
                 <View style={styles.tvHeroActions}>
                   <TVFocusable
@@ -270,7 +271,7 @@ export default function HomeScreen() {
                   >
                     {({ focused }: any) => (
                       <>
-                        <Feather name="play" size={24} color="#000" />
+                        <Lineicons icon={PlayBulk} size={24} color="#000" />
                         <Text style={[styles.tvHeroBtnPrimaryText, { color: '#000' }]}>Play Now</Text>
                       </>
                     )}
@@ -283,7 +284,7 @@ export default function HomeScreen() {
                     ]}
                     scaleAmount={1.05}
                   >
-                    <Feather name="info" size={24} color="#FFF" />
+                    <Lineicons icon={QuestionMarkCircleBulk} size={24} color="#FFF" />
                     <Text style={styles.tvHeroBtnSecondaryText}>More Info</Text>
                   </TVFocusable>
                 </View>
@@ -335,28 +336,7 @@ export default function HomeScreen() {
   // --- Mobile Layout ---
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <View style={[
-        styles.header, 
-        { 
-          top: 0, 
-          left: 0,
-          right: 0,
-          paddingTop: insets.top + 10,
-          paddingBottom: 10,
-          paddingHorizontal: 20,
-          marginTop: 0,
-          backgroundColor: isScrolled ? colors.background : 'transparent',
-          borderBottomWidth: isScrolled ? 1 : 0,
-          borderBottomColor: colors.border
-        }
-      ]}>
-        <Text style={[styles.logoText, { color: '#FFF' }]}>EN TEC</Text>
-        <View style={styles.headerRight}>
-          <TVFocusable style={styles.iconButton} onPress={() => router.push('/search')}>
-            <Feather name="search" size={20} color={colors.foreground} />
-          </TVFocusable>
-        </View>
-      </View>
+
 
       <ScrollView 
         contentContainerStyle={{ paddingBottom: insets.bottom + 80 }} 
@@ -464,7 +444,7 @@ export default function HomeScreen() {
 
           {contentRows.length === 0 && (
             <View style={{ alignItems: 'center', padding: 40, gap: 12 }}>
-              <Feather name="tv" size={48} color={colors.mutedForeground} />
+              <Lineicons icon={MonitorBulk} size={48} color={colors.mutedForeground} />
               <Text style={{ color: colors.text, fontSize: 16, fontWeight: 'bold' }}>Playlist has no content</Text>
               <Text style={{ color: colors.mutedForeground, textAlign: 'center' }}>Add another playlist or wait for update.</Text>
             </View>

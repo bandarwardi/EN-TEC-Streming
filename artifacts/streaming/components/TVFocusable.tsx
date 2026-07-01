@@ -1,17 +1,20 @@
-import React, { useState, useRef, useCallback } from 'react';
-import { Pressable, Animated, ViewStyle, PressableProps, Platform } from 'react-native';
+import React, { useState, useRef, useCallback, forwardRef } from 'react';
+import { Pressable, Animated, ViewStyle, PressableProps, Platform, StyleProp } from 'react-native';
 import { useColors } from '@/hooks/useColors';
 
 export interface TVFocusableProps extends Omit<PressableProps, 'style' | 'children'> {
-  children: React.ReactNode | ((props: { focused: boolean }) => React.ReactNode);
-  style?: ViewStyle | ((props: { focused: boolean }) => ViewStyle) | any[];
+  pointerEvents?: 'box-none' | 'none' | 'box-only' | 'auto';
+  children?: React.ReactNode | ((props: { focused: boolean; pressed: boolean }) => React.ReactNode);
+  style?: StyleProp<ViewStyle> | ((props: { focused: boolean; pressed: boolean }) => StyleProp<ViewStyle>);
   scaleAmount?: number;
   borderThickness?: number;
   focusedBorderColor?: string;
   disableBorder?: boolean;
 }
 
-export function TVFocusable({ 
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
+
+export const TVFocusable = forwardRef<any, TVFocusableProps>(({ 
   children, 
   style, 
   scaleAmount = 1.05,
@@ -22,10 +25,12 @@ export function TVFocusable({
   onBlur,
   onPressIn,
   onPressOut,
+  pointerEvents,
   ...props 
-}: TVFocusableProps) {
+}, ref) => {
   const colors = useColors();
   const [isFocused, setIsFocused] = useState(false);
+  const [isPressed, setIsPressed] = useState(false);
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
   const isTV = Platform.isTV;
@@ -43,17 +48,18 @@ export function TVFocusable({
   }, [scaleAnim, onBlur]);
 
   const handlePressIn = useCallback((e: any) => {
+    setIsPressed(true);
     Animated.spring(scaleAnim, { toValue: 0.95, useNativeDriver: true }).start();
     if (onPressIn) onPressIn(e);
   }, [scaleAnim, onPressIn]);
 
   const handlePressOut = useCallback((e: any) => {
+    setIsPressed(false);
     Animated.spring(scaleAnim, { toValue: isFocused ? scaleAmount : 1, useNativeDriver: true }).start();
     if (onPressOut) onPressOut(e);
   }, [scaleAnim, isFocused, scaleAmount, onPressOut]);
 
-  // Merge styles
-  const resolvedStyle = typeof style === 'function' ? style({ focused: isFocused }) : style;
+  const resolvedStyle = typeof style === 'function' ? style({ focused: isFocused, pressed: isPressed }) : style;
   
   const animatedStyle = {
     transform: [{ scale: scaleAnim }],
@@ -64,16 +70,17 @@ export function TVFocusable({
   };
 
   return (
-    <Pressable
+    <AnimatedPressable
+      ref={ref}
       {...props}
       onFocus={handleFocus}
       onBlur={handleBlur}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}
+      style={[resolvedStyle, animatedStyle]}
+      pointerEvents={pointerEvents}
     >
-      <Animated.View style={[resolvedStyle, animatedStyle]}>
-        {typeof children === 'function' ? children({ focused: isFocused }) : children}
-      </Animated.View>
-    </Pressable>
+      {typeof children === 'function' ? children({ focused: isFocused, pressed: isPressed }) : children}
+    </AnimatedPressable>
   );
-}
+});

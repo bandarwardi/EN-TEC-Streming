@@ -4,7 +4,6 @@ import { Image } from 'expo-image';
 import { Movie } from '@/types';
 import { QualityBadge } from './QualityBadge';
 import { useColors } from '@/hooks/useColors';
-import { Feather } from '@expo/vector-icons';
 
 interface MovieCardProps {
   movie: Movie;
@@ -38,16 +37,10 @@ export const MovieCard = React.memo(function MovieCard({ movie, onPress, width =
       <Animated.View style={[{ width, transform: [{ scale: scaleAnim }] }]}>
         <View style={[
           styles.posterContainer,
-          { borderColor: isFocused ? colors.gold : 'transparent', borderWidth: isFocused ? 4 : 0 }
+          { borderColor: isFocused ? colors.gold : 'transparent', borderWidth: 4 }
         ]}>
           <Image source={{ uri: movie.poster }} style={styles.poster} contentFit="cover" />
-          <View style={styles.badges}>
-            <View style={[styles.ratingBadge, { backgroundColor: 'rgba(0,0,0,0.6)' }]}>
-              <Feather name="star" size={10} color={colors.gold} />
-              <Text style={styles.ratingText}>{movie.rating.toFixed(1)}</Text>
-            </View>
-            <QualityBadge quality={movie.quality} />
-          </View>
+
         </View>
       </Animated.View>
     </Pressable>

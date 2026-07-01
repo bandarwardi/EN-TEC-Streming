@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, TextInput, Pressable, ActivityIndicator, Alert, ScrollView } from 'react-native';
 import { useColors } from '@/hooks/useColors';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Feather } from '@expo/vector-icons';
+import { Lineicons } from '@lineiconshq/react-native-lineicons';
+import { Link2AngularRightBulk, FileMultipleBulk } from '@lineiconshq/free-icons';
 import { GoldButton } from '@/components/GoldButton';
 import { useAppStore } from '@/store/app-store';
 import { router } from 'expo-router';
@@ -76,7 +77,7 @@ export default function LoginScreen() {
         
         <View style={styles.form}>
             <View style={[styles.inputContainer, { backgroundColor: colors.surface2, borderColor: colors.border }]}>
-              <Feather name="link" size={20} color={colors.mutedForeground} />
+              <Lineicons icon={Link2AngularRightBulk} size={20} color={colors.mutedForeground} />
               <TextInput 
                 style={[styles.input, { color: colors.text }]}
                 placeholder="M3U URL"
@@ -89,7 +90,7 @@ export default function LoginScreen() {
               />
             </View>
             <View style={[styles.inputContainer, { backgroundColor: colors.surface2, borderColor: colors.border }]}>
-              <Feather name="file-text" size={20} color={colors.mutedForeground} />
+              <Lineicons icon={FileMultipleBulk} size={20} color={colors.mutedForeground} />
               <TextInput 
                 style={[styles.input, { color: colors.text }]}
                 placeholder="Playlist Name (Optional)"

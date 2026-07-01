@@ -13,7 +13,8 @@ import {
 } from 'react-native';
 import { useColors } from '@/hooks/useColors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Feather } from '@expo/vector-icons';
+import { Lineicons } from '@lineiconshq/react-native-lineicons';
+import { ArrowLeftBulk, PlusBulk, CheckCircle1Bulk, RefreshCircle1ClockwiseBulk, Trash3Bulk, XmarkBulk, Shield2Bulk, Tickets3Bulk, User4Bulk, Locked1Bulk, Folder1Bulk, Link2AngularRightBulk, MonitorBulk } from '@lineiconshq/free-icons';
 import { router } from 'expo-router';
 import { TVFocusable } from '@/components/TVFocusable';
 import { useAppStore } from '@/store/app-store';
@@ -150,7 +151,7 @@ export default function PlaylistsScreen() {
       <View style={styles.header}>
         {playlists.length > 0 ? (
           <TVFocusable onPress={() => router.back()} style={styles.backBtn}>
-            <Feather name="arrow-left" size={24} color={colors.foreground} />
+            <Lineicons icon={ArrowLeftBulk} size={24} color={colors.foreground} />
           </TVFocusable>
         ) : (
           <View style={{ width: 8 }} />
@@ -160,7 +161,7 @@ export default function PlaylistsScreen() {
           style={[styles.addBtn, { backgroundColor: colors.gold }]}
           onPress={() => setShowAdd(true)}
         >
-          <Feather name="plus" size={20} color="#1A1A1A" />
+          <Lineicons icon={PlusBulk} size={20} color="#1A1A1A" />
         </TVFocusable>
       </View>
 
@@ -195,7 +196,7 @@ export default function PlaylistsScreen() {
                   </Text>
                 </View>
                 {isActive && (
-                  <Feather name="check-circle" size={18} color={colors.gold} />
+                  <Lineicons icon={CheckCircle1Bulk} size={18} color={colors.gold} />
                 )}
               </View>
 
@@ -224,14 +225,14 @@ export default function PlaylistsScreen() {
                       {isRefreshing ? (
                         <ActivityIndicator size="small" color={colors.mutedForeground} />
                       ) : (
-                        <Feather name="refresh-cw" size={16} color={colors.mutedForeground} />
+                        <Lineicons icon={RefreshCircle1ClockwiseBulk} size={16} color={colors.mutedForeground} />
                       )}
                     </TVFocusable>
                     <TVFocusable
                       style={styles.actionBtn}
                       onPress={() => handleDelete(item.id, item.name)}
                     >
-                      <Feather name="trash-2" size={16} color={colors.destructive} />
+                      <Lineicons icon={Trash3Bulk} size={16} color={colors.destructive} />
                     </TVFocusable>
                   </View>
                 )}
@@ -256,7 +257,7 @@ export default function PlaylistsScreen() {
             <View style={styles.modalHeader}>
               <Text style={[styles.modalTitle, { color: colors.text }]}>Add Playlist</Text>
               <TVFocusable onPress={() => !loading && setShowAdd(false)}>
-                <Feather name="x" size={24} color={colors.foreground} />
+                <Lineicons icon={XmarkBulk} size={24} color={colors.foreground} />
               </TVFocusable>
             </View>
 
@@ -285,14 +286,14 @@ export default function PlaylistsScreen() {
                   placeholder="Playlist Name (optional)"
                   value={m3uName}
                   onChangeText={setM3uName}
-                  icon="tag"
+                  icon={Tickets3Bulk}
                   colors={colors}
                 />
                 <StyledInput
                   placeholder="M3U URL  e.g. http://..."
                   value={m3uUrl}
                   onChangeText={setM3uUrl}
-                  icon="link"
+                  icon={Link2AngularRightBulk}
                   colors={colors}
                   autoCapitalize="none"
                   keyboardType="url"
@@ -306,7 +307,7 @@ export default function PlaylistsScreen() {
                     { backgroundColor: 'rgba(212,168,67,0.08)', borderColor: colors.gold },
                   ]}
                 >
-                  <Feather name="alert-triangle" size={14} color={colors.gold} />
+                  <Lineicons icon={Shield2Bulk} size={14} color={colors.gold} />
                   <Text style={[styles.xtreamWarningText, { color: colors.gold }]}>
                     Frequent queries may flag your account. Data is cached for 12h.
                   </Text>
@@ -315,14 +316,14 @@ export default function PlaylistsScreen() {
                   placeholder="Playlist Name"
                   value={xtreamName}
                   onChangeText={setXtreamName}
-                  icon="tag"
+                  icon={Tickets3Bulk}
                   colors={colors}
                 />
                 <StyledInput
                   placeholder="Server URL  e.g. http://server.com:8080"
                   value={xtreamHost}
                   onChangeText={setXtreamHost}
-                  icon="server"
+                  icon={Link2AngularRightBulk}
                   colors={colors}
                   autoCapitalize="none"
                   keyboardType="url"
@@ -331,7 +332,7 @@ export default function PlaylistsScreen() {
                   placeholder="Username"
                   value={xtreamUser}
                   onChangeText={setXtreamUser}
-                  icon="user"
+                  icon={User4Bulk}
                   colors={colors}
                   autoCapitalize="none"
                 />
@@ -339,7 +340,7 @@ export default function PlaylistsScreen() {
                   placeholder="Password"
                   value={xtreamPass}
                   onChangeText={setXtreamPass}
-                  icon="lock"
+                  icon={Locked1Bulk}
                   colors={colors}
                   secureTextEntry
                 />
@@ -388,15 +389,24 @@ function StyledInput({
   autoCapitalize,
   keyboardType,
 }: any) {
+  const [isFocused, setIsFocused] = useState(false);
+  const inputRef = React.useRef<TextInput>(null);
+
   return (
-    <View
+    <TVFocusable
+      onPress={() => inputRef.current?.focus()}
+      onFocus={() => setIsFocused(true)}
+      onBlur={() => setIsFocused(false)}
+      disableBorder
+      scaleAmount={1.02}
       style={[
         styledInputStyles.container,
-        { backgroundColor: colors.background, borderColor: colors.border },
+        { backgroundColor: colors.background, borderColor: isFocused ? colors.gold : colors.border },
       ]}
     >
-      <Feather name={icon} size={18} color={colors.mutedForeground} style={styledInputStyles.icon} />
+      <Lineicons icon={icon} size={20} color={isFocused ? colors.gold : colors.mutedForeground} style={styledInputStyles.icon} />
       <TextInput
+        ref={inputRef}
         style={[styledInputStyles.input, { color: colors.text }]}
         placeholder={placeholder}
         placeholderTextColor={colors.mutedForeground}
@@ -406,8 +416,10 @@ function StyledInput({
         autoCapitalize={autoCapitalize ?? 'sentences'}
         keyboardType={keyboardType ?? 'default'}
         autoCorrect={false}
+        onFocus={() => setIsFocused(true)}
+        onBlur={() => setIsFocused(false)}
       />
-    </View>
+    </TVFocusable>
   );
 }
 

@@ -11,7 +11,8 @@ import {
 } from 'react-native';
 import { useColors } from '@/hooks/useColors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Feather } from '@expo/vector-icons';
+import { Lineicons } from '@lineiconshq/react-native-lineicons';
+import { ArrowLeftBulk, Search1Bulk, XmarkBulk, RefreshCircle1ClockwiseBulk, Database2Bulk, EmojiSadBulk, Ban2Bulk, MonitorBulk, QuestionMarkCircleBulk } from '@lineiconshq/free-icons';
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { TVFocusable } from '@/components/TVFocusable';
@@ -184,11 +185,7 @@ export default function SearchScreen() {
         </View>
 
         <View style={[styles.playIconWrapper, { backgroundColor: 'rgba(255,255,255,0.06)' }]}>
-          <Feather 
-            name={item.type === 'live' ? 'tv' : 'arrow-right'} 
-            size={18} 
-            color={colors.gold} 
-          />
+          <Lineicons icon={item.type === 'live' ? MonitorBulk : QuestionMarkCircleBulk} size={18} color={colors.gold} />
         </View>
       </TVFocusable>
     );
@@ -207,11 +204,11 @@ export default function SearchScreen() {
           focusable={true}
         >
           {({ focused }: any) => (
-            <Feather name="arrow-left" size={22} color={focused ? colors.gold : colors.text} />
+            <Lineicons icon={ArrowLeftBulk} size={22} color={focused ? colors.gold : colors.text} />
           )}
         </TVFocusable>
         <View style={[styles.searchBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-          <Feather name="search" size={18} color={colors.mutedForeground} style={{ marginRight: 8 }} />
+          <Lineicons icon={Search1Bulk} size={18} color={colors.mutedForeground} style={{ marginRight: 8 }} />
           <TextInput
             ref={inputRef}
             value={query}
@@ -223,7 +220,7 @@ export default function SearchScreen() {
           />
           {query.length > 0 && (
             <TVFocusable disableBorder onPress={() => setQuery('')}>
-              <Feather name="x" size={18} color={colors.text} />
+              <Lineicons icon={XmarkBulk} size={18} color={colors.text} />
             </TVFocusable>
           )}
         </View>
@@ -237,7 +234,7 @@ export default function SearchScreen() {
             focusable={true}
           >
             {({ focused }: any) => (
-              <Feather name="refresh-cw" size={20} color={focused ? "#FFF" : colors.gold} />
+              <Lineicons icon={RefreshCircle1ClockwiseBulk} size={20} color={focused ? "#FFF" : colors.gold} />
             )}
           </TVFocusable>
         )}
@@ -289,7 +286,7 @@ export default function SearchScreen() {
         </View>
       ) : !searchIndexReady ? (
         <View style={styles.centerContainer}>
-          <Feather name="database" size={64} color={colors.mutedForeground} style={{ marginBottom: 16 }} />
+          <Lineicons icon={Database2Bulk} size={64} color={colors.mutedForeground} style={{ marginBottom: 16 }} />
           <Text style={[styles.emptyTitle, { color: colors.text }]}>
             No Search Data
           </Text>
@@ -299,7 +296,7 @@ export default function SearchScreen() {
         </View>
       ) : query.trim().length >= 2 && filteredResults.length === 0 ? (
         <View style={styles.centerContainer}>
-          <Feather name="frown" size={64} color={colors.mutedForeground} style={{ marginBottom: 16 }} />
+          <Lineicons icon={EmojiSadBulk} size={64} color={colors.mutedForeground} style={{ marginBottom: 16 }} />
           <Text style={[styles.emptyTitle, { color: colors.text }]}>
             No Results Found
           </Text>
@@ -309,7 +306,7 @@ export default function SearchScreen() {
         </View>
       ) : query.trim().length < 2 ? (
         <View style={styles.centerContainer}>
-          <Feather name="search" size={64} color={colors.mutedForeground} style={{ marginBottom: 16 }} />
+          <Lineicons icon={Search1Bulk} size={64} color={colors.mutedForeground} style={{ marginBottom: 16 }} />
           <Text style={[styles.emptyTitle, { color: colors.text }]}>
             Search Everything
           </Text>
@@ -325,7 +322,7 @@ export default function SearchScreen() {
           contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 20 }]}
           ListEmptyComponent={
             <View style={styles.centerContainer}>
-              <Feather name="slash" size={48} color={colors.mutedForeground} style={{ marginBottom: 12 }} />
+              <Lineicons icon={Ban2Bulk} size={48} color={colors.mutedForeground} style={{ marginBottom: 12 }} />
               <Text style={[styles.emptyTitle, { color: colors.text }]}>
                 No results found
               </Text>

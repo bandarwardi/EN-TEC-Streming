@@ -5,7 +5,6 @@ import {
   View,
   Text,
   StyleSheet,
-  Pressable,
   Platform,
   Dimensions,
   PanResponder,
@@ -13,20 +12,27 @@ import {
   Animated,
   ActivityIndicator,
   Alert,
+  InteractionManager,
+  useWindowDimensions,
 } from 'react-native';
 import * as ScreenOrientation from 'expo-screen-orientation';
 import * as Clipboard from 'expo-clipboard';
 import { useLocalSearchParams, router } from 'expo-router';
+import { useIsFocused } from '@react-navigation/native';
 import { TVFocusable } from '@/components/TVFocusable';
 import { useVideoPlayer, VideoView } from 'expo-video';
+import { useEvent } from 'expo';
+import { WebVideoPlayer, WebVideoPlayerRef } from '@/components/WebVideoPlayer';
 import { StatusBar } from 'expo-status-bar';
-import { QuestionMarkCircleBulk, ArrowLeftBulk, Message2Bulk, HeartBulk, PreviousStep2Bulk, ShiftLeftBulk, NextStep2Bulk, ShiftRightBulk, Ban2Bulk, PauseBulk, PlayBulk } from '@lineiconshq/free-icons';
+import * as NavigationBar from 'expo-navigation-bar';
+import { StatusBar as RNStatusBar } from 'react-native';
+import { QuestionMarkCircleBulk, ArrowLeftBulk, Message2Bulk, HeartBulk, PreviousStep2Bulk, ShiftLeftBulk, NextStep2Bulk, ShiftRightBulk, Ban2Bulk, PauseBulk, PlayBulk, MonitorBulk } from '@lineiconshq/free-icons';
 import { useColors } from '@/hooks/useColors';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppStore } from '@/store/app-store';
 
-const { width: W, height: H } = Dimensions.get('window');
+// Removed static W, H
 
 function formatTime(sec: number): string {
   if (!isFinite(sec) || isNaN(sec) || sec < 0) return '0:00';
@@ -43,16 +49,17 @@ export default function PlayerScreen() {
   const params = useLocalSearchParams<{
     id?: string;
     streamUrl: string;
-    title: string;
-    isLive: string;
-    current: string;
-    next: string;
-    quality: string;
+    title?: string;
+    isLive?: string;
+    current?: string;
+    next?: string;
+    quality?: string;
     logo?: string;
     category?: string;
     poster?: string;
     backdrop?: string;
     description?: string;
+    autoResume?: string;
   }>();
 
   const streamUrl = params.streamUrl ?? '';
@@ -65,6 +72,11 @@ export default function PlayerScreen() {
   const [isPlaying, setIsPlaying] = useState(true);
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
+
+  const durationRef = useRef(0);
+  const currentTimeRef = useRef(0);
+  useEffect(() => { durationRef.current = duration; }, [duration]);
+  useEffect(() => { currentTimeRef.current = currentTime; }, [currentTime]);
   const [volume, setVolume] = useState(1);
   const [hasError, setHasError] = useState(false);
   const [isBuffering, setIsBuffering] = useState(true);
@@ -74,10 +86,12 @@ export default function PlayerScreen() {
   const [seekPreview, setSeekPreview] = useState(0);
   const [errorToastVisible, setErrorToastVisible] = useState(false);
   const [aspectMode, setAspectMode] = useState(0); // 0: Fit, 1: Fill, 2: Stretch, 3: 4:3
+  const [retryKey, setRetryKey] = useState(0);
   const retryCount = useRef(0);
   const errorToastOpacity = useRef(new Animated.Value(0)).current;
   const errorToastY = useRef(new Animated.Value(-80)).current;
   const videoViewRef = useRef<any>(null);
+  const webPlayerRef = useRef<WebVideoPlayerRef>(null);
 
   const favoriteItems = useAppStore((s) => s.favoriteItems) || [];
   const toggleFavorite = useAppStore((s) => s.toggleFavorite);
@@ -88,6 +102,10 @@ export default function PlayerScreen() {
   const continueWatching = useAppStore((s) => s.continueWatching) || [];
   const updateContinueWatching = useAppStore((s) => s.updateContinueWatching);
   const removeFromContinueWatching = useAppStore((s) => s.removeFromContinueWatching);
+  const showGlobalAlert = useAppStore((s) => s.showGlobalAlert);
+  const hideGlobalAlert = useAppStore((s) => s.hideGlobalAlert);
+
+
 
   const matchedFavoriteItem = favoriteItems.find(
     (item) => item.streamUrl === streamUrl || (params.id && item.id === params.id)
@@ -114,36 +132,185 @@ export default function PlayerScreen() {
     }
   };
 
+  const { width: W } = useWindowDimensions();
   const hideTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const seekBarWidth = useRef(W - 40);
   const seekStartX = useRef(0);
   const controlsOpacity = useRef(new Animated.Value(1)).current;
 
-  const matchedWatched = continueWatching.find(item => item.streamUrl === streamUrl || (params.id && item.id === params.id));
+  const matchedWatchedRef = useRef(continueWatching.find(item => item.streamUrl === streamUrl || (params.id && item.id === params.id)));
+  const matchedWatched = matchedWatchedRef.current;
+  const shouldPrompt = !isLive && params.autoResume !== 'true' && matchedWatched && matchedWatched.progress > 10 && matchedWatched.duration > 0 && matchedWatched.progress < matchedWatched.duration - 30;
 
-  const player = useVideoPlayer(streamUrl || null, (p) => {
-    p.volume = 1;
-    if (matchedWatched && matchedWatched.progress > 10 && matchedWatched.duration > 0 && matchedWatched.progress < matchedWatched.duration - 30) {
-      p.currentTime = matchedWatched.progress;
+  const [promptVisible, setPromptVisible] = useState(!!shouldPrompt);
+  const isFocused = useIsFocused();
+
+  let finalStreamUrl = streamUrl;
+  if (Platform.OS === 'web' && isLive && finalStreamUrl && finalStreamUrl.includes('.ts')) {
+    finalStreamUrl = finalStreamUrl.replace(/\.ts(\?|$)/i, '.m3u8$1');
+  }
+  
+  let proxiedUrl = finalStreamUrl;
+  if (Platform.OS === 'web' && finalStreamUrl) {
+    if (!finalStreamUrl.startsWith('http')) {
+      // Local file
+      proxiedUrl = `/api/local-video?path=${encodeURIComponent(finalStreamUrl.replace('file://', ''))}`;
+    } else {
+      proxiedUrl = `/proxy?url=${encodeURIComponent(finalStreamUrl)}`;
     }
-    p.play();
-  });
-
-  const progressRef = useRef({ time: 0, duration: 0 });
+  }
 
   useEffect(() => {
-    if (!player) return;
+    if (shouldPrompt) {
+      setIsPlaying(false);
+    }
+  }, []);
+
+  const setIsPlayerOpen = useAppStore((s) => s.setIsPlayerOpen);
+
+  useEffect(() => {
+    setIsPlayerOpen(true);
+    return () => setIsPlayerOpen(false);
+  }, []);
+
+  const videoSource = React.useMemo(() => {
+    if (!proxiedUrl) return null;
+    const isHls = proxiedUrl.includes('.m3u8');
+    return { 
+      uri: proxiedUrl, 
+      headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36' }
+    } as any;
+  }, [proxiedUrl]);
+
+  const player = useVideoPlayer(Platform.OS === 'web' ? null : videoSource, (p) => {
+    p.volume = 1;
+    if (params.autoResume === 'true' && matchedWatched) {
+      p.currentTime = matchedWatched.progress;
+    }
+    if (!shouldPrompt) {
+      p.play();
+    }
+  });
+
+  const status = useEvent(player, 'statusChange', { status: player ? player.status : 'readyToPlay', error: undefined });
+  const isPlayingStatus = useEvent(player, 'playingChange', { isPlaying: player ? player.playing : true });
+  
+  const retryTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    retryCount.current = 0;
+    if (player && videoSource && Platform.OS !== 'web') {
+      try {
+        if (player.replaceAsync) {
+          player.replaceAsync(videoSource);
+        } else {
+          player.replace(videoSource);
+        }
+        setIsBuffering(true);
+        if (!shouldPrompt) player.play();
+      } catch (e) {}
+    }
+  }, [videoSource]);
+
+  useEffect(() => {
+    let isMounted = true;
+    if (Platform.OS === 'web') return; // Handled by WebVideoPlayer events
+    
+    if (status?.status === 'readyToPlay') {
+      setIsBuffering(false);
+      setHasError(false);
+      if (shouldPrompt) {
+        setIsPlaying(false);
+      } else {
+        setIsPlaying(true);
+        if (player) {
+          player.play();
+        }
+      }
+    } else if (status?.status === 'error') {
+      setHasError(true);
+      setIsBuffering(false);
+      showErrorToast();
+      
+      if (retryCount.current < 5) {
+        retryCount.current += 1;
+        retryTimeoutRef.current = setTimeout(() => {
+          if (isMounted && player && videoSource) {
+            try {
+              setIsBuffering(true);
+              setHasError(false);
+              if (player.replaceAsync) {
+                player.replaceAsync(videoSource);
+              } else {
+                player.replace(videoSource);
+              }
+              player.play();
+            } catch(e) {
+              console.error('Retry play failed', e);
+            }
+          }
+        }, 3000);
+      }
+    }
+    return () => {
+      isMounted = false;
+      if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
+    };
+  }, [status?.status, proxiedUrl, shouldPrompt]);
+
+  useEffect(() => {
+    if (Platform.OS !== 'web') {
+      setIsPlaying(isPlayingStatus.isPlaying);
+    }
+  }, [isPlayingStatus.isPlaying]);
+
+  const resetTimer = () => {
+    if (hideTimer.current) clearTimeout(hideTimer.current);
+    setShowControls(true);
+    Animated.timing(controlsOpacity, { toValue: 1, duration: 200, useNativeDriver: true }).start();
+
+    hideTimer.current = setTimeout(() => {
+      Animated.timing(controlsOpacity, { toValue: 0, duration: 300, useNativeDriver: true }).start(() => {
+        setShowControls(false);
+      });
+    }, 5000);
+  };
+
+  const showControlsNow = () => {
+    if (hideTimer.current) clearTimeout(hideTimer.current);
+    setShowControls(true);
+    controlsOpacity.setValue(1);
+    hideTimer.current = setTimeout(() => {
+      Animated.timing(controlsOpacity, { toValue: 0, duration: 300, useNativeDriver: true }).start(() => {
+        setShowControls(false);
+      });
+    }, 5000);
+  };
+
+  const handleBackgroundTap = () => {
+    if (showControls) {
+      if (hideTimer.current) clearTimeout(hideTimer.current);
+      Animated.timing(controlsOpacity, { toValue: 0, duration: 200, useNativeDriver: true }).start(() => {
+        setShowControls(false);
+      });
+    } else {
+      showControlsNow();
+    }
+  };
+
+  useEffect(() => {
+    resetTimer();
+    return () => { if (hideTimer.current) clearTimeout(hideTimer.current); };
+  }, [isFocused]);
+
+  useEffect(() => {
+    if (Platform.OS === 'web' || !player) return;
     const interval = setInterval(() => {
       try {
-        const time = player.currentTime ?? 0;
-        const dur = player.duration ?? 0;
-        setCurrentTime(time);
-        setDuration(dur);
-        progressRef.current = { time, duration: dur };
-        setIsPlaying(player.playing ?? false);
-        if (player.status === 'error' && !hasError) setHasError(true);
-        if (player.status === 'readyToPlay') { setIsBuffering(false); retryCount.current = 0; }
-        if (player.status === 'loading') setIsBuffering(true);
+        if (player.status === 'readyToPlay') {
+          setCurrentTime(player.currentTime);
+          if (player.duration) setDuration(player.duration);
+        }
       } catch (_) {}
     }, 500);
     return () => clearInterval(interval);
@@ -155,193 +322,165 @@ export default function PlayerScreen() {
       try {
         if (player) {
           player.pause();
-          player.muted = true;
+          if (player.replaceAsync) {
+            player.replaceAsync(null);
+          } else {
+            player.replace(null);
+          }
         }
-      } catch(e) {}
-      const p = progressRef.current;
-      if (!isLive && p.duration > 0) {
-        if (p.time > p.duration - 30) {
-          removeFromContinueWatching(params.id || streamUrl);
-        } else if (p.time > 10) {
-          updateContinueWatching({
-            id: params.id || streamUrl,
-            type: 'vod',
-            title,
-            poster: params.poster || params.logo || '',
-            backdrop: params.backdrop || '',
-            streamUrl,
-            progress: p.time,
-            duration: p.duration,
-            timestamp: Date.now(),
-            quality: params.quality,
-            description: params.description,
-            category: params.category
-          });
-        }
+      } catch (_) {}
+      
+      // Update continue watching
+      if (streamUrl && !isLive && durationRef.current > 0 && currentTimeRef.current > 10) {
+        updateContinueWatching({
+          id: params.id || streamUrl,
+          type: 'vod',
+          title: title,
+          poster: params.poster || params.logo || '',
+          backdrop: params.backdrop || '',
+          streamUrl,
+          progress: currentTimeRef.current,
+          duration: durationRef.current,
+          timestamp: Date.now(),
+          quality: params.quality,
+          description: params.description,
+          category: params.category
+        });
       }
     };
-  }, []);
+  }, []); // Run cleanup ONLY on unmount, not every second!
 
-  const scheduleHide = useCallback(() => {
-    if (hideTimer.current) clearTimeout(hideTimer.current);
-    hideTimer.current = setTimeout(() => {
-      Animated.timing(controlsOpacity, { toValue: 0, duration: 300, useNativeDriver: true }).start(
-        () => setShowControls(false)
-      );
-    }, 4000);
-  }, [controlsOpacity]);
-
-  const showControlsNow = useCallback(() => {
-    if (!showControls) {
-      setShowControls(true);
-      Animated.timing(controlsOpacity, { toValue: 1, duration: 200, useNativeDriver: true }).start();
-    }
-    scheduleHide();
-  }, [showControls, controlsOpacity, scheduleHide]);
-
-  const toggleAspectMode = () => {
-    setAspectMode(prev => (prev + 1) % 4);
-    showControlsNow();
-  };
-
-  const toggleSubtitles = () => {
-    if (!player) return;
-    const tracks = player.availableSubtitleTracks || [];
-    if (tracks.length === 0) {
-      Alert.alert("Subtitles (CC)", "No embedded subtitles found for this stream.");
-      return;
-    }
-    
-    const currentIndex = tracks.findIndex(t => t === player.subtitleTrack);
-    const nextIndex = currentIndex + 1;
-    
-    if (nextIndex >= tracks.length) {
-      player.subtitleTrack = null;
-      Alert.alert("Subtitles (CC)", "Off");
-    } else {
-      player.subtitleTrack = tracks[nextIndex];
-      Alert.alert("Subtitles (CC)", tracks[nextIndex].language || (tracks[nextIndex] as any).label || (tracks[nextIndex] as any).title || `Track ${nextIndex + 1}`);
-    }
-    showControlsNow();
-  };
-
-  // Tap on empty area: toggle controls immediately
-  const handleBackgroundTap = useCallback(() => {
-    if (showControls) {
-      if (hideTimer.current) clearTimeout(hideTimer.current);
-      Animated.timing(controlsOpacity, { toValue: 0, duration: 200, useNativeDriver: true }).start(
-        () => setShowControls(false)
-      );
-    } else {
-      showControlsNow();
-    }
-  }, [showControls, controlsOpacity, showControlsNow]);
-
-  useEffect(() => {
-    scheduleHide();
-
-    async function lockLandscape() {
+  const lockLandscape = async () => {
+    if (Platform.OS !== 'web') {
       try {
         await ScreenOrientation.lockAsync(ScreenOrientation.OrientationLock.LANDSCAPE);
       } catch (e) {
-        console.warn('Failed to lock screen orientation to landscape:', e);
+        console.warn('Orientation lock failed', e);
       }
     }
+  };
 
-    lockLandscape();
+  const unlockOrientation = async () => {
+    if (Platform.OS !== 'web') {
+      try {
+        await ScreenOrientation.unlockAsync();
+      } catch (e) {
+        console.warn('Orientation unlock failed', e);
+      }
+    }
+  };
+
+  useEffect(() => {
+    let interactionTask: any;
+    
+    const enableImmersive = async () => {
+      if (Platform.OS === 'android') {
+        try {
+          await NavigationBar.setVisibilityAsync("hidden");
+        } catch (e) {}
+      }
+      if (Platform.OS !== 'web') {
+        RNStatusBar.setHidden(true, 'none');
+      }
+    };
+
+    interactionTask = InteractionManager.runAfterInteractions(() => {
+      enableImmersive();
+      lockLandscape();
+    });
 
     return () => {
+      if (interactionTask) interactionTask.cancel();
       if (hideTimer.current) clearTimeout(hideTimer.current);
-      async function unlockOrientation() {
-        try {
-          await ScreenOrientation.unlockAsync();
-        } catch (e) {
-          console.warn('Failed to unlock screen orientation:', e);
+      
+      // Delay unlock to not block JS thread during unmount
+      setTimeout(async () => {
+        await unlockOrientation();
+        if (Platform.OS === 'android') {
+          try {
+            await NavigationBar.setVisibilityAsync("visible");
+          } catch(e) {}
         }
-      }
-      unlockOrientation();
+        if (Platform.OS !== 'web') {
+          RNStatusBar.setHidden(false, 'none');
+        }
+      }, 50);
+      
+      setIsPlayerOpen(false);
     };
   }, []);
 
-  useEffect(() => {
-    if (hasError) {
-      setErrorToastVisible(true);
-      Animated.parallel([
-        Animated.timing(errorToastOpacity, { toValue: 1, duration: 300, useNativeDriver: true }),
-        Animated.spring(errorToastY, { toValue: 0, useNativeDriver: true, tension: 80, friction: 10 }),
-      ]).start();
+  const showErrorToast = () => {
+    setErrorToastVisible(true);
+    Animated.spring(errorToastY, {
+      toValue: 40,
+      useNativeDriver: true,
+    }).start();
+    Animated.timing(errorToastOpacity, {
+      toValue: 1,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
 
-      const timer = setTimeout(() => {
-        Animated.parallel([
-          Animated.timing(errorToastOpacity, { toValue: 0, duration: 300, useNativeDriver: true }),
-          Animated.timing(errorToastY, { toValue: -80, duration: 300, useNativeDriver: true }),
-        ]).start(() => {
-          if (player && retryCount.current < 5) {
-            retryCount.current += 1;
-            setHasError(false);
-            setErrorToastVisible(false);
-            setIsBuffering(true);
-            // Simply try to play again - don't use player.replace() 
-            // as it creates overlapping audio decoders
-            try {
-              player.play();
-            } catch(e) {}
-          } else {
-            router.back();
-          }
-        });
-      }, 3000);
+    setTimeout(() => {
+      Animated.timing(errorToastOpacity, {
+        toValue: 0,
+        duration: 300,
+        useNativeDriver: true,
+      }).start(() => {
+        setErrorToastVisible(false);
+      });
+    }, 3000);
+  };
 
-      return () => clearTimeout(timer);
-    }
-  }, [hasError]);
+  const seekPreviewVal = useRef(0);
 
   const seekTo = useCallback((ratio: number) => {
-    if (!player || !duration) return;
-    const target = Math.max(0, Math.min(duration, ratio * duration));
+    const currentDuration = durationRef.current;
+    const target = Math.max(0, Math.min(currentDuration, ratio * currentDuration));
+    if (Platform.OS === 'web') {
+      webPlayerRef.current?.seek(target);
+      setCurrentTime(target);
+      return;
+    }
+    if (!player || !currentDuration) return;
     player.currentTime = target;
-    setCurrentTime(target);
-  }, [player, duration]);
+  }, [player]);
 
-  // Seek bar PanResponder - uses absolute position within seekBar view
+  const handlePanResponderMove = useCallback((evt: any, gestureState: any) => {
+    resetTimer();
+    setSeeking(true);
+    const newX = Math.max(0, Math.min(seekBarWidth.current, seekStartX.current + gestureState.dx));
+    const ratio = newX / seekBarWidth.current;
+    const val = ratio * durationRef.current;
+    seekPreviewVal.current = val;
+    setSeekPreview(val);
+  }, []);
+
+  const handlePanResponderRelease = useCallback((evt: any, gestureState: any) => {
+    const ratio = seekPreviewVal.current / durationRef.current;
+    seekTo(ratio || 0);
+    setSeeking(false);
+    resetTimer();
+  }, [seekTo]);
+
   const seekBarPan = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
-      onStartShouldSetPanResponderCapture: () => true,
       onMoveShouldSetPanResponder: () => true,
-      onMoveShouldSetPanResponderCapture: () => true,
-      onPanResponderGrant: (evt) => {
+      onPanResponderGrant: (evt, gestureState) => {
+        const tapX = evt.nativeEvent.locationX;
+        seekStartX.current = tapX;
+        const currentDuration = durationRef.current;
+        const ratio = Math.max(0, Math.min(1, tapX / seekBarWidth.current));
+        const val = ratio * currentDuration;
+        seekPreviewVal.current = val;
         setSeeking(true);
-        if (hideTimer.current) clearTimeout(hideTimer.current);
-        // locationX is position within the seekBarContainer view
-        seekStartX.current = evt.nativeEvent.locationX;
-        const ratio = Math.max(0, Math.min(1, seekStartX.current / (seekBarWidth.current || 1)));
-        setSeekPreview(ratio);
+        setSeekPreview(val);
+        resetTimer();
       },
-      onPanResponderMove: (evt, gestureState) => {
-        const currentX = seekStartX.current + gestureState.dx;
-        const ratio = Math.max(0, Math.min(1, currentX / (seekBarWidth.current || 1)));
-        setSeekPreview(ratio);
-      },
-      onPanResponderRelease: (evt, gestureState) => {
-        const currentX = seekStartX.current + gestureState.dx;
-        const ratio = Math.max(0, Math.min(1, currentX / (seekBarWidth.current || 1)));
-        // seekTo is captured via closure - need to get current values
-        const dur = player?.duration ?? 0;
-        if (player && dur > 0) {
-          const target = Math.max(0, Math.min(dur, ratio * dur));
-          player.currentTime = target;
-          setCurrentTime(target);
-        }
-        setSeeking(false);
-        if (hideTimer.current) clearTimeout(hideTimer.current);
-        hideTimer.current = setTimeout(() => {
-          Animated.timing(controlsOpacity, { toValue: 0, duration: 300, useNativeDriver: true }).start(
-            () => setShowControls(false)
-          );
-        }, 4000);
-      },
-      onPanResponderTerminationRequest: () => false,
+      onPanResponderMove: handlePanResponderMove,
+      onPanResponderRelease: handlePanResponderRelease,
     })
   ).current;
 
@@ -360,18 +499,28 @@ export default function PlayerScreen() {
   ).current;
 
   const togglePlay = () => {
+    if (Platform.OS === 'web') {
+       setIsPlaying(!isPlaying);
+       return;
+    }
     if (!player) return;
-    if (player.playing) { player.pause(); setIsPlaying(false); }
-    else { player.play(); setIsPlaying(true); }
-    showControlsNow();
+    if (isPlaying) { 
+      try { player.pause(); } catch(e){}
+    } else {
+      try { player.play(); } catch(e){}
+    }
   };
 
   const handleSeekBy = (secs: number) => {
+    if (Platform.OS === 'web') {
+       const target = Math.max(0, Math.min(duration, currentTime + secs));
+       webPlayerRef.current?.seek(target);
+       setCurrentTime(target);
+       return;
+    }
     if (!player) return;
     const target = Math.max(0, Math.min(duration, (player.currentTime ?? 0) + secs));
     player.currentTime = target;
-    setCurrentTime(target);
-    showControlsNow();
   };
 
   const handlePrevChannel = () => {
@@ -379,19 +528,16 @@ export default function PlayerScreen() {
     const prevIdx = (playbackIndex - 1 + playbackQueue.length) % playbackQueue.length;
     setPlaybackIndex(prevIdx);
     const ch = playbackQueue[prevIdx];
-    router.replace({
-      pathname: '/player',
-      params: {
-        id: ch.id,
-        streamUrl: ch.streamUrl,
-        title: ch.name,
-        isLive: 'true',
-        current: ch.current || '',
-        next: ch.next || '',
-        quality: ch.quality || 'HD',
-        logo: ch.logo || '',
-        category: ch.category || ''
-      }
+    router.setParams({
+      id: ch.id,
+      streamUrl: ch.streamUrl,
+      title: ch.name,
+      isLive: 'true',
+      current: ch.current || '',
+      next: ch.next || '',
+      quality: ch.quality || 'HD',
+      logo: ch.logo || '',
+      category: ch.category || ''
     });
   };
 
@@ -400,19 +546,16 @@ export default function PlayerScreen() {
     const nextIdx = (playbackIndex + 1) % playbackQueue.length;
     setPlaybackIndex(nextIdx);
     const ch = playbackQueue[nextIdx];
-    router.replace({
-      pathname: '/player',
-      params: {
-        id: ch.id,
-        streamUrl: ch.streamUrl,
-        title: ch.name,
-        isLive: 'true',
-        current: ch.current || '',
-        next: ch.next || '',
-        quality: ch.quality || 'HD',
-        logo: ch.logo || '',
-        category: ch.category || ''
-      }
+    router.setParams({
+      id: ch.id,
+      streamUrl: ch.streamUrl,
+      title: ch.name,
+      isLive: 'true',
+      current: ch.current || '',
+      next: ch.next || '',
+      quality: ch.quality || 'HD',
+      logo: ch.logo || '',
+      category: ch.category || ''
     });
   };
 
@@ -420,7 +563,7 @@ export default function PlayerScreen() {
     setIsLiveSync(prev => {
        const next = !prev;
        if (next) {
-          Alert.alert("Live Sync: ON", "If network buffers, the stream will automatically snap to the live edge.");
+          Alert.alert("Live Sync", "Stream will skip to the absolute latest edge.");
        } else {
           Alert.alert("Resume Mode", "If network buffers, the stream will continue from where it stopped.");
        }
@@ -430,19 +573,82 @@ export default function PlayerScreen() {
   };
 
   const toggleMute = () => {
+    if (Platform.OS === 'web') {
+      setIsMuted(!isMuted);
+      return;
+    }
     if (!player) return;
     const next = !isMuted;
     player.muted = next;
     setIsMuted(next);
+  };
+
+  const toggleAspectMode = () => {
+    setAspectMode(prev => (prev + 1) % 4);
     showControlsNow();
   };
 
-  const handleCopyUrl = () => {
-    Clipboard.setStringAsync(streamUrl).catch(() => {});
+  const toggleSubtitles = () => {
+    if (Platform.OS === 'web') {
+      if (webPlayerRef.current && webPlayerRef.current.toggleSubtitle) {
+         const res = webPlayerRef.current.toggleSubtitle();
+         if (res === false) {
+           showGlobalAlert("Subtitles (CC)", "No embedded subtitles found for this stream.", "OK", () => hideGlobalAlert());
+         } else if (res === null) {
+           showGlobalAlert("Subtitles (CC)", "Off", "OK", () => hideGlobalAlert());
+         } else {
+           showGlobalAlert("Subtitles (CC)", res, "OK", () => hideGlobalAlert());
+         }
+      }
+      showControlsNow();
+      return;
+    }
+    if (!player) return;
+    const tracks = player.availableSubtitleTracks || [];
+    if (tracks.length === 0) {
+      showGlobalAlert("Subtitles (CC)", "No embedded subtitles found for this stream.", "OK", () => hideGlobalAlert());
+      return;
+    }
+    
+    const currentIndex = tracks.findIndex(t => t === player.subtitleTrack);
+    const nextIndex = currentIndex + 1;
+    
+    if (nextIndex >= tracks.length) {
+      player.subtitleTrack = null;
+      showGlobalAlert("Subtitles (CC)", "Off", "OK", () => hideGlobalAlert());
+    } else {
+      player.subtitleTrack = tracks[nextIndex];
+      showGlobalAlert("Subtitles (CC)", tracks[nextIndex].language || `Track ${nextIndex + 1}`, "OK", () => hideGlobalAlert());
+    }
+    showControlsNow();
   };
 
-  const handleOpenExternal = () => {
-    Linking.openURL(streamUrl).catch(() => {});
+  const handleResume = () => {
+    if (player && matchedWatched) {
+      player.currentTime = matchedWatched.progress;
+      if (Platform.OS !== 'web') {
+         player.play();
+      } else {
+         webPlayerRef.current?.seek(matchedWatched.progress);
+         setIsPlaying(true);
+      }
+    }
+    setPromptVisible(false);
+    showControlsNow();
+  };
+
+  const handleStartOver = () => {
+    if (player) {
+      player.currentTime = 0;
+      if (Platform.OS !== 'web') {
+         player.play();
+      } else {
+         webPlayerRef.current?.seek(0);
+         setIsPlaying(true);
+      }
+    }
+    setPromptVisible(false);
+    showControlsNow();
   };
 
   const handlePiP = () => {
@@ -450,12 +656,12 @@ export default function PlayerScreen() {
       try {
         videoViewRef.current.startPictureInPicture();
       } catch (e) {
-        console.warn('PiP not supported or failed', e);
+        console.warn('PiP not supported', e);
       }
     }
   };
 
-  const progress = duration > 0 ? (seeking ? seekPreview : currentTime / duration) : 0;
+  const progress = duration > 0 ? (currentTime / duration) : 0;
 
   if (!streamUrl) {
     return (
@@ -463,9 +669,9 @@ export default function PlayerScreen() {
         <StatusBar hidden />
         <Lineicons icon={QuestionMarkCircleBulk} size={48} color="#E53935" />
         <Text style={styles.errorTitle}>No stream URL provided</Text>
-        <Pressable style={styles.retryBtn} onPress={() => router.back()}>
+        <TVFocusable style={styles.retryBtn} onPress={() => router.back()}>
           <Text style={styles.retryText}>Go Back</Text>
-        </Pressable>
+        </TVFocusable>
       </View>
     );
   }
@@ -476,26 +682,75 @@ export default function PlayerScreen() {
 
       {/* ── Layer 1: Video (pointerEvents none so it never eats touches) ── */}
       <View style={[StyleSheet.absoluteFill, { justifyContent: 'center', alignItems: 'center' }]} pointerEvents="none">
-        {player && (
+        {Platform.OS === 'web' ? (
           <View style={
             aspectMode === 3 
               ? { height: '100%', aspectRatio: 4/3, backgroundColor: '#000' }
-              : StyleSheet.absoluteFill
+              : [StyleSheet.absoluteFill, { width: '100%', height: '100%' }]
           }>
-            <VideoView
-              ref={videoViewRef}
-              player={player}
-              style={StyleSheet.absoluteFill}
-              nativeControls={false}
-              contentFit={
-                aspectMode === 0 ? "contain" :
-                aspectMode === 1 ? "cover" :
-                "fill"
-              }
-              allowsPictureInPicture={true}
-              startsPictureInPictureAutomatically={true}
+            <WebVideoPlayer
+              key={retryKey}
+              ref={webPlayerRef}
+              source={proxiedUrl || ''}
+              paused={!isPlaying}
+              muted={isMuted}
+              aspectMode={aspectMode}
+              style={[StyleSheet.absoluteFill, { width: '100%', height: '100%' }]}
+              onProgress={(t: number, d: number) => {
+                setCurrentTime(t);
+                setDuration(d);
+              }}
+              onReady={() => {
+                setIsBuffering(false);
+                setHasError(false);
+                retryCount.current = 0; // Reset retry count on success
+              }}
+              onError={(e: any) => {
+                console.error("WebVideoPlayer Error:", e);
+                setHasError(true);
+                setIsBuffering(false);
+                showErrorToast();
+                
+                if (retryCount.current < 3) {
+                  retryCount.current += 1;
+                  setTimeout(() => {
+                    setHasError(false);
+                    setIsBuffering(true);
+                    setRetryKey(k => k + 1);
+                  }, 2000);
+                }
+              }}
+              onEnd={() => {
+                if (playbackQueue.length > 1) {
+                  handleNextChannel();
+                } else {
+                  router.back();
+                }
+              }}
             />
           </View>
+        ) : (
+          player && (
+            <View style={
+              aspectMode === 3 
+                ? { height: '100%', aspectRatio: 4/3, backgroundColor: '#000' }
+                : [StyleSheet.absoluteFill, { width: '100%', height: '100%' }]
+            }>
+                <VideoView
+                  ref={videoViewRef}
+                  player={player}
+                  style={[StyleSheet.absoluteFill, { width: '100%', height: '100%' }]}
+                  nativeControls={false}
+                  contentFit={
+                    aspectMode === 0 ? "contain" :
+                    aspectMode === 1 ? "cover" :
+                    "fill"
+                  }
+                  allowsPictureInPicture={true}
+                  startsPictureInPictureAutomatically={true}
+                />
+            </View>
+          )
         )}
       </View>
 
@@ -507,7 +762,7 @@ export default function PlayerScreen() {
       )}
 
       {/* ── Layer 3: Background tap area (toggle controls) ── */}
-      <Pressable style={StyleSheet.absoluteFill} onPress={handleBackgroundTap} />
+      <TVFocusable disableBorder focusable={false} style={[StyleSheet.absoluteFill, { width: '100%', height: '100%' }]} onPress={handleBackgroundTap} />
 
       {/* ── Layer 4: Controls overlay (box-none so tap layer still works in empty areas) ── */}
       {showControls && (
@@ -575,17 +830,7 @@ export default function PlayerScreen() {
                   <Lineicons icon={Message2Bulk} size={20} color={focused ? "#0A0A0A" : "#FFF"} />
                 )}
               </TVFocusable>
-              <TVFocusable 
-                style={({ focused }: any) => [
-                  styles.iconBtn,
-                  focused && { transform: [{ scale: 1.1 }], backgroundColor: colors.gold, borderWidth: 3, borderColor: '#FFF' }
-                ]} 
-                onPress={toggleMute}
-              >
-                {({ focused }: any) => (
-                  <Lineicons icon={isMuted  ? QuestionMarkCircleBulk : QuestionMarkCircleBulk} size={20} color={focused ? "#0A0A0A" : "#FFF"} />
-                )}
-              </TVFocusable>
+
               <TVFocusable 
                 style={({ focused }: any) => [
                   styles.iconBtn,
@@ -604,7 +849,6 @@ export default function PlayerScreen() {
               </TVFocusable>
             </View>
           </View>
-
           {/* Center play controls */}
           <View style={styles.centerRow} pointerEvents="box-none">
             {isLive ? (
@@ -693,19 +937,7 @@ export default function PlayerScreen() {
             )}
           </View>
 
-          {/* Volume slider */}
-          <View
-            style={[
-              styles.volumeSliderWrapper,
-              { top: H * 0.5 - 60, left: Platform.OS === 'ios' ? insets.left + 20 : 20 },
-            ]}
-            {...volumePan.panHandlers}
-          >
-            <View style={styles.volumeTrack}>
-              <View style={[styles.volumeFill, { height: `${volume * 100}%` }]} />
-            </View>
-            <Lineicons icon={volume === 0 ? VolumeMuteBulk : volume < 0.5 ? VolumeLowBulk : VolumeHighBulk} size={18} color="rgba(255,255,255,0.6)" style={{ marginTop: 6 }} />
-          </View>
+
 
           {/* Bottom bar */}
           <View style={styles.bottomBar} pointerEvents="box-none">
@@ -775,6 +1007,41 @@ export default function PlayerScreen() {
           </View>
         </Animated.View>
       )}
+
+      {/* ── Layer 6: Resume Prompt Overlay ── */}
+      {promptVisible && (
+        <View style={styles.promptOverlay} pointerEvents="auto">
+           <Text style={styles.promptTitle}>Resume playback?</Text>
+           <Text style={styles.promptSub}>You previously stopped at {formatTime(matchedWatched?.progress || 0)}</Text>
+           <View style={styles.promptButtons}>
+             <TVFocusable 
+               style={({ focused }: any) => [styles.promptBtn, focused && styles.promptBtnFocused]}
+               onPress={handleResume}
+               hasTVPreferredFocus={true}
+               focusable={true}
+             >
+                {({ focused }: any) => (
+                  <Text style={[styles.promptBtnText, focused && styles.promptBtnTextFocused]}>
+                    Resume ({formatTime(matchedWatched?.progress || 0)})
+                  </Text>
+                )}
+             </TVFocusable>
+
+             <TVFocusable 
+               style={({ focused }: any) => [styles.promptBtn, focused && styles.promptBtnFocused]}
+               onPress={handleStartOver}
+               focusable={true}
+             >
+                {({ focused }: any) => (
+                  <Text style={[styles.promptBtnText, focused && styles.promptBtnTextFocused]}>
+                    Start from beginning
+                  </Text>
+                )}
+             </TVFocusable>
+           </View>
+        </View>
+      )}
+
     </View>
   );
 }
@@ -786,6 +1053,49 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'rgba(0,0,0,0.4)',
+  },
+  promptOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.85)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 100,
+  },
+  promptTitle: {
+    color: '#FFF',
+    fontSize: 28,
+    fontWeight: 'bold',
+    marginBottom: 8,
+  },
+  promptSub: {
+    color: 'rgba(255,255,255,0.7)',
+    fontSize: 16,
+    marginBottom: 32,
+  },
+  promptButtons: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+  promptBtn: {
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  promptBtnFocused: {
+    backgroundColor: '#D4A843',
+    borderColor: '#FFF',
+    transform: [{ scale: 1.05 }],
+  },
+  promptBtnText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  promptBtnTextFocused: {
+    color: '#0A0A0A',
   },
   topGradient: {
     position: 'absolute',

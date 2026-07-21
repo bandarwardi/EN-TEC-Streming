@@ -104,13 +104,13 @@ export default function PlaylistsScreen() {
 
     setLoading(true);
     try {
-      const { channels } = await loadPlaylistFromUrl(id, m3uUrl, setLoadingMsg);
+      const { channels, expireText } = await loadPlaylistFromUrl(id, m3uUrl, setLoadingMsg);
       await addPlaylist({
         id,
         name,
         url: storedUrl,
         channels,
-        updated: 'Just now',
+        updated: expireText || 'Active',
         lastUpdatedTimestamp: Date.now(),
         isDemo: false,
       });
@@ -136,14 +136,20 @@ export default function PlaylistsScreen() {
   };
 
   const handleDelete = (id: string, name: string) => {
-    Alert.alert('Delete Playlist', `Remove "${name}"?`, [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Delete',
-        style: 'destructive',
-        onPress: () => deletePlaylist(id),
-      },
-    ]);
+    if (Platform.OS === 'web') {
+      if (window.confirm(`Remove "${name}"?`)) {
+        deletePlaylist(id);
+      }
+    } else {
+      Alert.alert('Delete Playlist', `Remove "${name}"?`, [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: () => deletePlaylist(id),
+        },
+      ]);
+    }
   };
 
   return (
@@ -173,71 +179,78 @@ export default function PlaylistsScreen() {
           const isActive = item.id === activePlaylistId;
           const isRefreshing = refreshingId === item.id;
           return (
-            <TVFocusable
+            <View
               style={[
                 styles.card,
                 {
                   backgroundColor: isActive ? 'rgba(212,168,67,0.08)' : colors.surface,
                   borderColor: isActive ? colors.gold : colors.border,
+                  padding: 0,
+                  overflow: 'hidden',
                 },
               ]}
-              onPress={async () => {
-                await setActivePlaylist(item.id);
-                router.replace('/(tabs)');
-              }}
             >
-              <View style={styles.cardHeader}>
-                <View style={styles.cardTitleRow}>
+              <TVFocusable
+                style={{ padding: 24 }}
+                onPress={async () => {
+                  await setActivePlaylist(item.id);
+                  router.replace('/(tabs)');
+                }}
+              >
+                <View style={styles.cardHeader}>
+                  <View style={styles.cardTitleRow}>
+                    {isActive && (
+                      <View style={[styles.activeDot, { backgroundColor: colors.gold }]} />
+                    )}
+                    <Text style={[styles.cardTitle, { color: colors.text }]} numberOfLines={1}>
+                      {item.name}
+                    </Text>
+                  </View>
                   {isActive && (
-                    <View style={[styles.activeDot, { backgroundColor: colors.gold }]} />
+                    <Lineicons icon={CheckCircle1Bulk} size={18} color={colors.gold} />
                   )}
-                  <Text style={[styles.cardTitle, { color: colors.text }]} numberOfLines={1}>
-                    {item.name}
+                </View>
+
+                <Text
+                  style={[styles.url, { color: colors.mutedForeground, marginTop: 12 }]}
+                  numberOfLines={1}
+                >
+                  {item.url.startsWith('xtream://')
+                    ? `Xtream Codes · ${item.name}`
+                    : item.url.startsWith('demo://')
+                    ? 'Demo playlist'
+                    : item.url}
+                </Text>
+
+                <View style={{ marginTop: 24, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <Text style={[styles.meta, { color: colors.mutedForeground, marginBottom: 0 }]}>
+                    {item.updated}
                   </Text>
                 </View>
-                {isActive && (
-                  <Lineicons icon={CheckCircle1Bulk} size={18} color={colors.gold} />
-                )}
-              </View>
+              </TVFocusable>
 
-              <Text
-                style={[styles.url, { color: colors.mutedForeground }]}
-                numberOfLines={1}
-              >
-                {item.url.startsWith('xtream://')
-                  ? `Xtream Codes · ${item.name}`
-                  : item.url.startsWith('demo://')
-                  ? 'Demo playlist'
-                  : item.url}
-              </Text>
-
-              <View style={styles.cardFooter}>
-                <Text style={[styles.meta, { color: colors.mutedForeground }]}>
-                  {item.channels.toLocaleString()} channels · {item.updated}
-                </Text>
-                {!item.isDemo && (
-                  <View style={styles.actions}>
-                    <TVFocusable
-                      style={styles.actionBtn}
-                      onPress={() => handleRefresh(item.id)}
-                      disabled={isRefreshing}
-                    >
-                      {isRefreshing ? (
-                        <ActivityIndicator size="small" color={colors.mutedForeground} />
-                      ) : (
-                        <Lineicons icon={RefreshCircle1ClockwiseBulk} size={16} color={colors.mutedForeground} />
-                      )}
-                    </TVFocusable>
-                    <TVFocusable
-                      style={styles.actionBtn}
-                      onPress={() => handleDelete(item.id, item.name)}
-                    >
-                      <Lineicons icon={Trash3Bulk} size={16} color={colors.destructive} />
-                    </TVFocusable>
-                  </View>
-                )}
-              </View>
-            </TVFocusable>
+              {!item.isDemo && (
+                <View style={[styles.actions, { position: 'absolute', bottom: 24, right: 24 }]}>
+                  <TVFocusable
+                    style={styles.actionBtn}
+                    onPress={() => handleRefresh(item.id)}
+                    disabled={isRefreshing}
+                  >
+                    {isRefreshing ? (
+                      <ActivityIndicator size="small" color={colors.mutedForeground} />
+                    ) : (
+                      <Lineicons icon={RefreshCircle1ClockwiseBulk} size={16} color={colors.mutedForeground} />
+                    )}
+                  </TVFocusable>
+                  <TVFocusable
+                    style={styles.actionBtn}
+                    onPress={() => handleDelete(item.id, item.name)}
+                  >
+                    <Lineicons icon={Trash3Bulk} size={16} color={colors.destructive} />
+                  </TVFocusable>
+                </View>
+              )}
+            </View>
           );
         }}
       />
@@ -247,7 +260,7 @@ export default function PlaylistsScreen() {
           behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={[StyleSheet.absoluteFill, styles.modalOverlay]}
         >
-          <TVFocusable style={StyleSheet.absoluteFill} onPress={() => !loading && setShowAdd(false)} />
+          <TVFocusable focusable={false} disableBorder style={StyleSheet.absoluteFill} onPress={() => !loading && setShowAdd(false)} />
           <View
             style={[
               styles.modalContent,
@@ -395,19 +408,15 @@ function StyledInput({
   return (
     <TVFocusable
       onPress={() => inputRef.current?.focus()}
-      onFocus={() => setIsFocused(true)}
-      onBlur={() => setIsFocused(false)}
-      disableBorder
-      scaleAmount={1.02}
-      style={[
+      style={({ focused }: any) => [
         styledInputStyles.container,
-        { backgroundColor: colors.background, borderColor: isFocused ? colors.gold : colors.border },
+        { backgroundColor: colors.background, borderColor: focused || isFocused ? colors.gold : colors.border },
       ]}
     >
       <Lineicons icon={icon} size={20} color={isFocused ? colors.gold : colors.mutedForeground} style={styledInputStyles.icon} />
       <TextInput
         ref={inputRef}
-        style={[styledInputStyles.input, { color: colors.text }]}
+        style={[styledInputStyles.input, { color: colors.text, outlineStyle: 'none' } as any]}
         placeholder={placeholder}
         placeholderTextColor={colors.mutedForeground}
         value={value}
@@ -418,6 +427,7 @@ function StyledInput({
         autoCorrect={false}
         onFocus={() => setIsFocused(true)}
         onBlur={() => setIsFocused(false)}
+        focusable={false}
       />
     </TVFocusable>
   );

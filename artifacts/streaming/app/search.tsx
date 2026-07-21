@@ -7,7 +7,9 @@ import {
   Pressable, 
   TextInput, 
   ActivityIndicator, 
-  Dimensions 
+  Dimensions,
+  Platform,
+  useWindowDimensions
 } from 'react-native';
 import { useColors } from '@/hooks/useColors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -16,6 +18,8 @@ import { ArrowLeftBulk, Search1Bulk, XmarkBulk, RefreshCircle1ClockwiseBulk, Dat
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { TVFocusable } from '@/components/TVFocusable';
+import { TVSidebar } from '@/components/TVSidebar';
+import { TVKeyboard } from '@/components/TVKeyboard';
 import { useAppStore } from '@/store/app-store';
 import { Channel } from '@/types';
 
@@ -26,6 +30,8 @@ type SearchTab = 'all' | 'live' | 'vod' | 'series';
 export default function SearchScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  const isLargeScreen = width >= 1024 || Platform.isTV;
 
   const activePlaylistId = useAppStore((s) => s.activePlaylistId);
   const searchIndexReady = useAppStore((s) => s.searchIndexReady);
@@ -34,12 +40,16 @@ export default function SearchScreen() {
   const loadSearchIndex = useAppStore((s) => s.loadSearchIndex);
   const buildSearchIndex = useAppStore((s) => s.buildSearchIndex);
   const searchChannels = useAppStore((s) => s.searchChannels);
+  const getSearchSuggestions = useAppStore((s) => s.getSearchSuggestions);
   const setPlaybackQueue = useAppStore((s) => s.setPlaybackQueue);
 
   const [query, setQuery] = useState('');
   const [filteredResults, setFilteredResults] = useState<Channel[]>([]);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [isKeyboardOpen, setIsKeyboardOpen] = useState(isLargeScreen);
   const [isSearching, setIsSearching] = useState(false);
   const [activeTab, setActiveTab] = useState<SearchTab>('all');
+  const [preparingChannelId, setPreparingChannelId] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState('');
   const [hasAttemptedAutoBuild, setHasAttemptedAutoBuild] = useState(false);
   const inputRef = useRef<any>(null);
@@ -70,6 +80,7 @@ export default function SearchScreen() {
   useEffect(() => {
     if (query.trim().length < 2) {
       setFilteredResults([]);
+      setSuggestions([]);
       return;
     }
 
@@ -77,11 +88,13 @@ export default function SearchScreen() {
       setIsSearching(true);
       try {
         const results = await searchChannels(query);
+        const sugs = await getSearchSuggestions(query);
         if (activeTab !== 'all') {
           setFilteredResults(results.filter(r => r.type === activeTab));
         } else {
           setFilteredResults(results);
         }
+        setSuggestions(sugs);
       } catch (e) {
       } finally {
         setIsSearching(false);
@@ -89,27 +102,31 @@ export default function SearchScreen() {
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [query, activeTab, searchChannels]);
+  }, [query, activeTab, searchChannels, getSearchSuggestions]);
 
   const handleItemPress = (item: Channel, index: number) => {
+    if (preparingChannelId) return;
+
     if (item.type === 'live') {
+      setPreparingChannelId(item.id);
       const liveResults = filteredResults.filter(r => r.type === 'live');
       const indexInLive = liveResults.findIndex(r => r.id === item.id);
       setPlaybackQueue(liveResults, indexInLive >= 0 ? indexInLive : 0);
-      router.push({
-        pathname: '/player',
-        params: {
-          id: item.id,
-          streamUrl: item.streamUrl,
-          title: item.name,
-          isLive: 'true',
-          current: item.current || 'Live Stream',
-          next: item.next || '',
-          quality: item.quality || 'HD',
-          logo: item.logo || '',
-          category: item.category || ''
-        }
-      });
+      useAppStore.getState().setIsPlayerOpen(true);
+      setTimeout(() => {
+        setPreparingChannelId(null);
+        router.push({
+          pathname: '/player',
+          params: {
+            id: item.id,
+            streamUrl: item.streamUrl,
+            title: item.name,
+            isLive: 'true',
+            current: item.current || 'Live Stream',
+            quality: item.quality || 'HD',
+          }
+        });
+      }, 100);
     } else if (item.type === 'vod') {
       router.push({
         pathname: '/movie-detail',
@@ -185,14 +202,20 @@ export default function SearchScreen() {
         </View>
 
         <View style={[styles.playIconWrapper, { backgroundColor: 'rgba(255,255,255,0.06)' }]}>
-          <Lineicons icon={item.type === 'live' ? MonitorBulk : QuestionMarkCircleBulk} size={18} color={colors.gold} />
+          {preparingChannelId === item.id ? (
+            <ActivityIndicator size="small" color={colors.gold} />
+          ) : (
+            <Lineicons icon={item.type === 'live' ? MonitorBulk : QuestionMarkCircleBulk} size={18} color={colors.gold} />
+          )}
         </View>
       </TVFocusable>
     );
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
+    <View style={{ flex: 1, flexDirection: 'row', backgroundColor: colors.background }}>
+      <TVSidebar />
+      <View style={[styles.container, { flex: 1, overflow: 'hidden', paddingTop: insets.top, paddingLeft: isLargeScreen ? 110 : 0 }]}>
       {/* Search Header */}
       <View style={styles.header}>
         <TVFocusable 
@@ -207,7 +230,16 @@ export default function SearchScreen() {
             <Lineicons icon={ArrowLeftBulk} size={22} color={focused ? colors.gold : colors.text} />
           )}
         </TVFocusable>
-        <View style={[styles.searchBox, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+        <TVFocusable 
+          onPress={() => {
+            if (isLargeScreen) {
+              setIsKeyboardOpen(true);
+            } else {
+              inputRef.current?.focus();
+            }
+          }}
+          style={({ focused }: any) => [styles.searchBox, { backgroundColor: colors.surface, borderColor: focused ? '#D4A843' : colors.border }]}
+        >
           <Lineicons icon={Search1Bulk} size={18} color={colors.mutedForeground} style={{ marginRight: 8 }} />
           <TextInput
             ref={inputRef}
@@ -217,13 +249,17 @@ export default function SearchScreen() {
             placeholderTextColor={colors.mutedForeground}
             style={[styles.searchInput, { color: colors.text }]}
             returnKeyType="search"
+            focusable={false}
+            editable={!isLargeScreen}
+            showSoftInputOnFocus={!isLargeScreen}
+            onFocus={() => { if (isLargeScreen) setIsKeyboardOpen(true) }}
           />
           {query.length > 0 && (
             <TVFocusable disableBorder onPress={() => setQuery('')}>
               <Lineicons icon={XmarkBulk} size={18} color={colors.text} />
             </TVFocusable>
           )}
-        </View>
+        </TVFocusable>
         {!loadingSearchIndex && (
           <TVFocusable 
             style={({ focused }: any) => [
@@ -275,6 +311,20 @@ export default function SearchScreen() {
       )}
 
       {/* Main Body */}
+      <View style={{ flex: 1, flexDirection: isLargeScreen && isKeyboardOpen ? 'row' : 'column', gap: 24, paddingHorizontal: isLargeScreen && isKeyboardOpen ? 16 : 0, marginTop: 16 }}>
+        {isLargeScreen && isKeyboardOpen && (
+          <View style={{ width: 480 }}>
+            <TVKeyboard 
+               value={query} 
+               onChangeText={setQuery} 
+               onSubmit={() => setIsKeyboardOpen(false)} 
+               suggestions={suggestions}
+               onSuggestionPress={(sug) => { setQuery(sug); setIsKeyboardOpen(false); }}
+               autoFocus={true}
+            />
+          </View>
+        )}
+        <View style={{ flex: 1 }}>
       {(isSearching || loadingSearchIndex) ? (
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color={colors.gold} />
@@ -333,7 +383,10 @@ export default function SearchScreen() {
           }
         />
       )}
+        </View>
+      </View>
     </View>
+  </View>
   );
 }
 

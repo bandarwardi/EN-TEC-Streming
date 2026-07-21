@@ -1,31 +1,36 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, FlatList, Pressable, ActivityIndicator, useWindowDimensions, Platform } from 'react-native';
+import { View, Text, StyleSheet, FlatList, Pressable, ActivityIndicator, useWindowDimensions, Platform, ScrollView } from 'react-native';
 import { TVFocusable } from '@/components/TVFocusable';
+import { MarqueeText } from '@/components/MarqueeText';
 import { useColors } from '@/hooks/useColors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Lineicons } from '@lineiconshq/react-native-lineicons';
 import { Search1Bulk, MonitorBulk, DashboardSquare1Bulk, Folder1Bulk, ArrowRightBulk } from '@lineiconshq/free-icons';
 import { MovieCard } from '@/components/MovieCard';
-import { router, useNavigation, useLocalSearchParams } from 'expo-router';
+import { router, useNavigation, useLocalSearchParams, useRouter } from 'expo-router';
 import { useAppStore } from '@/store/app-store';
-import { Channel } from '@/types';
+import { Channel, Movie } from '@/types';
+import { useIsFocused } from '@react-navigation/native';
 
 export default function MoviesScreen() {
+  const isFocused = useIsFocused();
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
+  const router = useRouter();
   const { width, height } = useWindowDimensions();
   const isLandscape = width > height;
   const isLargeScreen = width >= 1024 || Platform.isTV;
-  const numColumns = isLargeScreen ? Math.max(4, Math.floor((width - 250) / 160)) : 3;
+  const numColumns = isLargeScreen ? 4 : 3;
   const mobileNumColumns = Math.max(2, Math.floor((width - 40) / 130));
 
   const activePlaylistId = useAppStore((s) => s.activePlaylistId);
   const activeCategories = useAppStore((s) => s.activeCategories);
   const getChannelsForCategory = useAppStore((s) => s.getChannelsForCategory);
+  const setPlaybackQueue = useAppStore((s) => s.setPlaybackQueue);
 
   const [selectedCategory, setSelectedCategory] = useState<{ id: string; name: string } | null>(null);
-  const [localMovies, setLocalMovies] = useState<any[]>([]);
+  const [localMovies, setLocalMovies] = useState<Movie[]>([]);
   const [loading, setLoading] = useState(false);
   const hasDefaulted = useRef(false);
 
@@ -33,8 +38,9 @@ export default function MoviesScreen() {
 
   const loadCategory = useCallback(async (cat: { id: string; name: string }) => {
     if (!activePlaylistId) return;
-    setLoading(true);
     setLocalMovies([]);
+    setLoading(true);
+
     try {
       const result = await getChannelsForCategory(activePlaylistId, 'vod', cat.id, cat.name);
       const mapped = result.map((c: Channel) => ({
@@ -78,17 +84,16 @@ export default function MoviesScreen() {
         }
       }
 
+      setSelectedCategory(null);
       hasDefaulted.current = false;
-      if (categories.length > 0 && !selectedCategory) {
-        setSelectedCategory(categories[0]);
-      }
+      // Do not auto-select the first category
     });
     return unsubscribe;
   }, [navigation, categories, categoryId, selectedCategory]);
 
   useEffect(() => {
     if (categories.length > 0 && !hasDefaulted.current) {
-      setSelectedCategory(categories[0]);
+      // Do not auto-select the first category
       hasDefaulted.current = true;
     }
   }, [categories]);
@@ -99,179 +104,36 @@ export default function MoviesScreen() {
     setLocalMovies([]);
   }, [activePlaylistId]);
 
-  // --- TV Layout ---
-  if (isLargeScreen) {
-    return (
-      <View style={[styles.tvContainer, { backgroundColor: colors.background }]}>
-        {/* Pane 1: Categories */}
-        <View style={[styles.tvPaneCategories, { borderColor: colors.border }]}>
-          <View style={styles.tvHeader}>
-            <Text style={[styles.tvTitle, { color: colors.text }]}>Movies</Text>
-          </View>
-          <FlatList
-            data={categories}
-            keyExtractor={(item) => item.id}
-            showsVerticalScrollIndicator={false}
-            renderItem={({ item }) => {
-              const isSelected = selectedCategory?.id === item.id;
-              return (
-                <TVFocusable
-                  onPress={() => setSelectedCategory(item)}
-                  style={({ focused }: any) => [
-                    styles.tvCategoryItem,
-                    isSelected && { backgroundColor: 'rgba(212,168,67,0.15)', borderLeftWidth: 3, borderLeftColor: colors.gold },
-                    focused && { backgroundColor: colors.gold, transform: [{ scale: 1.02 }] }
-                  ]}
-                >
-                  {({ focused }: any) => (
-                    <Text style={[
-                      styles.tvCategoryText, 
-                      { color: focused ? '#000' : (isSelected ? colors.gold : colors.text), fontWeight: isSelected ? 'bold' : '500' }
-                    ]} numberOfLines={1}>
-                      {item.name}
-                    </Text>
-                  )}
-                </TVFocusable>
-              );
-            }}
-          />
-        </View>
+  if (!isFocused) return <View style={{ flex: 1, backgroundColor: '#05070a' }} />;
 
-        {/* Pane 2: Content (Movies Grid) */}
-        <View style={styles.tvPaneContent}>
-          <View style={styles.tvTopBar}>
-            <TVFocusable
-              style={({ focused }: any) => [
-                styles.tvSearchBar,
-                { backgroundColor: focused ? colors.gold : colors.surface2, borderColor: focused ? colors.gold : colors.border }
-              ]}
-              onPress={() => router.push('/search')}
-            >
-              {({ focused }: any) => (
-                <>
-                  <Lineicons icon={Search1Bulk} size={18} color={focused ? '#000' : colors.mutedForeground} />
-                  <Text style={[styles.tvSearchText, { color: focused ? '#000' : colors.mutedForeground }]}>
-                    Search movies, categories...
-                  </Text>
-                </>
-              )}
-            </TVFocusable>
-            <View style={{ flex: 1 }} />
-            <Text style={[styles.count, { color: colors.mutedForeground }]}>
-              {localMovies.length.toLocaleString()} titles
-            </Text>
-          </View>
+  // --- Unified Layout ---
+  const categoryNumColumns = isLargeScreen ? 4 : (isLandscape ? 3 : 1);
 
-          {loading ? (
-            <View style={styles.centerAll}>
-              <ActivityIndicator size="large" color={colors.gold} />
-            </View>
-          ) : localMovies.length === 0 ? (
-            <View style={styles.centerAll}>
-              <Lineicons icon={MonitorBulk} size={48} color={colors.mutedForeground} />
-              <Text style={[styles.emptyTitle, { color: colors.text, marginTop: 12 }]}>No movies found</Text>
-            </View>
-          ) : (
-            <FlatList
-              key={`tv_movies_grid_${numColumns}`}
-              data={localMovies}
-              keyExtractor={(item) => item.id}
-              numColumns={numColumns}
-              renderItem={({ item }) => (
-                <View style={[styles.tvGridItem, { width: `${100 / numColumns}%`, maxWidth: `${100 / numColumns}%` }]}>
-                  <MovieCard
-                    movie={item}
-                    width={'100%' as any}
-                    onPress={() => {
-                      router.push({
-                        pathname: '/movie-detail',
-                        params: {
-                          id: item.id,
-                          title: item.title,
-                          poster: item.poster,
-                          backdrop: item.backdrop,
-                          quality: item.quality,
-                          genres: item.genres.join(','),
-                          description: item.description,
-                          streamUrl: item.streamUrl || '',
-                        },
-                      });
-                    }}
-                  />
-                </View>
-              )}
-              contentContainerStyle={{ padding: 24, paddingBottom: 80 }}
-            />
-          )}
-        </View>
-      </View>
-    );
-  }
-
-  // --- Mobile Layout ---
   if (selectedCategory) {
     return (
-      <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
-        {!isLandscape && (
-        <View style={styles.header}>
-          <View style={{ flex: 1 }}>
-            <Text style={[styles.title, { color: colors.text }]} numberOfLines={2}>
+      <View style={[styles.container, { backgroundColor: isLargeScreen ? 'transparent' : colors.background, paddingTop: insets.top, display: isFocused ? 'flex' : 'none' }]}>
+        <View style={[styles.header, isLandscape && { paddingTop: 4, paddingBottom: 4 }]}>
+          <TVFocusable 
+            onPress={() => setSelectedCategory(null)} 
+            style={{ marginRight: 8, padding: 8 }}
+            hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
+            disableBorder
+          >
+             <View pointerEvents="none">
+               <Lineicons icon={ArrowRightBulk} size={24} color={colors.text} style={{ transform: [{ rotate: '180deg' }] }} />
+             </View>
+          </TVFocusable>
+          <View style={{ flex: 1, paddingRight: 8 }}>
+            <Text style={[styles.title, { color: colors.text, fontSize: isLandscape ? 18 : 22 }]} numberOfLines={isLandscape ? 1 : 2}>
               {selectedCategory.name}
             </Text>
-            <Text style={[styles.count, { color: colors.mutedForeground }]}>
-              {localMovies.length.toLocaleString()} channels
+            <Text style={[styles.count, { color: colors.mutedForeground, fontSize: isLandscape ? 11 : 13 }]}>
+              {localMovies.length.toLocaleString()} movies
             </Text>
           </View>
-          <TVFocusable
-            onPress={() => setSelectedCategory(null)}
-            style={({ focused }: any) => [
-              { paddingHorizontal: 12, paddingVertical: 8, backgroundColor: focused ? colors.gold : colors.surface2, borderRadius: 8, borderWidth: 1, borderColor: focused ? '#000' : colors.border, flexDirection: 'row', alignItems: 'center', gap: 6 }
-            ]}
-          >
-            {({ focused }: any) => (
-               <>
-                 <Lineicons icon={DashboardSquare1Bulk} size={20} color={focused ? '#000' : colors.gold} />
-                 {!isLandscape && <Text style={{ color: focused ? '#000' : colors.text, fontSize: 13, fontWeight: 'bold' }}>Categories</Text>}
-               </>
-            )}
-          </TVFocusable>
         </View>
-        )}
 
-        <View style={[styles.horizontalTabsContainer, { marginBottom: 12 }, isLandscape && { marginBottom: 8 }]}>
-          <FlatList
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            data={categories}
-            keyExtractor={(item) => item.id}
-            contentContainerStyle={styles.tabsScrollContent}
-            style={{ flex: 1 }}
-            renderItem={({ item }) => {
-              const isSelected = selectedCategory?.id === item.id;
-              return (
-                <TVFocusable
-                  onPress={() => setSelectedCategory(item)}
-                  style={[
-                    styles.tabPill,
-                    {
-                      backgroundColor: isSelected ? colors.gold : colors.surface2,
-                      borderColor: isSelected ? colors.gold : colors.border,
-                    }
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.tabPillText,
-                      { color: isSelected ? '#1A1A1A' : colors.text, fontWeight: isSelected ? '700' : '500' }
-                    ]}
-                  >
-                    {item.name}
-                  </Text>
-                </TVFocusable>
-              );
-            }}
-          />
-        </View>
+
 
         {!isLandscape && (
           <TVFocusable
@@ -323,23 +185,26 @@ export default function MoviesScreen() {
                 />
               </View>
             )}
-            contentContainerStyle={[styles.gridContent, { paddingBottom: insets.bottom + 120 }]}
+            contentContainerStyle={[styles.gridContent, { paddingBottom: isLandscape ? insets.bottom + 80 : insets.bottom + 120 }]}
           />
         )}
 
-        <TVFocusable
-          onPress={() => setSelectedCategory(null)}
-          style={[styles.floatingViewAllBtn, { backgroundColor: colors.surface, borderColor: colors.border, bottom: insets.bottom + 90 }]}
-        >
-          <Lineicons icon={DashboardSquare1Bulk} size={18} color={colors.gold} />
-          <Text style={[styles.floatingViewAllText, { color: colors.text }]}>View All Categories</Text>
-        </TVFocusable>
+        {!isLandscape && (
+          <TVFocusable
+            disableBorder
+            onPress={() => setSelectedCategory(null)}
+            style={[styles.floatingViewAllBtn, { backgroundColor: colors.surface, borderColor: colors.gold, bottom: insets.bottom + 90 }]}
+          >
+            <Lineicons icon={DashboardSquare1Bulk} size={18} color={colors.gold} />
+            <Text style={[styles.floatingViewAllText, { color: colors.text }]}>View All Categories</Text>
+          </TVFocusable>
+        )}
       </View>
     );
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
+    <View style={[styles.container, { backgroundColor: isLargeScreen ? 'transparent' : colors.background, paddingTop: insets.top, display: isFocused ? 'flex' : 'none' }]}>
       <View style={styles.header}>
         <Text style={[styles.title, { color: colors.text }]}>Movies</Text>
         <Text style={[styles.count, { color: colors.mutedForeground }]}>
@@ -364,25 +229,34 @@ export default function MoviesScreen() {
         </View>
       ) : (
         <FlatList
-          key="categories_list"
+          key={`categories_grid_${categoryNumColumns}`}
           data={categories}
+          numColumns={categoryNumColumns}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
-            <TVFocusable
-              onPress={() => setSelectedCategory(item)}
-              style={({ pressed }) => [
-                styles.categoryItem,
-                { backgroundColor: colors.surface2, borderColor: colors.border, opacity: pressed ? 0.85 : 1 }
-              ]}
-            >
-              <View style={styles.categoryLeft}>
-                <View style={[styles.categoryIconBg, { backgroundColor: colors.gold + '15' }]}>
-                  <Lineicons icon={MonitorBulk} size={18} color={colors.gold} />
+            <View style={{ width: `${100 / categoryNumColumns}%`, padding: categoryNumColumns === 1 ? 0 : 6 }}>
+              <TVFocusable
+                onPress={() => setSelectedCategory(item)}
+                style={({ focused }: any) => [
+                  styles.categoryItem,
+                  { backgroundColor: focused ? colors.surface : colors.surface2, borderColor: focused ? colors.gold : colors.border },
+                  { padding: isLargeScreen ? 20 : 14 },
+                  categoryNumColumns > 1 && { marginBottom: 0 }
+                ]}
+              >
+                <View style={[styles.categoryLeft, { flex: 1, flexDirection: isLargeScreen ? 'column' : 'row' }]}>
+                  <View style={[styles.categoryIconBg, { backgroundColor: colors.gold + '15' }, isLargeScreen && { width: 48, height: 48, borderRadius: 12, marginBottom: 8 }]}>
+                    <Lineicons icon={Folder1Bulk} size={isLargeScreen ? 24 : 18} color={colors.gold} />
+                  </View>
+                  <Text 
+                    style={[styles.categoryName, { color: colors.text, textAlign: isLargeScreen ? 'center' : 'left', flex: isLargeScreen ? 0 : 1 }]} 
+                    numberOfLines={2}
+                  >
+                    {item.name}
+                  </Text>
                 </View>
-                <Text style={[styles.categoryName, { color: colors.text }]}>{item.name}</Text>
-              </View>
-              <Lineicons icon={ArrowRightBulk} size={18} color={colors.mutedForeground} />
-            </TVFocusable>
+              </TVFocusable>
+            </View>
           )}
           contentContainerStyle={[styles.listContent, { paddingBottom: insets.bottom + 80 }]}
         />
@@ -441,7 +315,7 @@ const styles = StyleSheet.create({
   
   // TV Styles
   tvContainer: { flex: 1, flexDirection: 'row' },
-  tvPaneCategories: { width: '25%', maxWidth: 280, borderRightWidth: 1 },
+  tvPaneCategories: { width: 320 },
   tvPaneContent: { flex: 1 },
   tvHeader: { padding: 24, paddingBottom: 16 },
   tvTitle: { fontSize: 24, fontWeight: 'bold' },
@@ -459,7 +333,7 @@ const styles = StyleSheet.create({
   tabsScrollContent: { gap: 8, paddingRight: 40 },
   tabPill: { paddingHorizontal: 16, height: 36, borderRadius: 18, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   tabPillText: { fontSize: 13 },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 16, paddingBottom: 8, gap: 12 },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 20, paddingTop: 4, paddingBottom: 4, gap: 12 },
   title: { fontSize: 24, fontWeight: 'bold' },
   count: { fontSize: 13, marginTop: 2 },
   searchBar: { flexDirection: 'row', alignItems: 'center', gap: 10, marginHorizontal: 20, marginBottom: 12, borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, height: 44 },

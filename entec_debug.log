@@ -1,0 +1,269 @@
+2026-07-06T03:06:53.354Z === APP STARTED ===
+2026-07-06T03:06:54.922Z [UI WARN] %cElectron Security Warning (Insecure Content-Security-Policy) font-weight: bold; This renderer process has either no Content Security
+  Policy set or a policy with "unsafe-eval" enabled. This exposes users of
+  this app to unnecessary security risks.
+
+For more information and help, consult
+https://electronjs.org/docs/tutorial/security.
+This warning will not show up
+once the app is packaged.
+2026-07-06T03:07:02.766Z [UI INFO] [getChannelsForCategory] Called for playlistId: pl_1783300648922, type: live, categoryId: 450, categoryName: AR| BEIN SPORTS F⚽
+2026-07-06T03:07:02.926Z [UI INFO] [getChannelsForCategory] Fetching streams from host: https://tv.business-cloud-neo.com, url: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_live_streams&category_id=450&_t=1783307222927
+2026-07-06T03:07:02.927Z [UI INFO] [getChannelsForCategory] Fetching attempt 1/3 from: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_live_streams&category_id=450&_t=1783307222927
+2026-07-06T03:07:03.125Z [UI INFO] [getChannelsForCategory] Fetching succeeded from: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_live_streams&category_id=450&_t=1783307222927. Response text sample (first 100 chars): [{"num":1,"name":"####### beIN SP\u26bdRTS \u1d34\u1d30 #######","stream_type":"live","stream_id":26
+2026-07-06T03:07:03.127Z [UI INFO] [getChannelsForCategory] Successfully parsed JSON. Raw streams length: 54
+2026-07-06T03:07:03.128Z [UI INFO] [getChannelsForCategory] Processed 54 channels. Live fetch successful.
+2026-07-06T03:07:03.129Z [UI INFO] [getChannelsForCategory] Called for playlistId: pl_1783300648922, type: vod, categoryId: 156, categoryName: 4K افلام عربية فائقة الوضوح
+2026-07-06T03:07:03.443Z [UI INFO] [getChannelsForCategory] Fetching streams from host: https://tv.business-cloud-neo.com, url: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_vod_streams&category_id=156&_t=1783307223443
+2026-07-06T03:07:03.445Z [UI INFO] [getChannelsForCategory] Fetching attempt 1/3 from: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_vod_streams&category_id=156&_t=1783307223443
+2026-07-06T03:07:03.876Z [UI INFO] [getChannelsForCategory] Fetching succeeded from: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_vod_streams&category_id=156&_t=1783307223443. Response text sample (first 100 chars): [{"num":1,"name":"4K-AR: \u0641\u064a\u0632\u0627","stream_type":"movie","stream_id":716766,"stream_
+2026-07-06T03:07:03.880Z [UI INFO] [getChannelsForCategory] Successfully parsed JSON. Raw streams length: 100
+2026-07-06T03:07:03.881Z [UI INFO] [getChannelsForCategory] Processed 100 channels. Live fetch successful.
+2026-07-06T03:07:03.881Z [UI INFO] [getChannelsForCategory] Called for playlistId: pl_1783300648922, type: series, categoryId: 1, categoryName: يعرض الآن عربي
+2026-07-06T03:07:03.992Z [UI INFO] [getChannelsForCategory] Fetching streams from host: https://tv.business-cloud-neo.com, url: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_series&category_id=1&_t=1783307223993
+2026-07-06T03:07:03.993Z [UI INFO] [getChannelsForCategory] Fetching attempt 1/3 from: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_series&category_id=1&_t=1783307223993
+2026-07-06T03:07:04.637Z [UI INFO] [getChannelsForCategory] Fetching succeeded from: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_series&category_id=1&_t=1783307223993. Response text sample (first 100 chars): [{"num":1,"name":"AR-DUB: \u0645\u0633\u0644\u0645 \u0628\u0646 \u0639\u0642\u064a\u0644","series_id
+2026-07-06T03:07:04.639Z [UI INFO] [getChannelsForCategory] Successfully parsed JSON. Raw streams length: 32
+2026-07-06T03:07:04.639Z [UI INFO] [getChannelsForCategory] Processed 32 channels. Live fetch successful.
+2026-07-06T03:07:04.640Z [UI INFO] [getChannelsForCategory] Called for playlistId: pl_1783300648922, type: live, categoryId: 451, categoryName: AR| BEIN SPORTS F AFC⚽
+2026-07-06T03:07:04.747Z [UI INFO] [getChannelsForCategory] Fetching streams from host: https://tv.business-cloud-neo.com, url: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_live_streams&category_id=451&_t=1783307224748
+2026-07-06T03:07:04.748Z [UI INFO] [getChannelsForCategory] Fetching attempt 1/3 from: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_live_streams&category_id=451&_t=1783307224748
+2026-07-06T03:07:04.989Z [UI INFO] [getChannelsForCategory] Fetching succeeded from: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_live_streams&category_id=451&_t=1783307224748. Response text sample (first 100 chars): [{"num":1,"name":"####### beIN SP\u26bdRTS AFC \u1d34\u1d30 #######","stream_type":"live","stream_id
+2026-07-06T03:07:04.991Z [UI INFO] [getChannelsForCategory] Successfully parsed JSON. Raw streams length: 47
+2026-07-06T03:07:04.991Z [UI INFO] [getChannelsForCategory] Processed 47 channels. Live fetch successful.
+2026-07-06T03:07:04.992Z [UI INFO] [getChannelsForCategory] Called for playlistId: pl_1783300648922, type: vod, categoryId: 155, categoryName: افلام عربية حديثة
+2026-07-06T03:07:05.134Z [UI INFO] [getChannelsForCategory] Fetching streams from host: https://tv.business-cloud-neo.com, url: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_vod_streams&category_id=155&_t=1783307225134
+2026-07-06T03:07:05.134Z [UI INFO] [getChannelsForCategory] Fetching attempt 1/3 from: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_vod_streams&category_id=155&_t=1783307225134
+2026-07-06T03:07:05.370Z [UI INFO] [getChannelsForCategory] Fetching succeeded from: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_vod_streams&category_id=155&_t=1783307225134. Response text sample (first 100 chars): [{"num":1,"name":"AR-EG: \u0641\u064a\u0632\u0627","stream_type":"movie","stream_id":716765,"stream_
+2026-07-06T03:07:05.371Z [UI INFO] [getChannelsForCategory] Successfully parsed JSON. Raw streams length: 110
+2026-07-06T03:07:05.372Z [UI INFO] [getChannelsForCategory] Processed 110 channels. Live fetch successful.
+2026-07-06T03:07:05.373Z [UI INFO] [getChannelsForCategory] Called for playlistId: pl_1783300648922, type: series, categoryId: 2, categoryName: يعرض الآن تركي مترجم ☪
+2026-07-06T03:07:05.479Z [UI INFO] [getChannelsForCategory] Fetching streams from host: https://tv.business-cloud-neo.com, url: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_series&category_id=2&_t=1783307225480
+2026-07-06T03:07:05.480Z [UI INFO] [getChannelsForCategory] Fetching attempt 1/3 from: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_series&category_id=2&_t=1783307225480
+2026-07-06T03:07:06.033Z [UI INFO] [getChannelsForCategory] Fetching succeeded from: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_series&category_id=2&_t=1783307225480. Response text sample (first 100 chars): [{"num":1,"name":"AR-TR-S: Alt\u0131 \u00dcst\u00fc \u0130stanbul (2026) \u0627\u0633\u0637\u0646\u0
+2026-07-06T03:07:06.035Z [UI INFO] [getChannelsForCategory] Successfully parsed JSON. Raw streams length: 55
+2026-07-06T03:07:06.035Z [UI INFO] [getChannelsForCategory] Processed 55 channels. Live fetch successful.
+2026-07-06T03:07:07.266Z [UI WARN] Animated: `useNativeDriver` is not supported because the native animated module is missing. Falling back to JS-based animation. To resolve this, add `RCTAnimation` module to this app, or remove `useNativeDriver`. Make sure to run `bundle exec pod install` first. Read more about autolinking: https://github.com/react-native-community/cli/blob/master/docs/autolinking.md
+2026-07-06T03:07:07.481Z [UI INFO] [getChannelsForCategory] Called for playlistId: pl_1783300648922, type: live, categoryId: 450, categoryName: AR| BEIN SPORTS F⚽
+2026-07-06T03:07:07.719Z [UI INFO] [getChannelsForCategory] Fetching streams from host: https://tv.business-cloud-neo.com, url: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_live_streams&category_id=450&_t=1783307227720
+2026-07-06T03:07:07.724Z [UI INFO] [getChannelsForCategory] Fetching attempt 1/3 from: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_live_streams&category_id=450&_t=1783307227720
+2026-07-06T03:07:07.927Z [UI INFO] [getChannelsForCategory] Fetching succeeded from: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_live_streams&category_id=450&_t=1783307227720. Response text sample (first 100 chars): [{"num":1,"name":"####### beIN SP\u26bdRTS \u1d34\u1d30 #######","stream_type":"live","stream_id":26
+2026-07-06T03:07:07.929Z [UI INFO] [getChannelsForCategory] Successfully parsed JSON. Raw streams length: 54
+2026-07-06T03:07:07.930Z [UI INFO] [getChannelsForCategory] Processed 54 channels. Live fetch successful.
+2026-07-06T03:07:16.160Z [UI INFO] [getChannelsForCategory] Called for playlistId: pl_1783300648922, type: live, categoryId: 913, categoryName: 4K| WORLD CUP PPV 2026 ⁴ᴷ
+2026-07-06T03:07:16.582Z [UI INFO] [getChannelsForCategory] Fetching streams from host: https://tv.business-cloud-neo.com, url: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_live_streams&category_id=913&_t=1783307236582
+2026-07-06T03:07:16.584Z [UI INFO] [getChannelsForCategory] Fetching attempt 1/3 from: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_live_streams&category_id=913&_t=1783307236582
+2026-07-06T03:07:16.739Z [UI INFO] [getChannelsForCategory] Fetching succeeded from: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_live_streams&category_id=913&_t=1783307236582. Response text sample (first 100 chars): [{"num":1,"name":"### 4K| WORLD CUP PPV 2026 \u2074\u1d37 ###","stream_type":"live","stream_id":7103
+2026-07-06T03:07:16.742Z [UI INFO] [getChannelsForCategory] Successfully parsed JSON. Raw streams length: 51
+2026-07-06T03:07:16.742Z [UI INFO] [getChannelsForCategory] Processed 51 channels. Live fetch successful.
+2026-07-06T03:07:28.574Z [UI INFO] [getChannelsForCategory] Called for playlistId: pl_1783300648922, type: live, categoryId: 450, categoryName: AR| BEIN SPORTS F⚽
+2026-07-06T03:07:28.889Z [UI INFO] [getChannelsForCategory] Fetching streams from host: https://tv.business-cloud-neo.com, url: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_live_streams&category_id=450&_t=1783307248890
+2026-07-06T03:07:28.892Z [UI INFO] [getChannelsForCategory] Fetching attempt 1/3 from: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_live_streams&category_id=450&_t=1783307248890
+2026-07-06T03:07:29.041Z [UI INFO] [getChannelsForCategory] Fetching succeeded from: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_live_streams&category_id=450&_t=1783307248890. Response text sample (first 100 chars): [{"num":1,"name":"####### beIN SP\u26bdRTS \u1d34\u1d30 #######","stream_type":"live","stream_id":26
+2026-07-06T03:07:29.050Z [UI INFO] [getChannelsForCategory] Successfully parsed JSON. Raw streams length: 54
+2026-07-06T03:07:29.053Z [UI INFO] [getChannelsForCategory] Processed 54 channels. Live fetch successful.
+2026-07-06T03:07:33.705Z [UI INFO] [getChannelsForCategory] Called for playlistId: pl_1783300648922, type: vod, categoryId: 156, categoryName: 4K افلام عربية فائقة الوضوح
+2026-07-06T03:07:34.081Z [UI INFO] [getChannelsForCategory] Fetching streams from host: https://tv.business-cloud-neo.com, url: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_vod_streams&category_id=156&_t=1783307254082
+2026-07-06T03:07:34.082Z [UI INFO] [getChannelsForCategory] Fetching attempt 1/3 from: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_vod_streams&category_id=156&_t=1783307254082
+2026-07-06T03:07:34.350Z [UI INFO] [getChannelsForCategory] Fetching succeeded from: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_vod_streams&category_id=156&_t=1783307254082. Response text sample (first 100 chars): [{"num":1,"name":"4K-AR: \u0641\u064a\u0632\u0627","stream_type":"movie","stream_id":716766,"stream_
+2026-07-06T03:07:34.351Z [UI INFO] [getChannelsForCategory] Successfully parsed JSON. Raw streams length: 100
+2026-07-06T03:07:34.353Z [UI INFO] [getChannelsForCategory] Processed 100 channels. Live fetch successful.
+2026-07-06T03:07:37.865Z [UI INFO] [getChannelsForCategory] Called for playlistId: pl_1783300648922, type: vod, categoryId: 166, categoryName: افلام شامية
+2026-07-06T03:07:38.176Z [UI INFO] [getChannelsForCategory] Fetching streams from host: https://tv.business-cloud-neo.com, url: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_vod_streams&category_id=166&_t=1783307258176
+2026-07-06T03:07:38.176Z [UI INFO] [getChannelsForCategory] Fetching attempt 1/3 from: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_vod_streams&category_id=166&_t=1783307258176
+2026-07-06T03:07:38.484Z [UI INFO] [getChannelsForCategory] Fetching succeeded from: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_vod_streams&category_id=166&_t=1783307258176. Response text sample (first 100 chars): [{"num":1,"name":"AR-SHAM: \u0632\u0641\u0627\u0641\u064a\u0627\u0646","stream_type":"movie","stream
+2026-07-06T03:07:38.516Z [UI INFO] [getChannelsForCategory] Successfully parsed JSON. Raw streams length: 64
+2026-07-06T03:07:38.520Z [UI INFO] [getChannelsForCategory] Processed 64 channels. Live fetch successful.
+2026-07-06T03:07:39.668Z [UI INFO] [getChannelsForCategory] Called for playlistId: pl_1783300648922, type: vod, categoryId: 166, categoryName: افلام شامية
+2026-07-06T03:07:39.987Z [UI INFO] [getChannelsForCategory] Fetching streams from host: https://tv.business-cloud-neo.com, url: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_vod_streams&category_id=166&_t=1783307259988
+2026-07-06T03:07:39.991Z [UI INFO] [getChannelsForCategory] Fetching attempt 1/3 from: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_vod_streams&category_id=166&_t=1783307259988
+2026-07-06T03:07:40.265Z [UI INFO] [getChannelsForCategory] Fetching succeeded from: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_vod_streams&category_id=166&_t=1783307259988. Response text sample (first 100 chars): [{"num":1,"name":"AR-SHAM: \u0632\u0641\u0627\u0641\u064a\u0627\u0646","stream_type":"movie","stream
+2026-07-06T03:07:40.266Z [UI INFO] [getChannelsForCategory] Successfully parsed JSON. Raw streams length: 64
+2026-07-06T03:07:40.267Z [UI INFO] [getChannelsForCategory] Processed 64 channels. Live fetch successful.
+2026-07-06T03:07:40.980Z [PROXY] Request: https://tv.business-cloud-neo.com/movie/19fbf583dbfb/418c317f2d/237260.m3u8
+2026-07-06T03:07:41.054Z [UI WARN] Failed to lock screen orientation to landscape: [object DOMException]
+2026-07-06T03:07:41.275Z [UI ERROR] Uncaught (in promise) NotSupportedError: Failed to load because no supported source was found.
+2026-07-06T03:07:41.276Z [UI ERROR] Uncaught (in promise) NotSupportedError: Failed to load because no supported source was found.
+2026-07-06T03:07:42.129Z [UI ERROR] Uncaught (in promise) NotSupportedError: The element has no supported sources.
+2026-07-06T03:07:42.138Z [UI ERROR] Uncaught (in promise) NotSupportedError: The element has no supported sources.
+2026-07-06T03:07:43.077Z [UI WARN] Failed to unlock screen orientation: [object DOMException]
+2026-07-06T03:07:45.906Z [UI INFO] [getChannelsForCategory] Called for playlistId: pl_1783300648922, type: series, categoryId: 1, categoryName: يعرض الآن عربي
+2026-07-06T03:07:46.470Z [UI INFO] [getChannelsForCategory] Fetching streams from host: https://tv.business-cloud-neo.com, url: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_series&category_id=1&_t=1783307266471
+2026-07-06T03:07:46.471Z [UI INFO] [getChannelsForCategory] Fetching attempt 1/3 from: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_series&category_id=1&_t=1783307266471
+2026-07-06T03:07:47.013Z [UI INFO] [getChannelsForCategory] Fetching succeeded from: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_series&category_id=1&_t=1783307266471. Response text sample (first 100 chars): [{"num":1,"name":"AR-DUB: \u0645\u0633\u0644\u0645 \u0628\u0646 \u0639\u0642\u064a\u0644","series_id
+2026-07-06T03:07:47.014Z [UI INFO] [getChannelsForCategory] Successfully parsed JSON. Raw streams length: 32
+2026-07-06T03:07:47.014Z [UI INFO] [getChannelsForCategory] Processed 32 channels. Live fetch successful.
+2026-07-06T03:07:47.169Z [UI INFO] [getChannelsForCategory] Called for playlistId: pl_1783300648922, type: series, categoryId: 5, categoryName: يعرض الآن انمي
+2026-07-06T03:07:47.418Z [UI INFO] [getChannelsForCategory] Fetching streams from host: https://tv.business-cloud-neo.com, url: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_series&category_id=5&_t=1783307267419
+2026-07-06T03:07:47.420Z [UI INFO] [getChannelsForCategory] Fetching attempt 1/3 from: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_series&category_id=5&_t=1783307267419
+2026-07-06T03:07:48.329Z [UI INFO] [getChannelsForCategory] Fetching succeeded from: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_series&category_id=5&_t=1783307267419. Response text sample (first 100 chars): [{"num":1,"name":"AR-ANM-S: Blades of the Guardians (2023) (CN)","series_id":16534,"cover":"https:\/
+2026-07-06T03:07:48.330Z [UI INFO] [getChannelsForCategory] Successfully parsed JSON. Raw streams length: 45
+2026-07-06T03:07:48.331Z [UI INFO] [getChannelsForCategory] Processed 45 channels. Live fetch successful.
+2026-07-06T03:07:49.052Z [UI INFO] [getChannelsForCategory] Called for playlistId: pl_1783300648922, type: series, categoryId: 7, categoryName: رمضانك سوري لبناني 2026
+2026-07-06T03:07:49.335Z [UI INFO] [getChannelsForCategory] Fetching streams from host: https://tv.business-cloud-neo.com, url: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_series&category_id=7&_t=1783307269335
+2026-07-06T03:07:49.337Z [UI INFO] [getChannelsForCategory] Fetching attempt 1/3 from: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_series&category_id=7&_t=1783307269335
+2026-07-06T03:07:49.951Z [UI INFO] [getChannelsForCategory] Fetching succeeded from: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_series&category_id=7&_t=1783307269335. Response text sample (first 100 chars): [{"num":1,"name":"AR: \u0645\u0648\u0644\u0627\u0646\u0627","series_id":13714,"cover":"http:\/\/phot
+2026-07-06T03:07:49.953Z [UI INFO] [getChannelsForCategory] Successfully parsed JSON. Raw streams length: 22
+2026-07-06T03:07:49.953Z [UI INFO] [getChannelsForCategory] Processed 22 channels. Live fetch successful.
+2026-07-06T03:07:53.546Z [UI INFO] [getChannelsForCategory] Called for playlistId: pl_1783300648922, type: series, categoryId: 7, categoryName: رمضانك سوري لبناني 2026
+2026-07-06T03:07:53.547Z [UI INFO] [SeriesDetail] Fetching info from: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_series_info&series_id=13718
+2026-07-06T03:07:53.548Z [UI ERROR] Refused to set unsafe header "User-Agent"
+2026-07-06T03:07:53.930Z [UI INFO] [getChannelsForCategory] Fetching streams from host: https://tv.business-cloud-neo.com, url: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_series&category_id=7&_t=1783307273930
+2026-07-06T03:07:53.930Z [UI INFO] [getChannelsForCategory] Fetching attempt 1/3 from: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_series&category_id=7&_t=1783307273930
+2026-07-06T03:07:54.542Z [UI INFO] [getChannelsForCategory] Fetching succeeded from: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_series&category_id=7&_t=1783307273930. Response text sample (first 100 chars): [{"num":1,"name":"AR: \u0645\u0648\u0644\u0627\u0646\u0627","series_id":13714,"cover":"http:\/\/phot
+2026-07-06T03:07:54.545Z [UI INFO] [getChannelsForCategory] Successfully parsed JSON. Raw streams length: 22
+2026-07-06T03:07:54.545Z [UI INFO] [getChannelsForCategory] Processed 22 channels. Live fetch successful.
+2026-07-06T03:07:54.918Z [UI WARN] Failed to lock screen orientation to landscape: [object DOMException]
+2026-07-06T03:07:54.990Z [PROXY] Request: https://tv.business-cloud-neo.com/series/19fbf583dbfb/418c317f2d/631294.m3u8
+2026-07-06T03:07:55.191Z [UI ERROR] Uncaught (in promise) NotSupportedError: Failed to load because no supported source was found.
+2026-07-06T03:07:55.191Z [UI ERROR] Uncaught (in promise) NotSupportedError: Failed to load because no supported source was found.
+2026-07-06T03:07:55.933Z [UI ERROR] Uncaught (in promise) NotSupportedError: The element has no supported sources.
+2026-07-06T03:07:55.933Z [UI ERROR] Uncaught (in promise) NotSupportedError: The element has no supported sources.
+2026-07-06T03:07:57.362Z [UI WARN] Failed to unlock screen orientation: [object DOMException]
+2026-07-06T03:08:10.312Z [UI INFO] [Xtream Import] Verifying account credentials at: https://tv.business-cloud-neo.com
+2026-07-06T03:08:10.577Z [UI INFO] [Xtream Import] Account info response: [object Object]
+2026-07-06T03:08:10.578Z [UI INFO] [Xtream Import] Credentials verified. Account status active. Syncing categories...
+2026-07-06T03:08:10.941Z [UI INFO] [Xtream Import] Found categories count: Live=180, Movies=133, Series=97
+2026-07-06T03:08:11.194Z [UI INFO] [getChannelsForCategory] Called for playlistId: pl_1783300648922, type: live, categoryId: 450, categoryName: AR| BEIN SPORTS F⚽
+2026-07-06T03:08:11.467Z [UI INFO] [getChannelsForCategory] Called for playlistId: pl_1783300648922, type: live, categoryId: 450, categoryName: AR| BEIN SPORTS F⚽
+2026-07-06T03:08:11.475Z [UI INFO] [getChannelsForCategory] Called for playlistId: pl_1783300648922, type: vod, categoryId: 156, categoryName: 4K افلام عربية فائقة الوضوح
+2026-07-06T03:08:11.514Z [UI INFO] [getChannelsForCategory] Called for playlistId: pl_1783300648922, type: series, categoryId: 1, categoryName: يعرض الآن عربي
+2026-07-06T03:08:11.861Z [UI INFO] [getChannelsForCategory] Fetching streams from host: https://tv.business-cloud-neo.com, url: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_live_streams&category_id=450&_t=1783307291861
+2026-07-06T03:08:11.861Z [UI INFO] [getChannelsForCategory] Fetching attempt 1/3 from: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_live_streams&category_id=450&_t=1783307291861
+2026-07-06T03:08:11.912Z [UI INFO] [getChannelsForCategory] Fetching streams from host: https://tv.business-cloud-neo.com, url: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_live_streams&category_id=450&_t=1783307291912
+2026-07-06T03:08:11.913Z [UI INFO] [getChannelsForCategory] Fetching attempt 1/3 from: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_live_streams&category_id=450&_t=1783307291912
+2026-07-06T03:08:11.963Z [UI INFO] [getChannelsForCategory] Fetching streams from host: https://tv.business-cloud-neo.com, url: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_series&category_id=1&_t=1783307291963
+2026-07-06T03:08:11.965Z [UI INFO] [getChannelsForCategory] Fetching attempt 1/3 from: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_series&category_id=1&_t=1783307291963
+2026-07-06T03:08:12.061Z [UI INFO] [getChannelsForCategory] Fetching streams from host: https://tv.business-cloud-neo.com, url: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_vod_streams&category_id=156&_t=1783307292061
+2026-07-06T03:08:12.062Z [UI INFO] [getChannelsForCategory] Fetching attempt 1/3 from: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_vod_streams&category_id=156&_t=1783307292061
+2026-07-06T03:08:12.070Z [UI INFO] [getChannelsForCategory] Fetching succeeded from: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_live_streams&category_id=450&_t=1783307291861. Response text sample (first 100 chars): [{"num":1,"name":"####### beIN SP\u26bdRTS \u1d34\u1d30 #######","stream_type":"live","stream_id":26
+2026-07-06T03:08:12.071Z [UI INFO] [getChannelsForCategory] Successfully parsed JSON. Raw streams length: 54
+2026-07-06T03:08:12.072Z [UI INFO] [getChannelsForCategory] Processed 54 channels. Live fetch successful.
+2026-07-06T03:08:12.073Z [UI INFO] [getChannelsForCategory] Called for playlistId: pl_1783300648922, type: vod, categoryId: 156, categoryName: 4K افلام عربية فائقة الوضوح
+2026-07-06T03:08:12.181Z [UI INFO] [getChannelsForCategory] Fetching succeeded from: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_live_streams&category_id=450&_t=1783307291912. Response text sample (first 100 chars): [{"num":1,"name":"####### beIN SP\u26bdRTS \u1d34\u1d30 #######","stream_type":"live","stream_id":26
+2026-07-06T03:08:12.182Z [UI INFO] [getChannelsForCategory] Successfully parsed JSON. Raw streams length: 54
+2026-07-06T03:08:12.182Z [UI INFO] [getChannelsForCategory] Processed 54 channels. Live fetch successful.
+2026-07-06T03:08:12.263Z [UI INFO] [getChannelsForCategory] Fetching streams from host: https://tv.business-cloud-neo.com, url: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_vod_streams&category_id=156&_t=1783307292263
+2026-07-06T03:08:12.263Z [UI INFO] [getChannelsForCategory] Fetching attempt 1/3 from: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_vod_streams&category_id=156&_t=1783307292263
+2026-07-06T03:08:12.342Z [UI INFO] [getChannelsForCategory] Fetching succeeded from: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_vod_streams&category_id=156&_t=1783307292061. Response text sample (first 100 chars): [{"num":1,"name":"4K-AR: \u0641\u064a\u0632\u0627","stream_type":"movie","stream_id":716766,"stream_
+2026-07-06T03:08:12.343Z [UI INFO] [getChannelsForCategory] Successfully parsed JSON. Raw streams length: 100
+2026-07-06T03:08:12.344Z [UI INFO] [getChannelsForCategory] Processed 100 channels. Live fetch successful.
+2026-07-06T03:08:12.507Z [UI INFO] [getChannelsForCategory] Fetching succeeded from: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_vod_streams&category_id=156&_t=1783307292263. Response text sample (first 100 chars): [{"num":1,"name":"4K-AR: \u0641\u064a\u0632\u0627","stream_type":"movie","stream_id":716766,"stream_
+2026-07-06T03:08:12.508Z [UI INFO] [getChannelsForCategory] Successfully parsed JSON. Raw streams length: 100
+2026-07-06T03:08:12.509Z [UI INFO] [getChannelsForCategory] Processed 100 channels. Live fetch successful.
+2026-07-06T03:08:12.509Z [UI INFO] [getChannelsForCategory] Called for playlistId: pl_1783300648922, type: series, categoryId: 1, categoryName: يعرض الآن عربي
+2026-07-06T03:08:12.584Z [UI INFO] [getChannelsForCategory] Fetching succeeded from: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_series&category_id=1&_t=1783307291963. Response text sample (first 100 chars): [{"num":1,"name":"AR-DUB: \u0645\u0633\u0644\u0645 \u0628\u0646 \u0639\u0642\u064a\u0644","series_id
+2026-07-06T03:08:12.585Z [UI INFO] [getChannelsForCategory] Successfully parsed JSON. Raw streams length: 32
+2026-07-06T03:08:12.596Z [UI INFO] [getChannelsForCategory] Processed 32 channels. Live fetch successful.
+2026-07-06T03:08:12.686Z [UI INFO] [getChannelsForCategory] Fetching streams from host: https://tv.business-cloud-neo.com, url: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_series&category_id=1&_t=1783307292686
+2026-07-06T03:08:12.699Z [UI INFO] [getChannelsForCategory] Fetching attempt 1/3 from: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_series&category_id=1&_t=1783307292686
+2026-07-06T03:08:12.940Z [UI INFO] [getChannelsForCategory] Called for playlistId: pl_1783300648922, type: live, categoryId: 450, categoryName: AR| BEIN SPORTS F⚽
+2026-07-06T03:08:12.992Z [UI INFO] [getChannelsForCategory] Called for playlistId: pl_1783300648922, type: live, categoryId: 450, categoryName: AR| BEIN SPORTS F⚽
+2026-07-06T03:08:13.161Z [UI INFO] [getChannelsForCategory] Fetching streams from host: https://tv.business-cloud-neo.com, url: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_live_streams&category_id=450&_t=1783307293161
+2026-07-06T03:08:13.163Z [UI INFO] [getChannelsForCategory] Fetching attempt 1/3 from: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_live_streams&category_id=450&_t=1783307293161
+2026-07-06T03:08:13.247Z [UI INFO] [getChannelsForCategory] Fetching succeeded from: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_series&category_id=1&_t=1783307292686. Response text sample (first 100 chars): [{"num":1,"name":"AR-DUB: \u0645\u0633\u0644\u0645 \u0628\u0646 \u0639\u0642\u064a\u0644","series_id
+2026-07-06T03:08:13.253Z [UI INFO] [getChannelsForCategory] Successfully parsed JSON. Raw streams length: 32
+2026-07-06T03:08:13.254Z [UI INFO] [getChannelsForCategory] Processed 32 channels. Live fetch successful.
+2026-07-06T03:08:13.262Z [UI INFO] [getChannelsForCategory] Called for playlistId: pl_1783300648922, type: live, categoryId: 451, categoryName: AR| BEIN SPORTS F AFC⚽
+2026-07-06T03:08:13.263Z [UI INFO] [getChannelsForCategory] Fetching streams from host: https://tv.business-cloud-neo.com, url: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_live_streams&category_id=450&_t=1783307293257
+2026-07-06T03:08:13.269Z [UI INFO] [getChannelsForCategory] Fetching attempt 1/3 from: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_live_streams&category_id=450&_t=1783307293257
+2026-07-06T03:08:13.338Z [UI INFO] [getChannelsForCategory] Fetching succeeded from: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_live_streams&category_id=450&_t=1783307293161. Response text sample (first 100 chars): [{"num":1,"name":"####### beIN SP\u26bdRTS \u1d34\u1d30 #######","stream_type":"live","stream_id":26
+2026-07-06T03:08:13.345Z [UI INFO] [getChannelsForCategory] Successfully parsed JSON. Raw streams length: 54
+2026-07-06T03:08:13.346Z [UI INFO] [getChannelsForCategory] Processed 54 channels. Live fetch successful.
+2026-07-06T03:08:13.346Z [UI INFO] [getChannelsForCategory] Called for playlistId: pl_1783300648922, type: vod, categoryId: 156, categoryName: 4K افلام عربية فائقة الوضوح
+2026-07-06T03:08:13.410Z [UI INFO] [getChannelsForCategory] Fetching streams from host: https://tv.business-cloud-neo.com, url: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_live_streams&category_id=451&_t=1783307293410
+2026-07-06T03:08:13.412Z [UI INFO] [getChannelsForCategory] Fetching attempt 1/3 from: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_live_streams&category_id=451&_t=1783307293410
+2026-07-06T03:08:13.503Z [UI INFO] [getChannelsForCategory] Fetching streams from host: https://tv.business-cloud-neo.com, url: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_vod_streams&category_id=156&_t=1783307293503
+2026-07-06T03:08:13.504Z [UI INFO] [getChannelsForCategory] Fetching attempt 1/3 from: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_vod_streams&category_id=156&_t=1783307293503
+2026-07-06T03:08:13.514Z [UI INFO] [getChannelsForCategory] Fetching succeeded from: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_live_streams&category_id=450&_t=1783307293257. Response text sample (first 100 chars): [{"num":1,"name":"####### beIN SP\u26bdRTS \u1d34\u1d30 #######","stream_type":"live","stream_id":26
+2026-07-06T03:08:13.517Z [UI INFO] [getChannelsForCategory] Successfully parsed JSON. Raw streams length: 54
+2026-07-06T03:08:13.517Z [UI INFO] [getChannelsForCategory] Processed 54 channels. Live fetch successful.
+2026-07-06T03:08:13.517Z [UI INFO] [getChannelsForCategory] Called for playlistId: pl_1783300648922, type: vod, categoryId: 156, categoryName: 4K افلام عربية فائقة الوضوح
+2026-07-06T03:08:13.586Z [UI INFO] [getChannelsForCategory] Fetching succeeded from: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_live_streams&category_id=451&_t=1783307293410. Response text sample (first 100 chars): [{"num":1,"name":"####### beIN SP\u26bdRTS AFC \u1d34\u1d30 #######","stream_type":"live","stream_id
+2026-07-06T03:08:13.588Z [UI INFO] [getChannelsForCategory] Successfully parsed JSON. Raw streams length: 47
+2026-07-06T03:08:13.589Z [UI INFO] [getChannelsForCategory] Processed 47 channels. Live fetch successful.
+2026-07-06T03:08:13.594Z [UI INFO] [getChannelsForCategory] Called for playlistId: pl_1783300648922, type: vod, categoryId: 155, categoryName: افلام عربية حديثة
+2026-07-06T03:08:13.658Z [UI INFO] [getChannelsForCategory] Fetching streams from host: https://tv.business-cloud-neo.com, url: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_vod_streams&category_id=156&_t=1783307293658
+2026-07-06T03:08:13.660Z [UI INFO] [getChannelsForCategory] Fetching attempt 1/3 from: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_vod_streams&category_id=156&_t=1783307293658
+2026-07-06T03:08:13.711Z [UI INFO] [getChannelsForCategory] Fetching streams from host: https://tv.business-cloud-neo.com, url: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_vod_streams&category_id=155&_t=1783307293711
+2026-07-06T03:08:13.715Z [UI INFO] [getChannelsForCategory] Fetching attempt 1/3 from: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_vod_streams&category_id=155&_t=1783307293711
+2026-07-06T03:08:13.747Z [UI INFO] [getChannelsForCategory] Fetching succeeded from: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_vod_streams&category_id=156&_t=1783307293503. Response text sample (first 100 chars): [{"num":1,"name":"4K-AR: \u0641\u064a\u0632\u0627","stream_type":"movie","stream_id":716766,"stream_
+2026-07-06T03:08:13.749Z [UI INFO] [getChannelsForCategory] Successfully parsed JSON. Raw streams length: 100
+2026-07-06T03:08:13.803Z [UI INFO] [getChannelsForCategory] Processed 100 channels. Live fetch successful.
+2026-07-06T03:08:13.804Z [UI INFO] [getChannelsForCategory] Called for playlistId: pl_1783300648922, type: series, categoryId: 1, categoryName: يعرض الآن عربي
+2026-07-06T03:08:13.926Z [UI INFO] [getChannelsForCategory] Fetching succeeded from: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_vod_streams&category_id=156&_t=1783307293658. Response text sample (first 100 chars): [{"num":1,"name":"4K-AR: \u0641\u064a\u0632\u0627","stream_type":"movie","stream_id":716766,"stream_
+2026-07-06T03:08:13.928Z [UI INFO] [getChannelsForCategory] Successfully parsed JSON. Raw streams length: 100
+2026-07-06T03:08:13.929Z [UI INFO] [getChannelsForCategory] Processed 100 channels. Live fetch successful.
+2026-07-06T03:08:13.929Z [UI INFO] [getChannelsForCategory] Called for playlistId: pl_1783300648922, type: series, categoryId: 1, categoryName: يعرض الآن عربي
+2026-07-06T03:08:13.930Z [UI INFO] [getChannelsForCategory] Fetching streams from host: https://tv.business-cloud-neo.com, url: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_series&category_id=1&_t=1783307293928
+2026-07-06T03:08:13.931Z [UI INFO] [getChannelsForCategory] Fetching attempt 1/3 from: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_series&category_id=1&_t=1783307293928
+2026-07-06T03:08:13.932Z [UI INFO] [getChannelsForCategory] Fetching succeeded from: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_vod_streams&category_id=155&_t=1783307293711. Response text sample (first 100 chars): [{"num":1,"name":"AR-EG: \u0641\u064a\u0632\u0627","stream_type":"movie","stream_id":716765,"stream_
+2026-07-06T03:08:13.933Z [UI INFO] [getChannelsForCategory] Successfully parsed JSON. Raw streams length: 110
+2026-07-06T03:08:13.934Z [UI INFO] [getChannelsForCategory] Processed 110 channels. Live fetch successful.
+2026-07-06T03:08:13.934Z [UI INFO] [getChannelsForCategory] Called for playlistId: pl_1783300648922, type: series, categoryId: 2, categoryName: يعرض الآن تركي مترجم ☪
+2026-07-06T03:08:14.388Z [UI INFO] [getChannelsForCategory] Fetching streams from host: https://tv.business-cloud-neo.com, url: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_series&category_id=1&_t=1783307294388
+2026-07-06T03:08:14.389Z [UI INFO] [getChannelsForCategory] Fetching attempt 1/3 from: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_series&category_id=1&_t=1783307294388
+2026-07-06T03:08:14.494Z [UI INFO] [getChannelsForCategory] Fetching streams from host: https://tv.business-cloud-neo.com, url: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_series&category_id=2&_t=1783307294494
+2026-07-06T03:08:14.496Z [UI INFO] [getChannelsForCategory] Fetching attempt 1/3 from: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_series&category_id=2&_t=1783307294494
+2026-07-06T03:08:14.818Z [UI INFO] [getChannelsForCategory] Fetching succeeded from: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_series&category_id=1&_t=1783307293928. Response text sample (first 100 chars): [{"num":1,"name":"AR-DUB: \u0645\u0633\u0644\u0645 \u0628\u0646 \u0639\u0642\u064a\u0644","series_id
+2026-07-06T03:08:14.820Z [UI INFO] [getChannelsForCategory] Successfully parsed JSON. Raw streams length: 32
+2026-07-06T03:08:14.821Z [UI INFO] [getChannelsForCategory] Processed 32 channels. Live fetch successful.
+2026-07-06T03:08:14.822Z [UI INFO] [getChannelsForCategory] Called for playlistId: pl_1783300648922, type: live, categoryId: 451, categoryName: AR| BEIN SPORTS F AFC⚽
+2026-07-06T03:08:15.222Z [UI INFO] [getChannelsForCategory] Fetching succeeded from: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_series&category_id=1&_t=1783307294388. Response text sample (first 100 chars): [{"num":1,"name":"AR-DUB: \u0645\u0633\u0644\u0645 \u0628\u0646 \u0639\u0642\u064a\u0644","series_id
+2026-07-06T03:08:15.225Z [UI INFO] [getChannelsForCategory] Successfully parsed JSON. Raw streams length: 32
+2026-07-06T03:08:15.225Z [UI INFO] [getChannelsForCategory] Processed 32 channels. Live fetch successful.
+2026-07-06T03:08:15.226Z [UI INFO] [getChannelsForCategory] Called for playlistId: pl_1783300648922, type: live, categoryId: 451, categoryName: AR| BEIN SPORTS F AFC⚽
+2026-07-06T03:08:15.226Z [UI INFO] [getChannelsForCategory] Fetching streams from host: https://tv.business-cloud-neo.com, url: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_live_streams&category_id=451&_t=1783307295224
+2026-07-06T03:08:15.227Z [UI INFO] [getChannelsForCategory] Fetching attempt 1/3 from: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_live_streams&category_id=451&_t=1783307295224
+2026-07-06T03:08:15.240Z [UI INFO] [getChannelsForCategory] Fetching succeeded from: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_series&category_id=2&_t=1783307294494. Response text sample (first 100 chars): [{"num":1,"name":"AR-TR-S: Alt\u0131 \u00dcst\u00fc \u0130stanbul (2026) \u0627\u0633\u0637\u0646\u0
+2026-07-06T03:08:15.255Z [UI INFO] [getChannelsForCategory] Successfully parsed JSON. Raw streams length: 55
+2026-07-06T03:08:15.264Z [UI INFO] [getChannelsForCategory] Processed 55 channels. Live fetch successful.
+2026-07-06T03:08:15.420Z [UI INFO] [getChannelsForCategory] Fetching succeeded from: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_live_streams&category_id=451&_t=1783307295224. Response text sample (first 100 chars): [{"num":1,"name":"####### beIN SP\u26bdRTS AFC \u1d34\u1d30 #######","stream_type":"live","stream_id
+2026-07-06T03:08:15.421Z [UI INFO] [getChannelsForCategory] Successfully parsed JSON. Raw streams length: 47
+2026-07-06T03:08:15.422Z [UI INFO] [getChannelsForCategory] Processed 47 channels. Live fetch successful.
+2026-07-06T03:08:15.422Z [UI INFO] [getChannelsForCategory] Called for playlistId: pl_1783300648922, type: vod, categoryId: 155, categoryName: افلام عربية حديثة
+2026-07-06T03:08:15.462Z [UI INFO] [getChannelsForCategory] Fetching streams from host: https://tv.business-cloud-neo.com, url: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_live_streams&category_id=451&_t=1783307295462
+2026-07-06T03:08:15.463Z [UI INFO] [getChannelsForCategory] Fetching attempt 1/3 from: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_live_streams&category_id=451&_t=1783307295462
+2026-07-06T03:08:15.527Z [UI INFO] [getChannelsForCategory] Fetching streams from host: https://tv.business-cloud-neo.com, url: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_vod_streams&category_id=155&_t=1783307295527
+2026-07-06T03:08:15.528Z [UI INFO] [getChannelsForCategory] Fetching attempt 1/3 from: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_vod_streams&category_id=155&_t=1783307295527
+2026-07-06T03:08:15.604Z [UI INFO] [getChannelsForCategory] Fetching succeeded from: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_live_streams&category_id=451&_t=1783307295462. Response text sample (first 100 chars): [{"num":1,"name":"####### beIN SP\u26bdRTS AFC \u1d34\u1d30 #######","stream_type":"live","stream_id
+2026-07-06T03:08:15.606Z [UI INFO] [getChannelsForCategory] Successfully parsed JSON. Raw streams length: 47
+2026-07-06T03:08:15.609Z [UI INFO] [getChannelsForCategory] Processed 47 channels. Live fetch successful.
+2026-07-06T03:08:15.610Z [UI INFO] [getChannelsForCategory] Called for playlistId: pl_1783300648922, type: vod, categoryId: 155, categoryName: افلام عربية حديثة
+2026-07-06T03:08:15.713Z [UI INFO] [getChannelsForCategory] Fetching streams from host: https://tv.business-cloud-neo.com, url: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_vod_streams&category_id=155&_t=1783307295713
+2026-07-06T03:08:15.714Z [UI INFO] [getChannelsForCategory] Fetching attempt 1/3 from: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_vod_streams&category_id=155&_t=1783307295713
+2026-07-06T03:08:15.754Z [UI INFO] [getChannelsForCategory] Fetching succeeded from: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_vod_streams&category_id=155&_t=1783307295527. Response text sample (first 100 chars): [{"num":1,"name":"AR-EG: \u0641\u064a\u0632\u0627","stream_type":"movie","stream_id":716765,"stream_
+2026-07-06T03:08:15.755Z [UI INFO] [getChannelsForCategory] Successfully parsed JSON. Raw streams length: 110
+2026-07-06T03:08:15.756Z [UI INFO] [getChannelsForCategory] Processed 110 channels. Live fetch successful.
+2026-07-06T03:08:15.758Z [UI INFO] [getChannelsForCategory] Called for playlistId: pl_1783300648922, type: series, categoryId: 2, categoryName: يعرض الآن تركي مترجم ☪
+2026-07-06T03:08:15.862Z [UI INFO] [getChannelsForCategory] Fetching streams from host: https://tv.business-cloud-neo.com, url: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_series&category_id=2&_t=1783307295862
+2026-07-06T03:08:15.863Z [UI INFO] [getChannelsForCategory] Fetching attempt 1/3 from: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_series&category_id=2&_t=1783307295862
+2026-07-06T03:08:15.947Z [UI INFO] [getChannelsForCategory] Fetching succeeded from: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_vod_streams&category_id=155&_t=1783307295713. Response text sample (first 100 chars): [{"num":1,"name":"AR-EG: \u0641\u064a\u0632\u0627","stream_type":"movie","stream_id":716765,"stream_
+2026-07-06T03:08:15.948Z [UI INFO] [getChannelsForCategory] Successfully parsed JSON. Raw streams length: 110
+2026-07-06T03:08:15.949Z [UI INFO] [getChannelsForCategory] Processed 110 channels. Live fetch successful.
+2026-07-06T03:08:15.949Z [UI INFO] [getChannelsForCategory] Called for playlistId: pl_1783300648922, type: series, categoryId: 2, categoryName: يعرض الآن تركي مترجم ☪
+2026-07-06T03:08:16.054Z [UI INFO] [getChannelsForCategory] Fetching streams from host: https://tv.business-cloud-neo.com, url: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_series&category_id=2&_t=1783307296054
+2026-07-06T03:08:16.054Z [UI INFO] [getChannelsForCategory] Fetching attempt 1/3 from: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_series&category_id=2&_t=1783307296054
+2026-07-06T03:08:16.491Z [UI INFO] [getChannelsForCategory] Fetching succeeded from: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_series&category_id=2&_t=1783307295862. Response text sample (first 100 chars): [{"num":1,"name":"AR-TR-S: Alt\u0131 \u00dcst\u00fc \u0130stanbul (2026) \u0627\u0633\u0637\u0646\u0
+2026-07-06T03:08:16.493Z [UI INFO] [getChannelsForCategory] Successfully parsed JSON. Raw streams length: 55
+2026-07-06T03:08:16.493Z [UI INFO] [getChannelsForCategory] Processed 55 channels. Live fetch successful.
+2026-07-06T03:08:16.737Z [UI INFO] [getChannelsForCategory] Fetching succeeded from: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_series&category_id=2&_t=1783307296054. Response text sample (first 100 chars): [{"num":1,"name":"AR-TR-S: Alt\u0131 \u00dcst\u00fc \u0130stanbul (2026) \u0627\u0633\u0637\u0646\u0
+2026-07-06T03:08:16.738Z [UI INFO] [getChannelsForCategory] Successfully parsed JSON. Raw streams length: 55
+2026-07-06T03:08:16.738Z [UI INFO] [getChannelsForCategory] Processed 55 channels. Live fetch successful.
+2026-07-06T03:08:17.965Z [UI INFO] [getChannelsForCategory] Called for playlistId: pl_1783300648922, type: live, categoryId: 450, categoryName: AR| BEIN SPORTS F⚽
+2026-07-06T03:08:18.266Z [UI INFO] [getChannelsForCategory] Fetching streams from host: https://tv.business-cloud-neo.com, url: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_live_streams&category_id=450&_t=1783307298266
+2026-07-06T03:08:18.267Z [UI INFO] [getChannelsForCategory] Fetching attempt 1/3 from: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_live_streams&category_id=450&_t=1783307298266
+2026-07-06T03:08:18.581Z [UI INFO] [getChannelsForCategory] Fetching succeeded from: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_live_streams&category_id=450&_t=1783307298266. Response text sample (first 100 chars): [{"num":1,"name":"####### beIN SP\u26bdRTS \u1d34\u1d30 #######","stream_type":"live","stream_id":26
+2026-07-06T03:08:18.583Z [UI INFO] [getChannelsForCategory] Successfully parsed JSON. Raw streams length: 54
+2026-07-06T03:08:18.583Z [UI INFO] [getChannelsForCategory] Processed 54 channels. Live fetch successful.
+2026-07-06T03:08:22.924Z [UI INFO] [getChannelsForCategory] Called for playlistId: pl_1783300648922, type: live, categoryId: 875, categoryName: 4K| WORLD CUP 2026 ⁴ᴷ
+2026-07-06T03:08:23.120Z [UI INFO] [getChannelsForCategory] Fetching streams from host: https://tv.business-cloud-neo.com, url: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_live_streams&category_id=875&_t=1783307303119
+2026-07-06T03:08:23.121Z [UI INFO] [getChannelsForCategory] Fetching attempt 1/3 from: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_live_streams&category_id=875&_t=1783307303119
+2026-07-06T03:08:23.474Z [UI INFO] [getChannelsForCategory] Fetching succeeded from: https://tv.business-cloud-neo.com/player_api.php?username=19fbf583dbfb&password=418c317f2d&action=get_live_streams&category_id=875&_t=1783307303119. Response text sample (first 100 chars): [{"num":1,"name":"### WORLD CUP 2026 \u2074\u1d37 ###","stream_type":"live","stream_id":705398,"stre
+2026-07-06T03:08:23.549Z [UI INFO] [getChannelsForCategory] Successfully parsed JSON. Raw streams length: 91
+2026-07-06T03:08:23.620Z [UI INFO] [getChannelsForCategory] Processed 91 channels. Live fetch successful.
+2026-07-06T03:08:26.826Z [PROXY] Request: https://tv.business-cloud-neo.com/live/19fbf583dbfb/418c317f2d/710325.m3u8
+2026-07-06T03:08:26.963Z [UI WARN] Failed to lock screen orientation to landscape: [object DOMException]
+2026-07-06T03:08:27.390Z [UI INFO] Autoplay prevented [object DOMException]
+2026-07-06T03:08:28.386Z [UI INFO] Autoplay prevented [object DOMException]
+2026-07-06T03:08:29.889Z [UI WARN] Failed to unlock screen orientation: [object DOMException]

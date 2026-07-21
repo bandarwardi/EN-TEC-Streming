@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { View, Text, StyleSheet, TextInput, Pressable, ActivityIndicator, Alert, ScrollView } from 'react-native';
 import { useColors } from '@/hooks/useColors';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -7,6 +7,7 @@ import { Link2AngularRightBulk, FileMultipleBulk } from '@lineiconshq/free-icons
 import { GoldButton } from '@/components/GoldButton';
 import { useAppStore } from '@/store/app-store';
 import { router } from 'expo-router';
+import { TVFocusable } from '@/components/TVFocusable';
 
 export default function LoginScreen() {
   const colors = useColors();
@@ -20,6 +21,9 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const [loadingMsg, setLoadingMsg] = useState('');
 
+  const urlRef = useRef<any>(null);
+  const nameRef = useRef<any>(null);
+
   const handleLoadPlaylist = async () => {
     const url = m3uUrl.trim();
     if (!url) {
@@ -32,13 +36,13 @@ export default function LoginScreen() {
     setLoading(true);
     setLoadingMsg('Connecting to server...');
     try {
-      const { channels } = await loadPlaylistFromUrl(id, url, (msg) => setLoadingMsg(msg));
+      const { channels, expireText } = await loadPlaylistFromUrl(id, url, (msg) => setLoadingMsg(msg));
       await addPlaylist({
         id,
         name,
         url,
         channels,
-        updated: 'Just now',
+        updated: expireText || 'Active',
         lastUpdatedTimestamp: Date.now(),
         isDemo: false,
       });
@@ -53,10 +57,7 @@ export default function LoginScreen() {
   };
 
   return (
-    <ScrollView 
-      contentContainerStyle={[styles.container, { backgroundColor: colors.background }]} 
-      keyboardShouldPersistTaps="handled"
-    >
+    <View style={{ flex: 1, backgroundColor: colors.background, overflow: 'hidden' }}>
       <LinearGradient
         colors={['rgba(212,168,67,0.15)', 'transparent']}
         style={[StyleSheet.absoluteFill, { top: -200, left: -200, right: 200, bottom: 200 }]}
@@ -66,19 +67,27 @@ export default function LoginScreen() {
         style={[StyleSheet.absoluteFill, { top: 200, left: 200, right: -200, bottom: -200 }]}
       />
       
-      <View style={styles.logoContainer}>
-        <Text style={[styles.logoText, { color: colors.gold }]}>EN TEC</Text>
-        <Text style={styles.logoSubtext}>STREAMING</Text>
-      </View>
-      
-      <View style={[styles.card, { backgroundColor: 'rgba(26,26,26,0.8)', borderColor: colors.border }]}>
-        <Text style={[styles.title, { color: colors.text }]}>Welcome to EN TEC</Text>
-        <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>Please add your IPTV playlist to continue.</Text>
+      <ScrollView 
+        contentContainerStyle={styles.container} 
+        keyboardShouldPersistTaps="handled"
+      >
+        <View style={styles.logoContainer}>
+          <Text style={[styles.logoText, { color: colors.gold }]}>EN TEC</Text>
+          <Text style={styles.logoSubtext}>STREAMING</Text>
+        </View>
         
-        <View style={styles.form}>
-            <View style={[styles.inputContainer, { backgroundColor: colors.surface2, borderColor: colors.border }]}>
+        <View style={[styles.card, { backgroundColor: 'rgba(26,26,26,0.8)', borderColor: colors.border }]}>
+          <Text style={[styles.title, { color: colors.text }]}>Welcome to EN TEC</Text>
+          <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>Please add your IPTV playlist to continue.</Text>
+          
+          <View style={styles.form}>
+            <TVFocusable 
+              onPress={() => urlRef.current?.focus()}
+              style={({ focused }: any) => [styles.inputContainer, { backgroundColor: colors.surface2, borderColor: focused ? '#D4A843' : colors.border }]}
+            >
               <Lineicons icon={Link2AngularRightBulk} size={20} color={colors.mutedForeground} />
               <TextInput 
+                ref={urlRef}
                 style={[styles.input, { color: colors.text }]}
                 placeholder="M3U URL"
                 placeholderTextColor={colors.mutedForeground}
@@ -87,19 +96,25 @@ export default function LoginScreen() {
                 editable={!loading}
                 autoCapitalize="none"
                 keyboardType="url"
+                focusable={false}
               />
-            </View>
-            <View style={[styles.inputContainer, { backgroundColor: colors.surface2, borderColor: colors.border }]}>
+            </TVFocusable>
+            <TVFocusable 
+              onPress={() => nameRef.current?.focus()}
+              style={({ focused }: any) => [styles.inputContainer, { backgroundColor: colors.surface2, borderColor: focused ? '#D4A843' : colors.border }]}
+            >
               <Lineicons icon={FileMultipleBulk} size={20} color={colors.mutedForeground} />
               <TextInput 
+                ref={nameRef}
                 style={[styles.input, { color: colors.text }]}
                 placeholder="Playlist Name (Optional)"
                 placeholderTextColor={colors.mutedForeground}
                 value={m3uName}
                 onChangeText={setM3uName}
                 editable={!loading}
+                focusable={false}
               />
-            </View>
+            </TVFocusable>
             
             {loading && (
               <View style={styles.loadingRow}>
@@ -115,8 +130,9 @@ export default function LoginScreen() {
               disabled={loading}
             />
           </View>
-      </View>
-    </ScrollView>
+        </View>
+      </ScrollView>
+    </View>
   );
 }
 

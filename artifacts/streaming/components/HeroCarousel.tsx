@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, Pressable, ScrollView, useWindowDimensions, Modal, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, useWindowDimensions, Modal } from 'react-native';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { FeaturedHero } from '@/types';
@@ -19,7 +19,7 @@ export function HeroCarousel({ items, onPlay, onInfo }: HeroCarouselProps) {
   const colors = useColors();
   const { width, height } = useWindowDimensions();
   const isLandscape = width > height;
-  const carouselHeight = isLandscape ? height * 0.9 : height * 0.7;
+  const carouselHeight = isLandscape ? height * 0.8 : height * 0.7;
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isUserInteracting, setIsUserInteracting] = useState(false);
   const [containerWidth, setContainerWidth] = useState(width);
@@ -112,23 +112,10 @@ export function HeroCarousel({ items, onPlay, onInfo }: HeroCarouselProps) {
                 locations={[0, 0.2, 0.6, 1]}
                 style={StyleSheet.absoluteFill}
               />
-              <View style={[styles.content, { bottom: 40 }]}>
+              <View style={[styles.content, { bottom: isLandscape ? 10 : 40 }]}>
                 <Text style={styles.title} numberOfLines={2}>{item.title}</Text>
 
                 <View style={styles.actions}>
-                  <TVFocusable borderThickness={3}
-                    style={({ focused }: any) => [
-                      styles.circleButton,
-                      { backgroundColor: isFav ? 'rgba(212,168,67,0.2)' : 'rgba(255,255,255,0.15)' },
-                      focused && { transform: [{ scale: 1.05 }], backgroundColor: 'rgba(255,255,255,0.3)' }
-                    ]}
-                    onPress={() => handleToggleFavorite(item)}
-                  >
-                    {({ focused }: any) => (
-                      <Lineicons icon={isFav  ? QuestionMarkCircleBulk : PlusBulk} size={20} color="#FFF" />
-                    )}
-                  </TVFocusable>
-
                   <TVFocusable borderThickness={3}
                     style={({ focused }: any) => [
                       styles.playButton,
@@ -140,18 +127,6 @@ export function HeroCarousel({ items, onPlay, onInfo }: HeroCarouselProps) {
                         <Lineicons icon={PlayBulk} size={20} color="#1A1A1A" style={{ marginLeft: 4 }} />
                         <Text style={styles.playButtonText}>Watch Now</Text>
                       </>
-                    )}
-                  </TVFocusable>
-
-                  <TVFocusable borderThickness={3}
-                    style={({ focused }: any) => [
-                      styles.circleButton,
-                      { backgroundColor: 'rgba(255,255,255,0.15)' },
-                      focused && { transform: [{ scale: 1.05 }], backgroundColor: 'rgba(255,255,255,0.3)' }
-                    ]}
-                    onPress={() => setSelectedItemForActionSheet(item)}>
-                    {({ focused }: any) => (
-                      <Lineicons icon={MenuMeatballs1Bulk} size={20} color="#FFF" />
                     )}
                   </TVFocusable>
                 </View>
@@ -179,13 +154,14 @@ export function HeroCarousel({ items, onPlay, onInfo }: HeroCarouselProps) {
         animationType="slide"
         onRequestClose={() => setSelectedItemForActionSheet(null)}
       >
-        <TouchableOpacity
+        <TVFocusable
           style={styles.modalOverlay}
-          activeOpacity={1}
+          disableBorder
+          focusable={false}
           onPress={() => setSelectedItemForActionSheet(null)}
         >
           {selectedItemForActionSheet && (
-            <TouchableOpacity activeOpacity={1} style={[styles.actionSheet, { backgroundColor: colors.surface }]}>
+            <TVFocusable disableBorder focusable={false} style={[styles.actionSheet, { backgroundColor: colors.surface }]}>
               <View style={styles.dragHandle} />
 
               <Image
@@ -221,12 +197,12 @@ export function HeroCarousel({ items, onPlay, onInfo }: HeroCarouselProps) {
                   onPress={() => handleToggleFavorite(selectedItemForActionSheet)}
                 >
                   <View style={styles.actionSheetIconWrapper}>
-                    <Lineicons icon={favorites.includes(selectedItemForActionSheet.id)  ? QuestionMarkCircleBulk : PlusBulk} size={20} color="#FFF" />
+                    <Lineicons icon={favorites.includes(selectedItemForActionSheet.id) ? QuestionMarkCircleBulk : PlusBulk} size={20} color="#FFF" />
                   </View>
                   <Text style={styles.actionSheetBtnText}>My List</Text>
                 </TVFocusable>
 
-                <TVFocusable borderThickness={3}
+                {/* <TVFocusable borderThickness={3}
                   style={styles.actionSheetBtn}
                   onPress={() => {
                     onInfo(selectedItemForActionSheet);
@@ -237,11 +213,11 @@ export function HeroCarousel({ items, onPlay, onInfo }: HeroCarouselProps) {
                     <Lineicons icon={QuestionMarkCircleBulk} size={20} color="#FFF" />
                   </View>
                   <Text style={styles.actionSheetBtnText}>More Info</Text>
-                </TVFocusable>
+                </TVFocusable> */}
               </View>
-            </TouchableOpacity>
+            </TVFocusable>
           )}
-        </TouchableOpacity>
+        </TVFocusable>
       </Modal>
     </View>
   );

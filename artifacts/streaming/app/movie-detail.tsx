@@ -16,7 +16,7 @@ import { useLocalSearchParams, router } from 'expo-router';
 import { useColors } from '@/hooks/useColors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Lineicons } from '@lineiconshq/react-native-lineicons';
-import { ArrowLeftBulk, PlayBulk, Trash3Bulk, Download1Bulk, CameraMovie1Bulk, QuestionMarkCircleBulk, PlusBulk } from '@lineiconshq/free-icons';
+import { ArrowLeftBulk, PlayBulk, Trash3Bulk, Download1Bulk, CameraMovie1Bulk, QuestionMarkCircleBulk, PlusBulk, HeartBulk } from '@lineiconshq/free-icons';
 import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as FileSystem from 'expo-file-system/legacy';
@@ -57,6 +57,8 @@ export default function MovieDetailScreen() {
   const downloads = useAppStore((s) => s.downloads);
   const startDownload = useAppStore((s) => s.startDownload);
   const removeDownload = useAppStore((s) => s.removeDownload);
+  const nativePlayerPath = useAppStore((s) => s.nativePlayerPath);
+  const setNativePlayerPath = useAppStore((s) => s.setNativePlayerPath);
 
   const [loading, setLoading] = useState(true);
   const [movieInfo, setMovieInfo] = useState<any>(null);
@@ -234,13 +236,7 @@ export default function MovieDetailScreen() {
     return () => { active = false; };
   }, [activePlaylistId, activeCategories, primaryCategory, params.id]);
 
-  const getFallbackRecommendations = (): Channel[] => [
-    { id: 'm_sim_1', name: 'Inception', logo: 'https://images.unsplash.com/photo-1536440136628-849c177e76a1?w=300&h=450&fit=crop', category: primaryCategory, streamUrl: movieStreamUrl, type: 'vod' as const, isLive: false, current: '', next: '', quality: 'HD' as const },
-    { id: 'm_sim_2', name: 'Interstellar', logo: 'https://images.unsplash.com/photo-1509198397868-475647b2a1e5?w=300&h=450&fit=crop', category: primaryCategory, streamUrl: movieStreamUrl, type: 'vod' as const, isLive: false, current: '', next: '', quality: 'HD' as const },
-    { id: 'm_sim_3', name: 'The Dark Knight', logo: 'https://images.unsplash.com/photo-1478720568477-152d9b164e26?w=300&h=450&fit=crop', category: primaryCategory, streamUrl: movieStreamUrl, type: 'vod' as const, isLive: false, current: '', next: '', quality: 'HD' as const },
-    { id: 'm_sim_4', name: 'Avatar', logo: 'https://images.unsplash.com/photo-1518709268805-4e9042af9f23?w=300&h=450&fit=crop', category: primaryCategory, streamUrl: movieStreamUrl, type: 'vod' as const, isLive: false, current: '', next: '', quality: 'HD' as const },
-    { id: 'm_sim_5', name: 'Gladiator', logo: 'https://images.unsplash.com/photo-1559583985-c80d8ad9b29f?w=300&h=450&fit=crop', category: primaryCategory, streamUrl: movieStreamUrl, type: 'vod' as const, isLive: false, current: '', next: '', quality: 'HD' as const }
-  ];
+  const getFallbackRecommendations = (): Channel[] => [];
 
   const handleWatch = () => {
     let urlToPlay = isDownloaded && downloadedItem?.localUri ? downloadedItem.localUri : movieStreamUrl;
@@ -302,12 +298,37 @@ export default function MovieDetailScreen() {
   const handleWatchTrailer = () => {
     const trailerId = movieInfo?.youtube_trailer || movieInfo?.trailer;
     if (trailerId) {
-      const url = trailerId.startsWith('http')
-        ? trailerId
+      const url = trailerId.startsWith('http') 
+        ? trailerId 
         : `https://www.youtube.com/watch?v=${trailerId}`;
       Linking.openURL(url).catch(() => {
         Alert.alert('Error', 'Failed to open trailer.');
       });
+    }
+  };
+
+  const handlePlayNative = async () => {
+    try {
+      let path = nativePlayerPath;
+      if (!path) {
+        const res = await fetch('http://localhost:1337/select-player');
+        const data = await res.json();
+        if (data.path) {
+          path = data.path;
+          setNativePlayerPath(path);
+        } else {
+          return; 
+        }
+      }
+      
+      const res = await fetch(`http://localhost:1337/play-native?url=${encodeURIComponent(movieStreamUrl)}&title=${encodeURIComponent(movieTitle)}&playerPath=${encodeURIComponent(path || '')}`);
+      if (!res.ok) {
+        const errorText = await res.text();
+        Alert.alert('Error', errorText || 'Failed to launch native player.');
+      }
+    } catch (e) {
+      console.error('Failed to launch native player', e);
+      Alert.alert('Error', 'Failed to connect to local proxy for native playback.');
     }
   };
 
@@ -388,13 +409,20 @@ export default function MovieDetailScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
-      <ScrollView ref={scrollViewRef} contentContainerStyle={{ paddingBottom: insets.bottom + 40 }} showsVerticalScrollIndicator={false}>
+      <ScrollView ref={scrollViewRef} contentContainerStyle={{ paddingBottom: insets.bottom + 40 }}>
         
-        <View style={styles.heroSection}>
+        <View style={[styles.heroSection, { height: Math.max(height * 0.70, 350) }]}>
           <Image source={{ uri: movieBackdrop || moviePoster }} style={StyleSheet.absoluteFill} contentFit="cover" />
           <LinearGradient
-            colors={['transparent', 'rgba(10,10,10,0.6)', colors.background]}
-            style={[StyleSheet.absoluteFill, { top: '60%' }]}
+            colors={['transparent', 'rgba(0,0,0,0.3)', colors.background]}
+            style={StyleSheet.absoluteFill}
+            locations={[0, 0.5, 1]}
+          />
+          <LinearGradient
+            colors={[colors.background, 'transparent']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={[StyleSheet.absoluteFill, { width: '60%' }]}
           />
           <TVFocusable 
             style={[styles.backBtn, { top: insets.top + 10 }]} 
@@ -402,47 +430,74 @@ export default function MovieDetailScreen() {
           >
             <Lineicons icon={ArrowLeftBulk} size={28} color="#FFF" style={styles.shadowIcon} />
           </TVFocusable>
-          <View style={[styles.titleSection, { position: 'absolute', bottom: 60, left: 0, right: 0, zIndex: 10 }]}>
-          <Text style={[styles.title, { color: colors.gold }]}>{movieTitle}</Text>
-          <LinearGradient
-            colors={['#D4A843', '#A67C2E']}
-            style={styles.playPillContainer}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-          >
-            <TVFocusable 
-              style={styles.playPill}
-              onPress={handleWatch}
-              scaleAmount={1.05}
-              focusedBorderColor="#FFF"
-              borderThickness={3}
+          
+          <View style={[styles.titleSection, { position: 'absolute', bottom: isLandscape ? 20 : 40, left: isLandscape ? 24 : 40, right: 24, zIndex: 10, alignItems: 'flex-start' }]}>
+            <Text 
+              style={[styles.title, { color: '#FFF', textAlign: 'left', fontSize: width < 768 ? (isLandscape ? 28 : 32) : 42, marginBottom: isLandscape ? 8 : 12 }]} 
+              numberOfLines={width < 768 ? (isLandscape ? 2 : 3) : 2}
+              adjustsFontSizeToFit
             >
-              <Lineicons icon={PlayBulk} size={24} color="#1A1A1A" />
-              <Text style={styles.playPillText}>Watch Now</Text>
-            </TVFocusable>
-          </LinearGradient>
-        </View>
+              {movieTitle}
+            </Text>
+            
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: isLandscape ? 12 : 20 }}>
+              <Text style={[styles.metaRowText, { color: '#E8A317', fontWeight: 'bold' }, isLandscape && { marginBottom: 0 }]}>
+                {rating.toFixed(1)} Rating
+              </Text>
+              <Text style={[styles.metaRowText, { color: '#CCC' }, isLandscape && { marginBottom: 0 }]}>{year}</Text>
+              <Text style={[styles.metaRowText, { color: '#CCC' }, isLandscape && { marginBottom: 0 }]}>{duration}</Text>
+              <Text style={[styles.metaRowText, { color: '#CCC' }, isLandscape && { marginBottom: 0 }]}>{genres.slice(0, 2).join(' | ')}</Text>
+              
+              {!loading && movieInfo && (
+                <View style={{ flexDirection: 'row', gap: 6 }}>
+                  {movieInfo.subtitles && movieInfo.subtitles.length > 0 && (
+                    <Text style={{ backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, color: '#FFF', fontSize: 10, fontWeight: 'bold' }}>CC</Text>
+                  )}
+                  {movieInfo.audio_track && movieInfo.audio_track.length > 0 && (
+                    <Text style={{ backgroundColor: 'rgba(255,255,255,0.2)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, color: '#FFF', fontSize: 10, fontWeight: 'bold' }}>MULTI</Text>
+                  )}
+                </View>
+              )}
+            </View>
+
+            <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
+              <LinearGradient
+                colors={['#D4A843', '#A67C2E']}
+                style={styles.playPillContainer}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+              >
+                <TVFocusable 
+                  style={styles.playPill}
+                  onPress={handleWatch}
+                  scaleAmount={1.05}
+                  focusedBorderColor="#FFF"
+                  borderThickness={3}
+                >
+                  <Lineicons icon={PlayBulk} size={24} color="#1A1A1A" />
+                  <Text style={[styles.playPillText, { flexShrink: 1, textAlign: 'center' }]} numberOfLines={1}>Watch Now</Text>
+                </TVFocusable>
+              </LinearGradient>
+              
+              {/*
+              <TVFocusable 
+                style={[styles.playPill, { backgroundColor: 'rgba(255,255,255,0.1)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.2)' }]}
+                onPress={handlePlayNative}
+                scaleAmount={1.05}
+                focusedBorderColor="#FFF"
+                borderThickness={3}
+              >
+                <Lineicons icon={PlayBulk} size={20} color="#FFF" />
+                <Text style={[styles.playPillText, { color: '#FFF' }]}>Native Player</Text>
+              </TVFocusable>
+              */}
+            </View>
           </View>
+        </View>
 
         <View style={styles.content}>
           <Text style={[styles.sectionHeading, { color: colors.text }]}>Movie Details</Text>
-          <Text style={[styles.tagline, { color: '#E8A317' }]}>Top Pick For You</Text>
 
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-            <Text style={[styles.metaRowText, { color: colors.mutedForeground }]}>
-              {year} • {duration} • {rating.toFixed(1)}/10 • {genres.slice(0, 2).join(' | ')}
-            </Text>
-            {!loading && movieInfo && (
-              <View style={{ flexDirection: 'row', gap: 6, marginBottom: 16 }}>
-                {movieInfo.subtitles && movieInfo.subtitles.length > 0 && (
-                  <Text style={{ backgroundColor: 'rgba(255,255,255,0.1)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, color: '#FFF', fontSize: 10, fontWeight: 'bold' }}>CC</Text>
-                )}
-                {movieInfo.audio_track && movieInfo.audio_track.length > 0 && (
-                  <Text style={{ backgroundColor: 'rgba(255,255,255,0.1)', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, color: '#FFF', fontSize: 10, fontWeight: 'bold' }}>MULTI-AUDIO</Text>
-                )}
-              </View>
-            )}
-          </View>
 
           {loading ? (
             <ActivityIndicator size="small" color={colors.gold} style={{ marginVertical: 12, alignSelf: 'flex-start' }} />
@@ -459,9 +514,9 @@ export default function MovieDetailScreen() {
           <View style={styles.actionButtonsRow}>
             <TVFocusable style={styles.actionIconBtn} onPress={handleToggleFav}>
               <View style={styles.actionIconCircle}>
-                <Lineicons icon={isFavorite  ? QuestionMarkCircleBulk : PlusBulk} size={20} color="#FFF" />
+                <Lineicons icon={HeartBulk} size={20} color={isFavorite ? colors.gold : "#FFF"} />
               </View>
-              <Text style={styles.actionIconText}>My List</Text>
+              <Text style={styles.actionIconText}>{isFavorite ? 'Favorited' : 'Favorite'}</Text>
             </TVFocusable>
             
             <TVFocusable style={styles.actionIconBtn} onPress={handleDownload} disabled={isDownloading}>
@@ -494,7 +549,7 @@ export default function MovieDetailScreen() {
           {!loading && actors.length > 0 && (
             <View style={styles.castSection}>
               <Text style={[styles.sectionTitle, { color: colors.text }]}>Cast</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.castList}>
+              <ScrollView horizontal contentContainerStyle={styles.castList}>
                 {actors.map(actor => (
                   <TVFocusable 
                     key={actor.id} 
@@ -518,7 +573,7 @@ export default function MovieDetailScreen() {
           {recommendations.length > 0 && (
             <View style={styles.similarSection}>
               <Text style={[styles.sectionTitle, { color: colors.text }]}>Similar Content</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.similarList}>
+              <ScrollView horizontal contentContainerStyle={styles.similarList}>
                 {recommendations.map(item => (
                   <TVFocusable
                     key={item.id}
@@ -564,7 +619,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   heroSection: {
-    height: SCREEN_HEIGHT * 0.55,
+    height: SCREEN_HEIGHT * 0.70,
     width: '100%',
     position: 'relative',
   },
@@ -589,13 +644,13 @@ const styles = StyleSheet.create({
     zIndex: 5,
   },
   title: {
-    fontSize: 32,
+    fontSize: 42,
     fontWeight: '900',
-    textAlign: 'center',
-    marginBottom: 8,
-    textShadowColor: 'rgba(0, 0, 0, 0.5)',
+    textAlign: 'left',
+    marginBottom: 12,
+    textShadowColor: 'rgba(0, 0, 0, 0.8)',
     textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 4,
+    textShadowRadius: 6,
   },
   badgeRow: {
     flexDirection: 'row',

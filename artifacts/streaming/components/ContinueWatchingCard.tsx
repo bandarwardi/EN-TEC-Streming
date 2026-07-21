@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet, Pressable, Animated } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
+import { TVFocusable } from '@/components/TVFocusable';
 import { Image } from 'expo-image';
 import { WatchedItem } from '@/store/app-store';
 import { useColors } from '@/hooks/useColors';
@@ -23,51 +24,44 @@ interface ContinueWatchingCardProps {
 
 export const ContinueWatchingCard = React.memo(function ContinueWatchingCard({ item, onPress, width = 240 }: ContinueWatchingCardProps) {
   const colors = useColors();
-  const [isFocused, setIsFocused] = React.useState(false);
-  const scaleAnim = React.useRef(new Animated.Value(1)).current;
-
-  const handleFocus = React.useCallback(() => {
-    setIsFocused(true);
-    Animated.spring(scaleAnim, { toValue: 1.05, useNativeDriver: true }).start();
-  }, [scaleAnim]);
-
-  const handleBlur = React.useCallback(() => {
-    setIsFocused(false);
-    Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true }).start();
-  }, [scaleAnim]);
 
   const percent = item.duration > 0 ? Math.min(100, Math.max(0, (item.progress / item.duration) * 100)) : 0;
 
-  // Use backdrop if available, fallback to poster
-  let imageSource = item.backdrop || item.poster;
-  if (!imageSource) imageSource = 'https://via.placeholder.com/400x225/1a1a1a/ffffff?text=No+Image';
+  const fallbackUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(item.title || 'Movie')}&background=1A1A1A&color=D4A843&bold=true&size=300&format=svg`;
+  const initialImage = item.backdrop || item.poster || fallbackUrl;
+  const [imgSource, setImgSource] = React.useState(initialImage);
+
+  React.useEffect(() => {
+    setImgSource(item.backdrop || item.poster || fallbackUrl);
+  }, [item.backdrop, item.poster, fallbackUrl]);
 
   return (
-    <Pressable
-      onPress={onPress}
-      onPressIn={() => Animated.spring(scaleAnim, { toValue: 0.95, useNativeDriver: true }).start()}
-      onPressOut={() => Animated.spring(scaleAnim, { toValue: isFocused ? 1.05 : 1, useNativeDriver: true }).start()}
-      onFocus={handleFocus}
-      onBlur={handleBlur}
-    >
-      <Animated.View style={[{ width, transform: [{ scale: scaleAnim }] }]}>
+    <TVFocusable onPress={onPress} style={{ width }} disableBorder={true}>
+      {({ focused }: any) => (
         <View style={[
           styles.posterContainer,
-          { borderColor: isFocused ? colors.gold : 'transparent', borderWidth: 2 }
+          { borderColor: focused ? colors.gold : 'transparent', borderWidth: 2 }
         ]}>
-          <Image source={{ uri: imageSource }} style={styles.poster} contentFit="cover" />
+          <Image 
+            source={{ uri: imgSource }} 
+            style={styles.poster} 
+            contentFit="cover" 
+            onError={() => {
+              if (imgSource !== fallbackUrl) setImgSource(fallbackUrl);
+            }}
+          />
           <LinearGradient colors={['transparent', 'rgba(0,0,0,0.9)']} style={styles.gradient}>
             <View style={styles.infoRow}>
               <Text style={styles.title} numberOfLines={1}>{item.title}</Text>
               <Text style={styles.time}>{formatDuration(item.duration)}</Text>
             </View>
             <View style={styles.progressContainer}>
-              <View style={[styles.progressBar, { width: `${percent}%`, backgroundColor: colors.gold }]} />
+               <View style={[styles.progressBar, { width: `${percent}%`, backgroundColor: colors.gold }]} />
             </View>
           </LinearGradient>
         </View>
-      </Animated.View>
-    </Pressable>
+      )}
+    </TVFocusable>
   );
 });
 

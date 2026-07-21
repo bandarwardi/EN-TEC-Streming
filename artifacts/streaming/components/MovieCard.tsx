@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet, Pressable, Animated } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
+import { TVFocusable } from '@/components/TVFocusable';
 import { Image } from 'expo-image';
 import { Movie } from '@/types';
 import { QualityBadge } from './QualityBadge';
@@ -13,42 +14,38 @@ interface MovieCardProps {
 
 export const MovieCard = React.memo(function MovieCard({ movie, onPress, width = 128 }: MovieCardProps) {
   const colors = useColors();
-  const [isFocused, setIsFocused] = React.useState(false);
-  const scaleAnim = React.useRef(new Animated.Value(1)).current;
+  const fallbackUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(movie.title || 'Movie')}&background=1A1A1A&color=D4A843&bold=true&size=300&format=svg`;
+  const [imgSource, setImgSource] = React.useState(movie.poster || fallbackUrl);
 
-  const handleFocus = React.useCallback(() => {
-    setIsFocused(true);
-    Animated.spring(scaleAnim, { toValue: 1.05, useNativeDriver: true }).start();
-  }, [scaleAnim]);
-
-  const handleBlur = React.useCallback(() => {
-    setIsFocused(false);
-    Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true }).start();
-  }, [scaleAnim]);
+  // Update source if movie changes
+  React.useEffect(() => {
+    setImgSource(movie.poster || fallbackUrl);
+  }, [movie.poster, fallbackUrl]);
 
   return (
-    <Pressable
-      onPress={onPress}
-      onPressIn={() => Animated.spring(scaleAnim, { toValue: 0.95, useNativeDriver: true }).start()}
-      onPressOut={() => Animated.spring(scaleAnim, { toValue: isFocused ? 1.05 : 1, useNativeDriver: true }).start()}
-      onFocus={handleFocus}
-      onBlur={handleBlur}
-    >
-      <Animated.View style={[{ width, transform: [{ scale: scaleAnim }] }]}>
+    <TVFocusable onPress={onPress} style={{ width }} disableBorder={true}>
+      {({ focused }: any) => (
         <View style={[
           styles.posterContainer,
-          { borderColor: isFocused ? colors.gold : 'transparent', borderWidth: 4 }
+          { borderColor: focused ? colors.gold : 'transparent', borderWidth: 4 }
         ]}>
-          <Image source={{ uri: movie.poster }} style={styles.poster} contentFit="cover" />
-
+          <Image 
+            source={{ uri: imgSource }} 
+            style={styles.poster} 
+            contentFit="cover" 
+            onError={() => {
+              if (imgSource !== fallbackUrl) setImgSource(fallbackUrl);
+            }}
+          />
         </View>
-      </Animated.View>
-    </Pressable>
+      )}
+    </TVFocusable>
   );
 });
 
 const styles = StyleSheet.create({
   posterContainer: {
+    width: '100%',
     aspectRatio: 2 / 3,
     borderRadius: 16,
     overflow: 'hidden',

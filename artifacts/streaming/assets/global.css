@@ -1,0 +1,32 @@
+body {
+  background-color: #05070a;
+  color: white;
+}
+
+/* Custom Scrollbar for EN TEC Theme */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(212, 168, 67, 0.5);
+  /* Gold with opacity */
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(212, 168, 67, 0.8);
+  /* Solid gold on hover */
+}
+
+/* For Firefox */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(212, 168, 67, 0.5) rgba(0, 0, 0, 0.2);
+}

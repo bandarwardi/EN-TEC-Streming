@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, Platform, Pressable } from 'react-native';
+import { View, Text, StyleSheet, Platform, Pressable, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColors } from '@/hooks/useColors';
 import { Lineicons } from '@lineiconshq/react-native-lineicons';
@@ -10,18 +10,23 @@ import { TVFocusable } from './TVFocusable';
 export function GlobalHeader() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const { width, height } = useWindowDimensions();
+  const isLandscape = width > height;
   
   return (
     <View style={[styles.headerContainer, { 
-      paddingTop: Platform.OS === 'ios' ? insets.top : insets.top + 10,
-      backgroundColor: colors.background,
-      borderBottomWidth: 1,
+      paddingTop: Platform.OS === 'ios' ? Math.max(insets.top, 10) : isLandscape ? Math.max(insets.top, 10) : insets.top + 10,
+      paddingBottom: isLandscape ? 4 : 10,
+      backgroundColor: isLandscape ? 'transparent' : colors.background,
+      borderBottomWidth: isLandscape ? 0 : 1,
       borderBottomColor: colors.border
     }]}>
       <View style={styles.left}>
-        <Text style={[styles.logoText, { color: colors.gold }]}>
-          EN<Text style={{ color: colors.text }}>-TEC</Text>
-        </Text>
+        {!isLandscape && (
+          <Text style={[styles.logoText, { color: colors.gold }]}>
+            EN<Text style={{ color: colors.text }}>-TEC</Text>
+          </Text>
+        )}
       </View>
       
       <View style={[styles.right, { gap: 12 }]}>
@@ -80,6 +85,6 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,255,255,0.05)',
+    backgroundColor: 'rgba(0,0,0,0.3)',
   }
 });

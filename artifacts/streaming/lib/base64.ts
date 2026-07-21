@@ -64,5 +64,10 @@ export function base64Decode(str: string): string {
   for (let idx = 0; idx < bytes.length; idx++) {
     result += String.fromCharCode(bytes[idx]);
   }
-  return result;
+  
+  try {
+    return decodeURIComponent(escape(result));
+  } catch (e) {
+    return result;
+  }
 }

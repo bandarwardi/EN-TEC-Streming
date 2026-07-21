@@ -7,6 +7,8 @@ import { TVFocusable } from '@/components/TVFocusable';
 import { Lineicons } from '@lineiconshq/react-native-lineicons';
 import { Shield2Bulk } from '@lineiconshq/free-icons';
 
+import FontAwesome from '@expo/vector-icons/FontAwesome';
+
 export function GlobalAlert() {
   const globalAlert = useAppStore((s) => s.globalAlert);
   const colors = useColors();
@@ -25,10 +27,12 @@ export function GlobalAlert() {
         
         <View style={styles.buttonContainer}>
           <TVFocusable
+            hasTVPreferredFocus={true}
             onPress={globalAlert.onPress}
             style={({ focused }: any) => [
               styles.button,
-              { backgroundColor: focused ? colors.gold : '#2A2A2A' }
+              { backgroundColor: focused ? colors.gold : '#2A2A2A' },
+              globalAlert.secondaryButton && { flex: 1, marginRight: 8 }
             ]}
             scaleAmount={1.05}
           >
@@ -38,6 +42,39 @@ export function GlobalAlert() {
               </Text>
             )}
           </TVFocusable>
+
+          {globalAlert.secondaryButton && (
+            <TVFocusable
+              onPress={globalAlert.secondaryButton.onPress}
+              style={({ focused }: any) => [
+                styles.button,
+                { 
+                  backgroundColor: focused ? (globalAlert.secondaryButton!.color || colors.gold) : '#2A2A2A',
+                  flex: 1,
+                  marginLeft: 8,
+                  flexDirection: 'row',
+                  justifyContent: 'center'
+                }
+              ]}
+              scaleAmount={1.05}
+            >
+              {({ focused }: any) => (
+                <>
+                  {globalAlert.secondaryButton!.icon && (
+                    <FontAwesome 
+                      name={globalAlert.secondaryButton!.icon as any} 
+                      size={20} 
+                      color={focused ? '#000000' : (globalAlert.secondaryButton!.color || colors.text)} 
+                      style={{ marginRight: 8 }}
+                    />
+                  )}
+                  <Text style={[styles.buttonText, { color: focused ? '#000000' : (globalAlert.secondaryButton!.color || colors.text) }]}>
+                    {globalAlert.secondaryButton!.text}
+                  </Text>
+                </>
+              )}
+            </TVFocusable>
+          )}
         </View>
       </View>
     </View>
@@ -94,6 +131,8 @@ const styles = StyleSheet.create({
   },
   buttonContainer: {
     width: '100%',
+    flexDirection: 'row',
+    justifyContent: 'center',
     alignItems: 'center',
   },
   button: {

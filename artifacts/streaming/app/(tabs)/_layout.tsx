@@ -1,5 +1,4 @@
-import { Lineicons } from '@lineiconshq/react-native-lineicons';
-import { Home2Bulk, CloudBolt1Bulk, CameraMovie1Bulk, MonitorBulk, StopwatchBulk, Gear1Bulk } from '@lineiconshq/free-icons';
+import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from "expo-blur";
 import { isLiquidGlassAvailable } from "expo-glass-effect";
 import { Tabs } from "expo-router";
@@ -7,48 +6,43 @@ import { Icon, Label, NativeTabs } from "expo-router/unstable-native-tabs";
 import { SymbolView } from "expo-symbols";
 import React from "react";
 import { Platform, StyleSheet, View, useWindowDimensions } from "react-native";
+import { LinearGradient } from 'expo-linear-gradient';
 import { useColors } from "@/hooks/useColors";
 import { TVSidebar } from "@/components/TVSidebar";
 import { GlobalHeader } from "@/components/GlobalHeader";
+import { useAppStore } from "@/store/app-store";
 
-function NativeTabLayout() {
-  return (
-    <NativeTabs>
-      <NativeTabs.Trigger name="index">
-        <Icon sf={{ default: "house", selected: "house.fill" }} />
-        <Label>Home</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="live">
-        <Icon sf={{ default: "tv", selected: "tv.fill" }} />
-        <Label>Live TV</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="movies">
-        <Icon sf={{ default: "film", selected: "film.fill" }} />
-        <Label>Movies</Label>
-      </NativeTabs.Trigger>
-      <NativeTabs.Trigger name="series">
-        <Icon sf={{ default: "play.tv", selected: "play.tv.fill" }} />
-        <Label>Series</Label>
-      </NativeTabs.Trigger>
 
-    </NativeTabs>
-  );
-}
 
 function ClassicTabLayout() {
   const colors = useColors();
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
   const isLargeScreen = width >= 1024 || Platform.isTV;
   const isIOS = Platform.OS === "ios";
   const isWeb = Platform.OS === "web";
+  const isLandscape = width > height;
+  const subscriptionExpired = useAppStore((s) => s.subscriptionExpired);
+  const isFullscreen = useAppStore((s) => s.isFullscreen);
 
   return (
     <View style={styles.layoutContainer}>
-      <TVSidebar />
-      <View style={styles.contentContainer}>
+      {isLargeScreen && (
+        <LinearGradient
+          colors={['rgba(5,7,10,1)', 'rgba(5,7,10,1)', 'rgba(5,7,10,1)', 'rgba(28,49,89,0.35)']}
+          locations={[0, 0.45, 0.55, 1]}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={[StyleSheet.absoluteFillObject, { backgroundColor: '#05070a' }]}
+        />
+      )}
+      {(!subscriptionExpired && !isFullscreen) && <TVSidebar />}
+      <View style={[styles.contentContainer, (isLargeScreen && !subscriptionExpired && !isFullscreen) && { paddingLeft: 80 }]}>
         <Tabs
           screenOptions={{
-            headerShown: true,
+            sceneStyle: { backgroundColor: 'transparent' },
+            lazy: true,
+            headerShown: !isLargeScreen,
+            headerTransparent: isLandscape,
             header: () => <GlobalHeader />,
             tabBarActiveTintColor: colors.tint,
             tabBarInactiveTintColor: colors.mutedForeground,
@@ -58,8 +52,8 @@ function ClassicTabLayout() {
               backgroundColor: isIOS ? "transparent" : 'rgba(17,22,32,0.95)',
               borderTopWidth: 0,
               elevation: 0,
-              height: isWeb ? 84 : 70,
-              paddingBottom: isWeb ? 34 : 10,
+              height: isWeb ? 84 : (isLandscape ? 56 : 70),
+              paddingBottom: isWeb ? 34 : (isLandscape ? 6 : 10),
             },
             tabBarLabelStyle: {
               fontSize: 11,
@@ -88,11 +82,7 @@ function ClassicTabLayout() {
           title: "Home",
           tabBarIcon: ({ color, focused }) => (
             <View style={{ paddingTop: 4 }}>
-              {isIOS ? (
-                <SymbolView name="house" tintColor={color} size={24} />
-              ) : (
-                <Lineicons icon={Home2Bulk} size={26} color={color} />
-              )}
+              <Ionicons name={focused ? "home" : "home-outline"} size={24} color={color} />
             </View>
           ),
         }}
@@ -103,11 +93,7 @@ function ClassicTabLayout() {
           title: "Live TV",
           tabBarIcon: ({ color, focused }) => (
             <View style={{ paddingTop: 4 }}>
-              {isIOS ? (
-                <SymbolView name="tv" tintColor={color} size={24} />
-              ) : (
-                <Lineicons icon={CloudBolt1Bulk} size={26} color={color} />
-              )}
+              <Ionicons name={focused ? "tv" : "tv-outline"} size={24} color={color} />
             </View>
           ),
         }}
@@ -118,11 +104,7 @@ function ClassicTabLayout() {
           title: "Movies",
           tabBarIcon: ({ color, focused }) => (
             <View style={{ paddingTop: 4 }}>
-              {isIOS ? (
-                <SymbolView name="film" tintColor={color} size={24} />
-              ) : (
-                <Lineicons icon={CameraMovie1Bulk} size={26} color={color} />
-              )}
+              <Ionicons name={focused ? "film" : "film-outline"} size={24} color={color} />
             </View>
           ),
         }}
@@ -133,11 +115,7 @@ function ClassicTabLayout() {
           title: "Series",
           tabBarIcon: ({ color, focused }) => (
             <View style={{ paddingTop: 4 }}>
-              {isIOS ? (
-                <SymbolView name="play.tv" tintColor={color} size={24} />
-              ) : (
-                <Lineicons icon={MonitorBulk} size={26} color={color} />
-              )}
+              <Ionicons name={focused ? "albums" : "albums-outline"} size={24} color={color} />
             </View>
           ),
         }}
@@ -148,13 +126,16 @@ function ClassicTabLayout() {
           title: "Catch Up",
           tabBarIcon: ({ color, focused }) => (
             <View style={{ paddingTop: 4 }}>
-              {isIOS ? (
-                <SymbolView name="clock.arrow.circlepath" tintColor={color} size={24} />
-              ) : (
-                <Lineicons icon={StopwatchBulk} size={26} color={color} />
-              )}
+              <Ionicons name={focused ? "time" : "time-outline"} size={24} color={color} />
             </View>
           ),
+        }}
+      />
+      <Tabs.Screen
+        name="favorites"
+        options={{
+          href: null,
+          title: "Favorites",
         }}
       />
       <Tabs.Screen
@@ -174,20 +155,12 @@ function ClassicTabLayout() {
 }
 
 export default function TabLayout() {
-  const { width } = useWindowDimensions();
-  const isLargeScreen = width >= 1024 || Platform.isTV;
-
-  // On large screens we always use the custom layout to show the sidebar.
-  if (isLiquidGlassAvailable() && !isLargeScreen) {
-    return <NativeTabLayout />;
-  }
   return <ClassicTabLayout />;
 }
 
 const styles = StyleSheet.create({
   layoutContainer: {
     flex: 1,
-    flexDirection: 'row',
   },
   contentContainer: {
     flex: 1,

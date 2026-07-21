@@ -1,6 +1,8 @@
 import React from 'react';
-import { Pressable, Text, StyleSheet, Animated } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
+import { TVFocusable } from '@/components/TVFocusable';
 import { useColors } from '@/hooks/useColors';
+import { MarqueeText } from '@/components/MarqueeText';
 
 interface CategoryPillProps {
   label: string;
@@ -10,45 +12,31 @@ interface CategoryPillProps {
 
 export function CategoryPill({ label, isActive, onPress }: CategoryPillProps) {
   const colors = useColors();
-  const [isFocused, setIsFocused] = React.useState(false);
-  const scaleAnim = React.useRef(new Animated.Value(1)).current;
-
-  const handleFocus = React.useCallback(() => {
-    setIsFocused(true);
-    Animated.spring(scaleAnim, { toValue: 1.05, useNativeDriver: true }).start();
-  }, [scaleAnim]);
-
-  const handleBlur = React.useCallback(() => {
-    setIsFocused(false);
-    Animated.spring(scaleAnim, { toValue: 1, useNativeDriver: true }).start();
-  }, [scaleAnim]);
 
   return (
-    <Pressable
-      onPress={onPress}
-      onPressIn={() => Animated.spring(scaleAnim, { toValue: 0.95, useNativeDriver: true }).start()}
-      onPressOut={() => Animated.spring(scaleAnim, { toValue: isFocused ? 1.05 : 1, useNativeDriver: true }).start()}
-      onFocus={handleFocus}
-      onBlur={handleBlur}
-    >
-      <Animated.View 
-        style={[
-          styles.container, 
-          { 
-            backgroundColor: isActive ? colors.gold : colors.surface,
-            borderColor: isFocused ? colors.gold : (isActive ? colors.gold : colors.border),
-            transform: [{ scale: scaleAnim }]
-          }
-        ]}
-      >
-        <Text style={[
-          styles.label, 
-          { color: (isActive || isFocused) ? (isActive ? colors.primaryForeground : colors.gold) : colors.mutedForeground }
-        ]}>
-          {label}
-        </Text>
-      </Animated.View>
-    </Pressable>
+    <TVFocusable onPress={onPress} style={{ marginRight: 8 }} disableBorder={true}>
+      {({ focused }: any) => (
+        <View 
+          style={[
+            styles.container, 
+            { 
+              backgroundColor: isActive ? colors.gold : colors.surface,
+              borderColor: focused ? colors.gold : (isActive ? colors.gold : colors.border),
+              marginRight: 0,
+            }
+          ]}
+        >
+          <MarqueeText 
+            text={label}
+            isFocused={focused || isActive}
+            style={[
+              styles.label, 
+              { color: (isActive || focused) ? (isActive ? colors.primaryForeground : colors.gold) : colors.mutedForeground }
+            ]}
+          />
+        </View>
+      )}
+    </TVFocusable>
   );
 }
 

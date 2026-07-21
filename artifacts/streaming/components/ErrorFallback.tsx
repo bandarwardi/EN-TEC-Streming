@@ -5,13 +5,13 @@ import React, { useState } from "react";
 import {
   Modal,
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { TVFocusable } from "@/components/TVFocusable";
 
 import { useColors } from "@/hooks/useColors";
 
@@ -52,21 +52,20 @@ export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       {__DEV__ ? (
-        <Pressable
+        <TVFocusable
           onPress={() => setIsModalVisible(true)}
           accessibilityLabel="View error details"
           accessibilityRole="button"
-          style={({ pressed }) => [
+          style={[
             styles.topButton,
             {
               top: insets.top + 16,
               backgroundColor: colors.card,
-              opacity: pressed ? 0.8 : 1,
             },
           ]}
         >
           <Lineicons icon={QuestionMarkCircleBulk} size={20} color={colors.foreground} />
-        </Pressable>
+        </TVFocusable>
       ) : null}
 
       <View style={styles.content}>
@@ -78,15 +77,11 @@ export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
           {formatErrorDetails()}
         </Text>
 
-        <Pressable
+        <TVFocusable
           onPress={handleRestart}
-          style={({ pressed }) => [
+          style={[
             styles.button,
-            {
-              backgroundColor: colors.primary,
-              opacity: pressed ? 0.9 : 1,
-              transform: [{ scale: pressed ? 0.98 : 1 }],
-            },
+            { backgroundColor: colors.primary },
           ]}
         >
           <Text
@@ -97,7 +92,7 @@ export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
           >
             Try Again
           </Text>
-        </Pressable>
+        </TVFocusable>
       </View>
 
       {__DEV__ ? (
@@ -123,17 +118,14 @@ export function ErrorFallback({ error, resetError }: ErrorFallbackProps) {
                 <Text style={[styles.modalTitle, { color: colors.foreground }]}>
                   Error Details
                 </Text>
-                <Pressable
+                <TVFocusable
                   onPress={() => setIsModalVisible(false)}
                   accessibilityLabel="Close error details"
                   accessibilityRole="button"
-                  style={({ pressed }) => [
-                    styles.closeButton,
-                    { opacity: pressed ? 0.6 : 1 },
-                  ]}
+                  style={styles.closeButton}
                 >
                   <Lineicons icon={XmarkBulk} size={24} color={colors.foreground} />
-                </Pressable>
+                </TVFocusable>
               </View>
 
               <ScrollView

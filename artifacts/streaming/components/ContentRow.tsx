@@ -10,7 +10,9 @@ interface ContentRowProps {
   onSeeAll?: () => void;
 }
 
-export function ContentRow({ title, data, renderItem, onSeeAll }: ContentRowProps) {
+const Separator = () => <View style={{ width: 12 }} />;
+
+export const ContentRow = React.memo(function ContentRow({ title, data, renderItem, onSeeAll }: ContentRowProps) {
   const colors = useColors();
 
   if (!data || data.length === 0) return null;
@@ -42,11 +44,14 @@ export function ContentRow({ title, data, renderItem, onSeeAll }: ContentRowProp
         horizontal
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.listContent}
-        ItemSeparatorComponent={() => <View style={{ width: 12 }} />}
+        ItemSeparatorComponent={Separator}
+        initialNumToRender={5}
+        maxToRenderPerBatch={3}
+        windowSize={3}
       />
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   container: {

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable, ActivityIndicator, useWindowDimensions, Platform, RefreshControl } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useColors } from '@/hooks/useColors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Lineicons } from '@lineiconshq/react-native-lineicons';
@@ -9,6 +10,7 @@ import { ContentRow } from '@/components/ContentRow';
 import { ChannelCard } from '@/components/ChannelCard';
 import { MovieCard } from '@/components/MovieCard';
 import { ContinueWatchingCard } from '@/components/ContinueWatchingCard';
+import { HeroSkeleton } from '@/components/HeroSkeleton';
 import { TVFocusable } from '@/components/TVFocusable';
 import { router } from 'expo-router';
 import { useAppStore } from '@/store/app-store';
@@ -16,24 +18,29 @@ import { Channel } from '@/types';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Image } from 'expo-image';
 import { base64Decode } from '@/lib/base64';
+import { useIsFocused } from '@react-navigation/native';
 
 export default function HomeScreen() {
+  const isFocused = useIsFocused();
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
   const isLargeScreen = width >= 1024 || Platform.isTV;
-  
+
   const activePlaylistId = useAppStore((s) => s.activePlaylistId);
   const activeCategories = useAppStore((s) => s.activeCategories);
   const getChannelsForCategory = useAppStore((s) => s.getChannelsForCategory);
   const setPlaybackQueue = useAppStore((s) => s.setPlaybackQueue);
   const playlists = useAppStore((s) => s.playlists);
-  
+  const cachedHomeContent = useAppStore((s) => s.cachedHomeContent);
+  const setCachedHomeContent = useAppStore((s) => s.setCachedHomeContent);
+
   const [loading, setLoading] = useState(true);
-  const [isScrolled, setIsScrolled] = useState(false);
-  const [contentRows, setContentRows] = useState<{title: string; type: 'live' | 'vod' | 'series'; categoryId: string; items: any[]}[]>([]);
+  const [contentRows, setContentRows] = useState<{ title: string; type: 'live' | 'vod' | 'series'; categoryId: string; items: any[] }[]>([]);
   const [featuredItems, setFeaturedItems] = useState<any[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+  const subscriptionExpired = useAppStore((s) => s.subscriptionExpired);
+  const setSubscriptionExpired = useAppStore((s) => s.setSubscriptionExpired);
 
   const continueWatching = useAppStore((s) => s.continueWatching) || [];
   const [refreshKey, setRefreshKey] = useState(0);
@@ -43,27 +50,84 @@ export default function HomeScreen() {
     setRefreshKey(prev => prev + 1);
   };
 
+
+
   useEffect(() => {
     let active = true;
-    
+
     async function loadHomeContent() {
       if (!activePlaylistId || !activeCategories) {
         setLoading(false);
         return;
       }
-      
+
+      if (
+        refreshKey === 0 && 
+        cachedHomeContent && 
+        cachedHomeContent.playlistId === activePlaylistId && 
+        cachedHomeContent.rows.length > 0
+      ) {
+        setContentRows(cachedHomeContent.rows);
+        setFeaturedItems(cachedHomeContent.featured);
+        setLoading(false);
+        return;
+      }
+
       setLoading(true);
+      setSubscriptionExpired(false);
       try {
-        let rows: {title: string; type: 'live' | 'vod' | 'series'; categoryId: string; items: any[]}[] = [];
+        const activePlaylist = playlists.find(p => p.id === activePlaylistId);
+        let config: any = null;
+        if (activePlaylist && activePlaylist.url) {
+          if (activePlaylist.url.startsWith('xtream://')) {
+            try { config = JSON.parse(base64Decode(activePlaylist.url.replace('xtream://', ''))); } catch (e) { }
+          } else {
+            const match = activePlaylist.url.match(/^(https?:\/\/[^/]+)\/get\.php\?username=([^&]+)&password=([^&]+)/);
+            if (match) config = { host: match[1], username: match[2], password: match[3] };
+          }
+          if (config) {
+            try {
+              // Quick check for expired subscription to avoid infinite loading loop
+              const authRes = await Promise.race([
+                fetch(`${config.host}/player_api.php?username=${config.username}&password=${config.password}`, {
+                  headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+                  }
+                }),
+                new Promise((_, r) => setTimeout(() => r(new Error('timeout')), 5000))
+              ]) as Response;
+
+              if (authRes.ok) {
+                const data = await authRes.json();
+                if (data && data.user_info && data.user_info.status !== 'Active') {
+                  if (active) {
+                    setSubscriptionExpired(true);
+                    setLoading(false);
+                  }
+                  return;
+                }
+              }
+            } catch (err) {
+              console.warn('Auth check failed or timed out, proceeding with stream fetch...', err);
+            }
+          }
+        }
+
+        if (active) {
+          setContentRows([]);
+          setFeaturedItems([]);
+        }
+
         let primaryHeroPool: Channel[] = [];
         let fallbackHeroPool: Channel[] = [];
-        
+        let accumulatedRows: any[] = [];
+
         const addRow = async (type: 'live' | 'vod' | 'series', category: any) => {
-          if (!category) return;
+          if (!category) return false;
           const items = await getChannelsForCategory(activePlaylistId, type, category.id, category.name);
           if (items.length > 0) {
-            if (fallbackHeroPool.length === 0 && type !== 'live') fallbackHeroPool = items;
-            if (type === 'vod' && primaryHeroPool.length === 0) primaryHeroPool = items;
+            if (type !== 'live') fallbackHeroPool.push(...items);
+            if (type === 'series') primaryHeroPool.push(...items);
             const mapped = items.slice(0, 15).map(m => {
               if (type === 'live') return m;
               return {
@@ -80,57 +144,60 @@ export default function HomeScreen() {
                 streamUrl: m.streamUrl,
               };
             });
-            rows.push({
+            const newRow = {
               title: category.name,
               type,
               categoryId: category.id,
               items: mapped
-            });
+            };
+            if (active) {
+              accumulatedRows.push(newRow);
+            }
+            return true;
+          }
+          return false;
+        };
+
+        let rowCount = 0;
+        const MAX_ROWS = 6;
+
+        const fillRows = async (type: 'live' | 'vod' | 'series', categories: any[], targetRows: number) => {
+          let count = 0;
+          for (let i = 0; i < categories.length; i++) {
+            if (rowCount >= MAX_ROWS || count >= targetRows) break;
+            const added = await addRow(type, categories[i]);
+            if (added) {
+              count++;
+              rowCount++;
+              await new Promise(r => setTimeout(r, 400)); // Rate limit protection
+            }
           }
         };
 
-        const l1 = activeCategories.live?.[0];
-        const v1 = activeCategories.vod?.[0];
-        const s1 = activeCategories.series?.[0];
-        const l2 = activeCategories.live?.[1];
-        const v2 = activeCategories.vod?.[1];
-        const s2 = activeCategories.series?.[1];
-        
-        await addRow('live', l1);
-        await addRow('vod', v1);
-        await addRow('series', s1);
-        await addRow('live', l2);
-        await addRow('vod', v2);
-        await addRow('series', s2);
-        
+        // Shuffle categories to get dynamic rows and diverse hero pool on every load
+        const shuffledSeries = [...(activeCategories.series || [])].sort(() => 0.5 - Math.random());
+        const shuffledVod = [...(activeCategories.vod || [])].sort(() => 0.5 - Math.random());
+        const shuffledLive = [...(activeCategories.live || [])].sort(() => 0.5 - Math.random());
+
+        await fillRows('series', shuffledSeries, 2);
+        await fillRows('vod', shuffledVod, 2);
+        await fillRows('live', shuffledLive, 2);
+
         if (!active) return;
-        
-        setContentRows(rows);
-        
+
         const pool = primaryHeroPool.length > 0 ? primaryHeroPool : fallbackHeroPool;
         const shuffledPool = [...pool].sort(() => 0.5 - Math.random());
         const top5 = shuffledPool.slice(0, 5);
-        
-        const activePlaylist = playlists.find(p => p.id === activePlaylistId);
-        let config: any = null;
-        if (activePlaylist && activePlaylist.url) {
-          if (activePlaylist.url.startsWith('xtream://')) {
-            try { config = JSON.parse(base64Decode(activePlaylist.url.replace('xtream://', ''))); } catch(e) {}
-          } else {
-            const match = activePlaylist.url.match(/^(https?:\/\/[^/]+)\/get\.php\?username=([^&]+)&password=([^&]+)/);
-            if (match) config = { host: match[1], username: match[2], password: match[3] };
-          }
-        }
 
         const mappedFeatured = await Promise.all(top5.map(async (item) => {
           let backdropUri = item.logo || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.name)}&background=1A1A1A&color=D4A843&bold=true&size=300&format=svg`;
-          let description = item.type === 'live' ? `Live Channel · ${item.category}` : `Movie VOD · ${item.category}`;
-          
-          if (item.type === 'vod' && config && item.id.startsWith('xt_vod_')) {
+          let description = item.type === 'live' ? `Live Channel · ${item.category}` : item.type === 'series' ? `TV Series · ${item.category}` : `Movie VOD · ${item.category}`;
+
+          if (item.type === 'series' && config && item.id.startsWith('xt_series_')) {
             try {
-              const movieId = item.id.replace('xt_vod_', '');
-              const fetchUrl = `${config.host}/player_api.php?username=${config.username}&password=${config.password}&action=get_vod_info&vod_id=${movieId}`;
-              
+              const seriesId = item.id.replace('xt_series_', '');
+              const fetchUrl = `${config.host}/player_api.php?username=${config.username}&password=${config.password}&action=get_series_info&series_id=${seriesId}`;
+
               const text = await new Promise<string>((resolve, reject) => {
                 const xhr = new XMLHttpRequest();
                 xhr.open('GET', fetchUrl, true);
@@ -143,13 +210,13 @@ export default function HomeScreen() {
                 xhr.ontimeout = () => reject(new Error('timeout'));
                 xhr.send();
               });
-              
+
               const data = JSON.parse(text);
               if (data && data.info) {
-                const fetchedBackdrop = data.info.backdrop_path && Array.isArray(data.info.backdrop_path) && data.info.backdrop_path.length > 0 
-                  ? data.info.backdrop_path[0] 
-                  : data.info.backdrop_path && typeof data.info.backdrop_path === 'string' 
-                    ? data.info.backdrop_path 
+                const fetchedBackdrop = data.info.backdrop_path && Array.isArray(data.info.backdrop_path) && data.info.backdrop_path.length > 0
+                  ? data.info.backdrop_path[0]
+                  : data.info.backdrop_path && typeof data.info.backdrop_path === 'string'
+                    ? data.info.backdrop_path
                     : '';
                 if (fetchedBackdrop) {
                   backdropUri = fetchedBackdrop;
@@ -162,11 +229,11 @@ export default function HomeScreen() {
               // Ignore failure for individual items
             }
           }
-          
+
           return {
             id: item.id,
             title: item.name,
-            subtitle: item.type === 'live' ? 'FEATURED LIVE TV' : 'FEATURED MOVIE',
+            subtitle: item.type === 'live' ? 'FEATURED LIVE TV' : item.type === 'series' ? 'FEATURED SERIES' : 'FEATURED MOVIE',
             backdrop: { uri: backdropUri },
             poster: { uri: item.logo },
             description,
@@ -178,40 +245,74 @@ export default function HomeScreen() {
             originalItem: item,
           };
         }));
-        
-        setFeaturedItems(mappedFeatured);
+
+        if (active) {
+          setContentRows(accumulatedRows);
+          setFeaturedItems(mappedFeatured);
+          setCachedHomeContent(activePlaylistId, accumulatedRows, mappedFeatured);
+        }
       } catch (err) {
         console.error('Error loading Home content:', err);
       } finally {
         if (active) {
-          setLoading(false);
           setRefreshing(false);
+          setLoading(false);
         }
       }
     }
-    
+
     loadHomeContent();
-    
+
     return () => {
       active = false;
     };
   }, [activePlaylistId, activeCategories, refreshKey]);
 
-  if (loading) {
+  if (subscriptionExpired) {
     return (
-      <View style={[styles.container, { backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center' }]}>
-        <ActivityIndicator size="large" color={colors.gold} />
-        <Text style={{ color: colors.mutedForeground, marginTop: 12 }}>Loading Home content...</Text>
+      <View style={[styles.container, {
+        backgroundColor: colors.background,
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 20,
+        position: 'absolute',
+        top: 0, bottom: 0, left: isLargeScreen ? -80 : 0, right: 0,
+        zIndex: 9999,
+        elevation: 9999
+      }]}>
+        <Ionicons name="warning-outline" size={64} color="#EF4444" />
+        <Text style={{ color: colors.text, fontSize: 24, fontWeight: 'bold', marginTop: 16 }}>Subscription Expired</Text>
+        <Text style={{ color: colors.mutedForeground, fontSize: 16, marginTop: 8, textAlign: 'center', maxWidth: 400 }}>
+          Your IPTV subscription has expired or is inactive. Please contact your provider to renew your subscription.
+        </Text>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 16, marginTop: 24 }}>
+          <TVFocusable
+            style={{ backgroundColor: colors.gold, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 8 }}
+            onPress={() => router.push('/playlists')}
+          >
+            <Text style={{ color: '#1A1A1A', fontWeight: 'bold', fontSize: 16 }}>Manage Playlists</Text>
+          </TVFocusable>
+          <TVFocusable
+            style={{ backgroundColor: '#25D366', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 8, flexDirection: 'row', alignItems: 'center', gap: 8 }}
+            onPress={() => {
+              const { Linking } = require('react-native');
+              Linking.openURL('https://wa.me/17085844733?text=' + encodeURIComponent('I want to renew my subscription'));
+            }}
+          >
+            <Ionicons name="logo-whatsapp" size={20} color="#FFF" />
+            <Text style={{ color: '#FFF', fontWeight: 'bold', fontSize: 16 }}>+17085844733</Text>
+          </TVFocusable>
+        </View>
       </View>
     );
   }
 
   if (!activePlaylistId) {
     return (
-      <View style={[styles.container, { backgroundColor: colors.background, justifyContent: 'center', alignItems: 'center', padding: 20 }]}>
+      <View style={[styles.container, { backgroundColor: isLargeScreen ? 'transparent' : colors.background, justifyContent: 'center', alignItems: 'center', padding: 20 }]}>
         <Lineicons icon={MonitorBulk} size={48} color={colors.mutedForeground} />
         <Text style={{ color: colors.text, fontSize: 18, fontWeight: 'bold', marginTop: 12 }}>No playlist active</Text>
-        <TVFocusable 
+        <TVFocusable
           style={{ marginTop: 16, backgroundColor: colors.gold, paddingHorizontal: 20, paddingVertical: 10, borderRadius: 8 }}
           onPress={() => router.push('/playlists')}
         >
@@ -224,11 +325,13 @@ export default function HomeScreen() {
   // --- TV Layout ---
   if (isLargeScreen) {
     const heroItem = featuredItems[0]; // Take the first featured item as the main hero
-    
+
     return (
-      <View style={[styles.container, { backgroundColor: '#000' }]}>
+      <View style={[styles.container, { backgroundColor: '#000', opacity: isFocused ? 1 : 0, pointerEvents: isFocused ? 'auto' : 'none' }]}>
         <ScrollView style={{ flex: 1 }} contentContainerStyle={{ paddingBottom: 60 }} showsVerticalScrollIndicator={false}>
-          {heroItem ? (
+          {loading ? (
+            <HeroSkeleton />
+          ) : heroItem ? (
             <View style={{ width: '100%', height: height * 0.75 }}>
               <Image source={heroItem.backdrop} style={StyleSheet.absoluteFill} contentFit="cover" />
               <LinearGradient
@@ -253,7 +356,7 @@ export default function HomeScreen() {
                   <Text style={styles.tvHeroMetaText}>{heroItem.genres.join(', ')}</Text>
                 </View>
                 <Text style={styles.tvHeroDesc} numberOfLines={2}>{heroItem.description}</Text>
-                
+
                 <View style={styles.tvHeroActions}>
                   <TVFocusable
                     style={({ focused }: any) => [
@@ -261,8 +364,10 @@ export default function HomeScreen() {
                       { backgroundColor: focused ? colors.gold : '#FFF' }
                     ]}
                     onPress={() => {
-                      if (heroItem.subtitle.includes('LIVE')) {
+                      if (heroItem.originalItem.type === 'live') {
                         router.push({ pathname: '/player', params: { streamUrl: heroItem.streamUrl || '', title: heroItem.title, isLive: 'true', quality: 'HD' } });
+                      } else if (heroItem.originalItem.type === 'series') {
+                        router.push({ pathname: '/series-detail', params: { id: heroItem.id, title: heroItem.title, poster: heroItem.backdrop?.uri, backdrop: heroItem.backdrop?.uri, genres: heroItem.genres.join(','), description: heroItem.description, streamUrl: heroItem.streamUrl || '' } });
                       } else {
                         router.push({ pathname: '/movie-detail', params: { id: heroItem.id, title: heroItem.title, poster: heroItem.backdrop?.uri, backdrop: heroItem.backdrop?.uri, quality: 'HD', genres: heroItem.genres.join(','), description: heroItem.description, streamUrl: heroItem.streamUrl || '' } });
                       }
@@ -276,13 +381,20 @@ export default function HomeScreen() {
                       </>
                     )}
                   </TVFocusable>
-                  
+
                   <TVFocusable
                     style={({ focused }: any) => [
                       styles.tvHeroBtnSecondary,
                       { backgroundColor: focused ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.1)' }
                     ]}
                     scaleAmount={1.05}
+                    onPress={() => {
+                      if (heroItem.originalItem.type === 'series') {
+                        router.push({ pathname: '/series-detail', params: { id: heroItem.id, title: heroItem.title, poster: heroItem.backdrop?.uri, backdrop: heroItem.backdrop?.uri, genres: heroItem.genres.join(','), description: heroItem.description, streamUrl: heroItem.streamUrl || '' } });
+                      } else if (heroItem.originalItem.type === 'vod') {
+                        router.push({ pathname: '/movie-detail', params: { id: heroItem.id, title: heroItem.title, poster: heroItem.backdrop?.uri, backdrop: heroItem.backdrop?.uri, quality: 'HD', genres: heroItem.genres.join(','), description: heroItem.description, streamUrl: heroItem.streamUrl || '' } });
+                      }
+                    }}
                   >
                     <Lineicons icon={QuestionMarkCircleBulk} size={24} color="#FFF" />
                     <Text style={styles.tvHeroBtnSecondaryText}>More Info</Text>
@@ -293,35 +405,60 @@ export default function HomeScreen() {
           ) : null}
 
           <View style={styles.tvBottomContent}>
-            {contentRows.slice(0, 2).map((row, index) => (
-              <ContentRow 
+            {continueWatching.length > 0 && (
+              <ContentRow
+                title="Continue Watching"
+                data={continueWatching}
+                onSeeAll={() => router.push('/continue-watching')}
+                renderItem={({ item }) => (
+                  <ContinueWatchingCard
+                    item={item}
+                    onPress={() => {
+                      router.push({
+                        pathname: '/player',
+                        params: { id: item.id, streamUrl: item.streamUrl, title: item.title, isLive: item.type === 'live' ? 'true' : 'false', current: item.current || '', next: item.next || '', quality: item.quality, logo: item.poster || item.backdrop || '', category: item.category || '', autoResume: 'true' }
+                      });
+                    }}
+                  />
+                )}
+              />
+            )}
+            {contentRows.map((row, index) => (
+              <ContentRow
                 key={`tv-row-${index}`}
-                title={row.title} 
+                title={row.title}
                 data={row.items}
                 onSeeAll={() => {
                   const tab = row.type === 'live' ? '/(tabs)/live' : row.type === 'vod' ? '/(tabs)/movies' : '/(tabs)/series';
                   router.push({ pathname: tab, params: { categoryId: row.categoryId } });
                 }}
-                renderItem={({ item, index: itemIndex }) => 
+                renderItem={({ item, index: itemIndex }) =>
                   row.type === 'live' ? (
-                    <ChannelCard 
-                      channel={item} 
-                      width={200} 
+                    <ChannelCard
+                      channel={item}
+                      width={200}
                       onPress={() => {
                         setPlaybackQueue(row.items, itemIndex);
                         router.push({ pathname: '/player', params: { id: item.id, streamUrl: item.streamUrl, title: item.name, isLive: 'true', current: item.current, next: item.next, quality: item.quality, logo: item.logo || '', category: item.category || '' } });
-                      }} 
+                      }}
                     />
                   ) : (
-                    <MovieCard 
-                      movie={item} 
-                      width={160} 
+                    <MovieCard
+                      movie={item}
+                      width={160}
                       onPress={() => {
-                        router.push({
-                          pathname: '/movie-detail',
-                          params: { id: item.id, title: item.title, poster: item.poster, backdrop: item.backdrop || item.poster, quality: item.quality, genres: item.genres.join(','), description: item.description, streamUrl: item.streamUrl || '' },
-                        });
-                      }} 
+                        if (row.type === 'series') {
+                          router.push({
+                            pathname: '/series-detail',
+                            params: { id: item.id, title: item.title || item.name, poster: item.poster || item.logo, backdrop: item.backdrop || item.poster || item.logo, quality: item.quality, genres: item.genres?.join(',') || '', description: item.description, streamUrl: item.streamUrl || '' },
+                          });
+                        } else {
+                          router.push({
+                            pathname: '/movie-detail',
+                            params: { id: item.id, title: item.title, poster: item.poster, backdrop: item.backdrop || item.poster, quality: item.quality, genres: item.genres.join(','), description: item.description, streamUrl: item.streamUrl || '' },
+                          });
+                        }
+                      }}
                     />
                   )
                 }
@@ -335,29 +472,36 @@ export default function HomeScreen() {
 
   // --- Mobile Layout ---
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
-
-
-      <ScrollView 
-        contentContainerStyle={{ paddingBottom: insets.bottom + 80 }} 
+    <View style={[styles.container, { backgroundColor: isLargeScreen ? 'transparent' : colors.background, opacity: isFocused ? 1 : 0, pointerEvents: isFocused ? 'auto' : 'none' }]}>
+      <ScrollView
+        contentContainerStyle={{ paddingBottom: insets.bottom + 80 }}
         showsVerticalScrollIndicator={false}
         contentInsetAdjustmentBehavior="never"
-        onScroll={(e) => {
-          setIsScrolled(e.nativeEvent.contentOffset.y > 50);
-        }}
-        scrollEventThrottle={16}
+        scrollEventThrottle={100}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.gold} />
         }
       >
 
-        {featuredItems.length > 0 ? (
-          <HeroCarousel 
-            items={featuredItems} 
-            onPlay={(item) => router.push({ pathname: '/player', params: { streamUrl: item.streamUrl || '', title: item.title, isLive: String(item.subtitle.includes('LIVE')), quality: 'HD' } })} 
+        {loading ? (
+          <HeroSkeleton />
+        ) : featuredItems.length > 0 ? (
+          <HeroCarousel
+            items={featuredItems}
+            onPlay={(item) => {
+              if (item.subtitle.includes('LIVE')) {
+                router.push({ pathname: '/player', params: { streamUrl: item.streamUrl || '', title: item.title, isLive: 'true', quality: 'HD' } });
+              } else if (item.originalItem?.type === 'series') {
+                router.push({ pathname: '/series-detail', params: { id: item.id, title: item.title, poster: item.backdrop?.uri, backdrop: item.backdrop?.uri, genres: item.genres.join(','), description: item.description, streamUrl: item.streamUrl || '' } });
+              } else {
+                router.push({ pathname: '/movie-detail', params: { id: item.id, title: item.title, poster: item.backdrop?.uri, backdrop: item.backdrop?.uri, quality: 'HD', genres: item.genres.join(','), description: item.description, streamUrl: item.streamUrl || '' } });
+              }
+            }}
             onInfo={(item) => {
               if (item.subtitle.includes('LIVE')) {
                 router.push({ pathname: '/player', params: { streamUrl: item.streamUrl || '', title: item.title, isLive: 'true', current: item.description || '', quality: 'HD' } });
+              } else if (item.originalItem?.type === 'series') {
+                router.push({ pathname: '/series-detail', params: { id: item.id, title: item.title, poster: typeof item.backdrop === 'object' && 'uri' in item.backdrop ? item.backdrop.uri : '', backdrop: typeof item.backdrop === 'object' && 'uri' in item.backdrop ? item.backdrop.uri : '', genres: item.genres.join(','), description: item.description || '', streamUrl: item.streamUrl || '' } });
               } else {
                 router.push({ pathname: '/movie-detail', params: { id: item.id, title: item.title, poster: typeof item.backdrop === 'object' && 'uri' in item.backdrop ? item.backdrop.uri : '', backdrop: typeof item.backdrop === 'object' && 'uri' in item.backdrop ? item.backdrop.uri : '', quality: 'HD', genres: item.genres.join(','), description: item.description || '', streamUrl: item.streamUrl || '' } });
               }
@@ -366,76 +510,78 @@ export default function HomeScreen() {
         ) : (
           <View style={{ height: 100 }} />
         )}
-        
+
         <View style={styles.content}>
           {continueWatching.length > 0 && (
-            <ContentRow 
-              title="Continue Watching" 
+            <ContentRow
+              title="Continue Watching"
               data={continueWatching}
+              onSeeAll={() => router.push('/continue-watching')}
               renderItem={({ item }) => (
-                <ContinueWatchingCard 
-                  item={item} 
+                <ContinueWatchingCard
+                  item={item}
                   onPress={() => {
-                    router.push({ 
-                      pathname: '/player', 
-                      params: { 
+                    router.push({
+                      pathname: '/player',
+                      params: {
                         id: item.id,
-                        streamUrl: item.streamUrl, 
-                        title: item.title, 
-                        isLive: String(item.type === 'live'), 
+                        streamUrl: item.streamUrl,
+                        title: item.title,
+                        isLive: item.type === 'live' ? 'true' : 'false',
                         quality: item.quality || 'HD',
-                        poster: item.poster,
-                        backdrop: item.backdrop,
+                        poster: typeof item.poster === 'object' ? item.poster?.uri : item.poster,
+                        backdrop: typeof item.backdrop === 'object' ? item.backdrop?.uri : item.backdrop,
                         description: item.description,
-                        category: item.category
-                      } 
+                        category: item.category,
+                        autoResume: 'true'
+                      }
                     });
-                  }} 
+                  }}
                 />
               )}
             />
           )}
 
           {contentRows.map((row, index) => (
-            <ContentRow 
+            <ContentRow
               key={`mobile-row-${index}`}
-              title={row.title} 
+              title={row.title}
               data={row.items}
               onSeeAll={() => {
                 const tab = row.type === 'live' ? '/(tabs)/live' : row.type === 'vod' ? '/(tabs)/movies' : '/(tabs)/series';
                 router.push({ pathname: tab, params: { categoryId: row.categoryId } });
               }}
-              renderItem={({ item, index: itemIndex }) => 
+              renderItem={({ item, index: itemIndex }) =>
                 row.type === 'live' ? (
-                  <ChannelCard 
-                    channel={item} 
-                    width={160} 
+                  <ChannelCard
+                    channel={item}
+                    width={160}
                     onPress={() => {
                       setPlaybackQueue(row.items, itemIndex);
                       router.push({ pathname: '/player', params: { id: item.id, streamUrl: item.streamUrl, title: item.name, isLive: 'true', current: item.current, next: item.next, quality: item.quality, logo: item.logo || '', category: item.category || '' } });
-                    }} 
+                    }}
                   />
                 ) : row.type === 'series' ? (
-                  <MovieCard 
-                    movie={item} 
-                    width={110} 
+                  <MovieCard
+                    movie={item}
+                    width={110}
                     onPress={() => {
                       router.push({
                         pathname: '/series-detail',
                         params: { id: item.id, title: item.title, poster: item.poster, backdrop: item.backdrop || item.poster, genres: item.genres.join(','), description: item.description, streamUrl: item.streamUrl || '' },
                       });
-                    }} 
+                    }}
                   />
                 ) : (
-                  <MovieCard 
-                    movie={item} 
-                    width={110} 
+                  <MovieCard
+                    movie={item}
+                    width={110}
                     onPress={() => {
                       router.push({
                         pathname: '/movie-detail',
                         params: { id: item.id, title: item.title, poster: item.poster, backdrop: item.backdrop || item.poster, quality: item.quality, genres: item.genres.join(','), description: item.description, streamUrl: item.streamUrl || '' },
                       });
-                    }} 
+                    }}
                   />
                 )
               }
@@ -458,7 +604,7 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1 },
   // TV Styles
-  tvHeroContent: { paddingHorizontal: 64, width: '60%', position: 'absolute', bottom: 120 },
+  tvHeroContent: { paddingLeft: 32, paddingRight: 40, width: '60%', position: 'absolute', bottom: 120 },
   tvHeroSubtitle: { fontSize: 16, fontWeight: 'bold', letterSpacing: 2, marginBottom: 12 },
   tvHeroTitle: { fontSize: 48, fontWeight: '900', color: '#FFF', textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 4 }, textShadowRadius: 10, marginBottom: 16 },
   tvHeroMeta: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 24 },
@@ -470,8 +616,8 @@ const styles = StyleSheet.create({
   tvHeroBtnPrimaryText: { fontSize: 18, fontWeight: 'bold' },
   tvHeroBtnSecondary: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 32, paddingVertical: 16, borderRadius: 30, borderWidth: 2, borderColor: 'transparent' },
   tvHeroBtnSecondaryText: { color: '#FFF', fontSize: 18, fontWeight: 'bold' },
-  tvBottomContent: { paddingHorizontal: 64, marginTop: -80 },
-  
+  tvBottomContent: { paddingLeft: 32, paddingRight: 40, marginTop: -80 },
+
   // Mobile Styles
   header: { position: 'absolute', zIndex: 10, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   logoText: { fontSize: 20, fontWeight: '900', textShadowColor: 'rgba(0,0,0,1)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 8 },

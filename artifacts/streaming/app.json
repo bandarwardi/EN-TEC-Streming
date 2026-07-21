@@ -25,6 +25,9 @@
       "package": "com.entec.streaming",
       "usesCleartextTraffic": true
     },
+    "androidStatusBar": {
+      "hidden": true
+    },
     "web": {
       "favicon": "./assets/images/icon.png"
     },
@@ -42,11 +45,27 @@
         {
           "supportsPictureInPicture": true
         }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "usesCleartextTraffic": true
+          }
+        }
       ]
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {
+        "origin": "https://replit.com/"
+      },
+      "eas": {
+        "projectId": "1a0437c1-8b95-4787-bbc0-584781abd73c"
+      }
     }
   }
 }

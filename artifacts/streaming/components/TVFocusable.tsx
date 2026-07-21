@@ -63,7 +63,7 @@ export const TVFocusable = forwardRef<any, TVFocusableProps>(({
   
   const animatedStyle = {
     transform: [{ scale: scaleAnim }],
-    ...( !disableBorder && isTV ? {
+    ...( !disableBorder ? {
       borderWidth: borderThickness,
       borderColor: isFocused ? (focusedBorderColor || colors.gold) : 'transparent',
     } : {})

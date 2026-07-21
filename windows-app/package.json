@@ -1,24 +1,27 @@
 {
   "name": "streaming-tv-desktop",
   "version": "1.0.0",
-  "description": "Desktop version of the Streaming TV App",
+  "description": "ENTEC Streaming - Desktop App",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
+    "dev": "electron . --dev",
     "build": "electron-builder build --win"
   },
   "author": "Streaming TV",
   "license": "MIT",
   "dependencies": {
-    "express": "^4.19.2"
+    "@ffmpeg-installer/ffmpeg": "^1.1.0",
+    "express": "^4.19.2",
+    "fluent-ffmpeg": "^2.1.3"
   },
   "devDependencies": {
     "electron": "^31.0.0",
     "electron-builder": "^24.13.3"
   },
   "build": {
-    "appId": "com.streaming.tv.desktop",
-    "productName": "Streaming TV",
+    "appId": "com.entec.streaming",
+    "productName": "ENTEC Streaming",
     "directories": {
       "output": "dist",
       "buildResources": "build"

@@ -20,6 +20,7 @@ import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { useAppStore } from '@/store/app-store';
 import { Channel } from '@/types';
+import { useIsFocused } from '@react-navigation/native';
 import { base64Decode } from '@/lib/base64';
 import { MOCK_CHANNELS } from '@/lib/mock-data';
 
@@ -34,18 +35,21 @@ interface EpgProgram {
   isPast: boolean;
   isCurrent: boolean;
   isFuture: boolean;
+  rawStart?: string;
 }
 
 export default function CatchUpScreen() {
+  const isFocused = useIsFocused();
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { width } = useWindowDimensions();
+  const { width, height } = useWindowDimensions();
   const isLargeScreen = width >= 800 || Platform.isTV;
+  const isLandscape = width > height;
 
   const activePlaylistId = useAppStore((s) => s.activePlaylistId);
   const playlists = useAppStore((s) => s.playlists);
   const getChannelsByType = useAppStore((s) => s.getChannelsByType);
-  
+  const searchIndexReady = useAppStore((s) => s.searchIndexReady);
 
   const [liveChannels, setLiveChannels] = useState<Channel[]>([]);
 
@@ -54,13 +58,13 @@ export default function CatchUpScreen() {
     const isMock = activePlaylistId === 'p1' || activePlaylistId === 'p2' || activePlaylistId === 'p3';
     if (isMock) {
       setLiveChannels(MOCK_CHANNELS.filter(c => c.type === 'live' && c.hasArchive));
-    } else {
+    } else if (searchIndexReady) {
       getChannelsByType('live').then((channels: any[]) => {
         if (active) setLiveChannels(channels);
       });
     }
     return () => { active = false; };
-  }, [activePlaylistId, getChannelsByType]);
+  }, [activePlaylistId, getChannelsByType, searchIndexReady]);
 
   const [selectedChannel, setSelectedChannel] = useState<Channel | null>(null);
   const [epgList, setEpgList] = useState<EpgProgram[]>([]);
@@ -91,13 +95,6 @@ export default function CatchUpScreen() {
   const [selectedDayIndex, setSelectedDayIndex] = useState(0);
 
   let catchupChannels = liveChannels.filter(c => c.hasArchive);
-  if (catchupChannels.length === 0 && liveChannels.length > 0) {
-    catchupChannels = liveChannels.slice(0, 10).map(c => ({
-      ...c,
-      hasArchive: true,
-      archiveDuration: 3
-    }));
-  }
 
   // Pre-select first channel on TV
   useEffect(() => {
@@ -206,7 +203,8 @@ export default function CatchUpScreen() {
                     endTimestamp: endMs,
                     isPast,
                     isCurrent,
-                    isFuture
+                    isFuture,
+                    rawStart: item.start
                   };
                 });
                 
@@ -264,7 +262,8 @@ export default function CatchUpScreen() {
               endTimestamp,
               isPast,
               isCurrent,
-              isFuture
+              isFuture,
+              rawStart: `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, '0')}-${String(start.getDate()).padStart(2, '0')} ${String(start.getHours()).padStart(2, '0')}:${String(start.getMinutes()).padStart(2, '0')}:00`
             });
           });
         }
@@ -305,17 +304,30 @@ export default function CatchUpScreen() {
 
       if (config) {
         const channelId = selectedChannel.id.replace('xt_live_', '');
-        const date = new Date(program.startTimestamp);
-        const y = date.getFullYear();
-        const m = String(date.getMonth() + 1).padStart(2, '0');
-        const d = String(date.getDate()).padStart(2, '0');
-        const h = String(date.getHours()).padStart(2, '0');
-        const min = String(date.getMinutes()).padStart(2, '0');
-        const startFormatted = `${y}-${m}-${d}:${h}-${min}`;
+        let startFormatted = '';
+        if (program.rawStart) {
+          // parse "2026-07-10 01:00:00" to "2026-07-10:01-00"
+          const parts = program.rawStart.split(' ');
+          if (parts.length === 2) {
+            const timeParts = parts[1].split(':');
+            startFormatted = `${parts[0]}:${timeParts[0]}-${timeParts[1]}`;
+          }
+        }
+        
+        if (!startFormatted) {
+          const date = new Date(program.startTimestamp);
+          const y = date.getUTCFullYear();
+          const m = String(date.getUTCMonth() + 1).padStart(2, '0');
+          const d = String(date.getUTCDate()).padStart(2, '0');
+          const h = String(date.getUTCHours()).padStart(2, '0');
+          const min = String(date.getUTCMinutes()).padStart(2, '0');
+          startFormatted = `${y}-${m}-${d}:${h}-${min}`;
+        }
         
         const durationMinutes = Math.max(1, Math.round((program.endTimestamp - program.startTimestamp) / 60000));
-        const ext = selectedChannel.streamUrl.includes('.m3u8') ? 'm3u8' : 'ts';
-        playUrl = `${config.host}/timeshift/${config.username}/${config.password}/${durationMinutes}/${startFormatted}/${channelId}.${ext}`;
+        const host = config.host.replace(/\/$/, '');
+        // Use standard Xtream Catchup format: /timeshift/user/pass/duration/start/channel_id.m3u8
+        playUrl = `${host}/timeshift/${config.username}/${config.password}/${durationMinutes}/${startFormatted}/${channelId}.m3u8`;
       }
     }
 
@@ -353,15 +365,41 @@ export default function CatchUpScreen() {
     });
   }, [days, selectedDayIndex, epgList]);
 
+  if (!isFocused) return <View style={{ flex: 1, backgroundColor: '#05070a' }} />;
+
   // --- TV Layout ---
   if (isLargeScreen) {
+    const isWeb = Platform.OS === 'web';
+    const glassPaneStyle: any = isWeb ? {
+      backgroundColor: 'rgba(0, 0, 0, 0.65)',
+      backdropFilter: 'blur(30px)',
+      WebkitBackdropFilter: 'blur(30px)',
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: 'rgba(255,255,255,0.08)',
+      marginTop: 12,
+      marginBottom: 32,
+      marginRight: 16,
+      overflow: 'hidden',
+    } : {
+      backgroundColor: 'rgba(0, 0, 0, 0.8)',
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: 'rgba(255,255,255,0.08)',
+      marginTop: 12,
+      marginBottom: 32,
+      marginRight: 16,
+      overflow: 'hidden',
+    };
+
     return (
-      <View style={[styles.tvContainer, { backgroundColor: colors.background }]}>
-        {/* Pane 1: Channels */}
-        <View style={[styles.tvPaneChannels, { borderColor: colors.border }]}>
-          <View style={styles.tvHeader}>
-            <Text style={[styles.tvTitle, { color: colors.text }]}>Catch Up</Text>
-          </View>
+      <View style={[styles.tvContainer, { backgroundColor: isLargeScreen ? 'transparent' : colors.background, paddingLeft: 24 }]}>
+        <View style={[{ flexDirection: 'row', flex: 1 }, glassPaneStyle]}>
+          {/* Pane 1: Channels */}
+          <View style={[styles.tvPaneChannels, { borderRightWidth: 1, borderRightColor: 'rgba(255,255,255,0.08)' }]}>
+            <View style={styles.tvHeader}>
+              <Text style={[styles.tvTitle, { color: colors.text }]}>Catch Up</Text>
+            </View>
           <FlatList
             data={catchupChannels}
             keyExtractor={(item) => item.id}
@@ -397,13 +435,13 @@ export default function CatchUpScreen() {
               );
             }}
           />
-        </View>
-
-        {/* Pane 2: Days */}
-        <View style={[styles.tvPaneDays, { borderColor: colors.border }]}>
-          <View style={styles.tvHeader}>
-            <Text style={[styles.tvTitle, { color: colors.text }]}>Days</Text>
           </View>
+
+          {/* Pane 2: Days */}
+          <View style={[styles.tvPaneDays, { borderRightWidth: 1, borderRightColor: 'rgba(255,255,255,0.08)' }]}>
+            <View style={styles.tvHeader}>
+              <Text style={[styles.tvTitle, { color: colors.text }]}>Days</Text>
+            </View>
           {days.map((day, idx) => {
             const isSelected = selectedDayIndex === idx;
             return (
@@ -424,13 +462,13 @@ export default function CatchUpScreen() {
               </TVFocusable>
             );
           })}
-        </View>
-
-        {/* Pane 3: EPG Schedule */}
-        <View style={styles.tvPaneEpg}>
-          <View style={styles.tvHeader}>
-            <Text style={[styles.tvTitle, { color: colors.text }]}>Schedule</Text>
           </View>
+
+          {/* Pane 3: EPG Schedule */}
+          <View style={[styles.tvPaneEpg, { flex: 1 }]}>
+            <View style={styles.tvHeader}>
+              <Text style={[styles.tvTitle, { color: colors.text }]}>Schedule</Text>
+            </View>
           {loadingEpg ? (
             <View style={styles.centerAll}>
               <ActivityIndicator size="large" color={colors.gold} />
@@ -475,6 +513,7 @@ export default function CatchUpScreen() {
               )}
             />
           )}
+          </View>
         </View>
       </View>
     );
@@ -485,38 +524,38 @@ export default function CatchUpScreen() {
     const isSelected = selectedChannel?.id === item.id;
     return (
       <TVFocusable 
-        style={[styles.listItem, { backgroundColor: colors.surface, borderColor: isSelected ? colors.gold : colors.border }]}
+        style={[styles.listItem, { backgroundColor: colors.surface, borderColor: isSelected ? colors.gold : colors.border }, isLandscape && { padding: 8, marginBottom: 6 }]}
         onPress={() => {
           setSelectedChannel(item);
           setEpgList([]);
         }}
       >
         <View style={styles.listLeft}>
-          <View style={[styles.listIconBg, { backgroundColor: colors.surface2 }]}>
+          <View style={[styles.listIconBg, { backgroundColor: colors.surface2 }, isLandscape && { width: 32, height: 32 }]}>
             {item.logo ? (
-              <Image source={{ uri: item.logo }} style={{ width: 28, height: 28, borderRadius: 6 }} contentFit="contain" />
+              <Image source={{ uri: item.logo }} style={{ width: isLandscape ? 24 : 28, height: isLandscape ? 24 : 28, borderRadius: 6 }} contentFit="contain" />
             ) : (
-              <Lineicons icon={MonitorBulk} size={16} color={colors.text} />
+              <Lineicons icon={MonitorBulk} size={isLandscape ? 14 : 16} color={colors.text} />
             )}
           </View>
-          <Text style={[styles.listName, { color: colors.text }]} numberOfLines={2}>{item.name}</Text>
+          <Text style={[styles.listName, { color: colors.text }, isLandscape && { fontSize: 14 }]} numberOfLines={isLandscape ? 1 : 2}>{item.name}</Text>
         </View>
-        <Lineicons icon={ArrowRightBulk} size={20} color={colors.mutedForeground} />
+        <Lineicons icon={ArrowRightBulk} size={16} color={colors.mutedForeground} />
       </TVFocusable>
     );
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background }]}>
+    <View style={[styles.container, { backgroundColor: isLargeScreen ? 'transparent' : colors.background, display: isFocused ? 'flex' : 'none' }]}>
       {selectedChannel && (
-        <View style={[styles.header, { paddingBottom: 0 }]}>
+        <View style={[styles.header, { paddingBottom: 0 }, isLandscape && { paddingTop: 4, paddingBottom: 4 }]}>
           <TVFocusable 
-            style={[styles.backBtn, { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }]} 
+            style={[styles.backBtn, { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border }, isLandscape && { width: 30, height: 30 }]} 
             onPress={() => setSelectedChannel(null)}
           >
-            <Lineicons icon={ArrowLeftBulk} size={20} color={colors.text} />
+            <Lineicons icon={ArrowLeftBulk} size={isLandscape ? 16 : 20} color={colors.text} />
           </TVFocusable>
-          <Text style={[styles.headerTitle, { color: colors.text, flex: 1, marginLeft: 12 }]} numberOfLines={1}>
+          <Text style={[styles.headerTitle, { color: colors.text, flex: 1, marginLeft: 12 }, isLandscape && { fontSize: 16 }]} numberOfLines={1}>
             {selectedChannel.name}
           </Text>
         </View>
@@ -543,10 +582,10 @@ export default function CatchUpScreen() {
               return (
                 <TVFocusable
                   key={day.dateString}
-                  style={[styles.dayTabItem, isSelected && { borderBottomColor: colors.gold }]}
+                  style={[styles.dayTabItem, isSelected && { borderBottomColor: colors.gold }, isLandscape && { paddingVertical: 8 }]}
                   onPress={() => setSelectedDayIndex(idx)}
                 >
-                  <Text style={[styles.dayTabLabel, { color: isSelected ? colors.gold : colors.text }]}>
+                  <Text style={[styles.dayTabLabel, { color: isSelected ? colors.gold : colors.text }, isLandscape && { fontSize: 12 }]}>
                     {idx === 0 ? 'Today' : idx === 1 ? 'Yesterday' : day.label.split(' (')[0]}
                   </Text>
                 </TVFocusable>
@@ -565,19 +604,19 @@ export default function CatchUpScreen() {
               keyExtractor={(item) => item.id}
               contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 20 }}
               renderItem={({ item }) => (
-                <View style={[styles.epgCard, { backgroundColor: colors.surface, borderColor: item.isCurrent ? colors.gold : colors.border, opacity: item.isFuture ? 0.55 : 1 }]}>
+                <View style={[styles.epgCard, { backgroundColor: colors.surface, borderColor: item.isCurrent ? colors.gold : colors.border, opacity: item.isFuture ? 0.55 : 1 }, isLandscape && { padding: 10, gap: 8, marginBottom: 8 }]}>
                   <View style={styles.epgTimeContainer}>
-                    <Text style={[styles.epgTime, { color: item.isCurrent ? colors.gold : colors.text }]}>{formatTimeRange(item.start, item.end)}</Text>
-                    {item.isCurrent && <View style={styles.nowPlayingBadge}><Text style={styles.nowPlayingText}>LIVE</Text></View>}
+                    <Text style={[styles.epgTime, { color: item.isCurrent ? colors.gold : colors.text }, isLandscape && { fontSize: 12 }]}>{formatTimeRange(item.start, item.end)}</Text>
+                    {item.isCurrent && <View style={[styles.nowPlayingBadge, isLandscape && { paddingVertical: 2 }]}><Text style={styles.nowPlayingText}>LIVE</Text></View>}
                   </View>
-                  <View style={styles.epgInfo}>
-                    <Text style={[styles.epgTitle, { color: colors.text }]} numberOfLines={2}>{item.title}</Text>
-                    {item.description ? <Text style={[styles.epgDesc, { color: colors.mutedForeground }]} numberOfLines={2}>{item.description}</Text> : null}
+                  <View style={[styles.epgInfo, isLandscape && { gap: 2 }]}>
+                    <Text style={[styles.epgTitle, { color: colors.text }, isLandscape && { fontSize: 14 }]} numberOfLines={isLandscape ? 1 : 2}>{item.title}</Text>
+                    {item.description ? <Text style={[styles.epgDesc, { color: colors.mutedForeground }, isLandscape && { fontSize: 11, lineHeight: 14 }]} numberOfLines={isLandscape ? 1 : 2}>{item.description}</Text> : null}
                   </View>
                   {!item.isFuture && (
-                    <TVFocusable style={[styles.playBtn, { backgroundColor: item.isCurrent ? colors.gold : 'rgba(255,255,255,0.08)' }]} onPress={() => handlePlayProgram(item)}>
-                      <Lineicons icon={item.isCurrent  ? MonitorBulk : PlayBulk} size={18} color={item.isCurrent ? '#1A1A1A' : colors.text} />
-                      <Text style={[styles.playBtnText, { color: item.isCurrent ? '#1A1A1A' : colors.text }]}>{item.isCurrent ? 'Live' : 'Catch Up'}</Text>
+                    <TVFocusable style={[styles.playBtn, { backgroundColor: item.isCurrent ? colors.gold : 'rgba(255,255,255,0.08)' }, isLandscape && { paddingVertical: 6 }]} onPress={() => handlePlayProgram(item)}>
+                      <Lineicons icon={item.isCurrent  ? MonitorBulk : PlayBulk} size={14} color={item.isCurrent ? '#1A1A1A' : colors.text} />
+                      <Text style={[styles.playBtnText, { color: item.isCurrent ? '#1A1A1A' : colors.text }, isLandscape && { fontSize: 12 }]}>{item.isCurrent ? 'Live' : 'Catch Up'}</Text>
                     </TVFocusable>
                   )}
                 </View>
@@ -596,8 +635,8 @@ const styles = StyleSheet.create({
   
   // TV Styles
   tvContainer: { flex: 1, flexDirection: 'row' },
-  tvPaneChannels: { width: '35%', maxWidth: 350, borderRightWidth: 1 },
-  tvPaneDays: { width: 140, borderRightWidth: 1 },
+  tvPaneChannels: { width: 340 },
+  tvPaneDays: { width: 140 },
   tvPaneEpg: { flex: 1 },
   tvHeader: { padding: 24, paddingBottom: 16 },
   tvTitle: { fontSize: 24, fontWeight: 'bold' },

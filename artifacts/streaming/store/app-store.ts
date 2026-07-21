@@ -1,20 +1,25 @@
 import { create } from 'zustand';
+import { Platform } from 'react-native';
 import AsyncStorageOriginal from '@react-native-async-storage/async-storage';
 import * as FileSystem from 'expo-file-system/legacy';
+import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { readCacheString, writeCacheString, deleteCache } from '../lib/storage';
 
 const isLargeDataKey = (key: string) => key.startsWith('channels_') || key.startsWith('categories_') || key.startsWith('search_index_');
 
 const AsyncStorage = {
   getItem: async (key: string) => {
+    if (Platform.OS === 'web') return await readCacheString(key);
     if (isLargeDataKey(key)) return await readCacheString(key);
     return await AsyncStorageOriginal.getItem(key);
   },
   setItem: async (key: string, value: string) => {
+    if (Platform.OS === 'web') return await writeCacheString(key, value);
     if (isLargeDataKey(key)) return await writeCacheString(key, value);
     return await AsyncStorageOriginal.setItem(key, value);
   },
   removeItem: async (key: string) => {
+    if (Platform.OS === 'web') return await deleteCache(key);
     if (isLargeDataKey(key)) return await deleteCache(key);
     return await AsyncStorageOriginal.removeItem(key);
   }
@@ -55,11 +60,16 @@ interface AppState {
   logout: () => void;
 
   activePlaylistId: string;
+  appIsReady: boolean;
   playlists: Playlist[];
   playlistChannels: Record<string, Channel[]>;
   activeCategories: PlaylistCategories | null;
   channels: Channel[];
   loadingChannels: boolean;
+  subscriptionExpired: boolean;
+  setSubscriptionExpired: (expired: boolean) => void;
+  isFullscreen: boolean;
+  setIsFullscreen: (full: boolean) => void;
 
   loadingSearchIndex: boolean;
   searchIndexReady: boolean;
@@ -67,7 +77,15 @@ interface AppState {
   loadSearchIndex: (playlistId: string) => Promise<void>;
   buildSearchIndex: (playlistId: string, onProgress?: (msg: string) => void) => Promise<void>;
   searchChannels: (query: string) => Promise<Channel[]>;
+  getSearchSuggestions: (query: string) => Promise<string[]>;
   getChannelsByType: (type: 'live' | 'vod' | 'series') => Promise<Channel[]>;
+  
+  cachedHomeContent: {
+    playlistId: string | null;
+    rows: any[];
+    featured: any[];
+  } | null;
+  setCachedHomeContent: (playlistId: string, rows: any[], featured: any[]) => void;
   
   addPlaylist: (
     playlist: Playlist, 
@@ -81,7 +99,7 @@ interface AppState {
     playlistId: string,
     url: string,
     onProgress?: (msg: string) => void
-  ) => Promise<{ channels: number }>;
+  ) => Promise<{ channels: number, expireText?: string }>;
   loadChannelsForCategory: (
     playlistId: string,
     type: 'live' | 'vod' | 'series',
@@ -105,8 +123,20 @@ interface AppState {
   favorites: string[];
   favoriteItems: Channel[];
   toggleFavorite: (item: Channel) => void;
-  globalAlert: { title: string; message: string; buttonText: string; onPress: () => void; } | null;
-  showGlobalAlert: (title: string, message: string, buttonText: string, onPress: () => void) => void;
+  globalAlert: { 
+    title: string; 
+    message: string; 
+    buttonText: string; 
+    onPress: () => void; 
+    secondaryButton?: { text: string; onPress: () => void; color?: string; icon?: string; }
+  } | null;
+  showGlobalAlert: (
+    title: string, 
+    message: string, 
+    buttonText: string, 
+    onPress: () => void,
+    secondaryButton?: { text: string; onPress: () => void; color?: string; icon?: string; }
+  ) => void;
   hideGlobalAlert: () => void;
 
   settings: {
@@ -131,6 +161,8 @@ interface AppState {
   cancelDownload: (id: string) => Promise<void>;
 
   initializeFromStorage: () => Promise<void>;
+  isPlayerOpen: boolean;
+  setIsPlayerOpen: (isOpen: boolean) => void;
 }
 
 export interface DownloadItem {
@@ -189,7 +221,7 @@ const fetchWithXHR = (targetUrl: string, acceptHeader?: string): Promise<string>
 export const useAppStore = create<AppState>((set, get) => ({
   isLoggedIn: false,
   globalAlert: null,
-  showGlobalAlert: (title, message, buttonText, onPress) => set({ globalAlert: { title, message, buttonText, onPress } }),
+  showGlobalAlert: (title, message, buttonText, onPress, secondaryButton) => set({ globalAlert: { title, message, buttonText, onPress, secondaryButton } }),
   hideGlobalAlert: () => set({ globalAlert: null }),
   user: null,
   downloads: [],
@@ -221,16 +253,41 @@ export const useAppStore = create<AppState>((set, get) => ({
   startDownload: async (item) => {
     const fileUri = (FileSystem as any).documentDirectory + `${item.id}.mp4`;
     
-    // Create new download item state
     const newDownload: DownloadItem = {
       ...item,
       status: 'downloading',
       progress: 0,
-      localUri: fileUri
+      localUri: Platform.OS === 'web' ? '' : fileUri
     };
     get().addDownload(newDownload);
 
+    if (Platform.OS === 'web') {
+      try {
+        const url = `/api/download/start?id=${item.id}&url=${encodeURIComponent(item.streamUrl)}`;
+        const res = await fetch(url);
+        const data = await res.json();
+        get().updateDownloadItem(item.id, { localUri: data.localUri });
+
+        if (!(window as any).downloadPoller) {
+          (window as any).downloadPoller = setInterval(async () => {
+            try {
+              const statRes = await fetch('/api/download/status');
+              const stats = await statRes.json();
+              for (const [id, info] of Object.entries(stats)) {
+                get().updateDownloadItem(id, info as any);
+              }
+            } catch (e) {}
+          }, 1000);
+        }
+      } catch (e) {
+        console.error("[Web Download Error]", e);
+        get().updateDownloadItem(item.id, { status: 'error' });
+      }
+      return;
+    }
+
     try {
+      activateKeepAwakeAsync().catch(() => {});
       const downloadResumable = FileSystem.createDownloadResumable(
         item.streamUrl,
         fileUri,
@@ -238,9 +295,7 @@ export const useAppStore = create<AppState>((set, get) => ({
           headers: { 
             'User-Agent': 'VLC/3.0.18 LibVLC/3.0.18',
             'Accept': '*/*',
-            'Accept-Encoding': 'identity',
-            'Connection': 'close',
-            'Icy-MetaData': '1'
+            'Accept-Encoding': 'identity'
           } 
         },
         (dp) => {
@@ -256,13 +311,22 @@ export const useAppStore = create<AppState>((set, get) => ({
       if (result) {
         get().updateDownloadItem(item.id, { status: 'completed', progress: 1 });
       } else {
-        get().updateDownloadItem(item.id, { status: 'error' });
+        const currentItem = get().downloads.find(d => d.id === item.id);
+        if (currentItem && currentItem.status !== 'paused') {
+          get().updateDownloadItem(item.id, { status: 'error' });
+        }
       }
     } catch (e: any) {
       console.error("[Download Error]", e);
-      get().updateDownloadItem(item.id, { status: 'error' });
+      const currentItem = get().downloads.find(d => d.id === item.id);
+      if (currentItem && currentItem.status !== 'paused') {
+        get().updateDownloadItem(item.id, { status: 'error' });
+      }
     } finally {
       delete activeDownloads[item.id];
+      if (Object.keys(activeDownloads).length === 0) {
+        deactivateKeepAwake().catch(() => {});
+      }
     }
   },
 
@@ -281,9 +345,14 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   resumeDownload: async (id) => {
     const download = get().downloads.find(d => d.id === id);
-    if (!download || !download.resumeData) return;
+    if (!download) return;
+    
+    if (!download.resumeData) {
+      return get().startDownload(download);
+    }
 
     try {
+      activateKeepAwakeAsync().catch(() => {});
       const parsedResumeData = JSON.parse(download.resumeData);
       const downloadResumable = FileSystem.createDownloadResumable(
         download.streamUrl,
@@ -292,9 +361,7 @@ export const useAppStore = create<AppState>((set, get) => ({
           headers: { 
             'User-Agent': 'VLC/3.0.18 LibVLC/3.0.18',
             'Accept': '*/*',
-            'Accept-Encoding': 'identity',
-            'Connection': 'close',
-            'Icy-MetaData': '1'
+            'Accept-Encoding': 'identity'
           } 
         },
         (dp) => {
@@ -312,13 +379,22 @@ export const useAppStore = create<AppState>((set, get) => ({
       if (result) {
         get().updateDownloadItem(id, { status: 'completed', progress: 1 });
       } else {
-        get().updateDownloadItem(id, { status: 'error' });
+        const currentItem = get().downloads.find(d => d.id === id);
+        if (currentItem && currentItem.status !== 'paused') {
+          get().updateDownloadItem(id, { status: 'error' });
+        }
       }
     } catch (e: any) {
       console.error("[Download Resume Error]", e);
-      get().updateDownloadItem(id, { status: 'error' });
+      const currentItem = get().downloads.find(d => d.id === id);
+      if (currentItem && currentItem.status !== 'paused') {
+        get().updateDownloadItem(id, { status: 'error' });
+      }
     } finally {
       delete activeDownloads[id];
+      if (Object.keys(activeDownloads).length === 0) {
+        deactivateKeepAwake().catch(() => {});
+      }
     }
   },
 
@@ -356,10 +432,19 @@ export const useAppStore = create<AppState>((set, get) => ({
   activeCategories: null,
   channels: [],
   loadingChannels: false,
+  subscriptionExpired: false,
+  setSubscriptionExpired: (expired) => set({ subscriptionExpired: expired }),
+  isFullscreen: false,
+  setIsFullscreen: (full) => set({ isFullscreen: full }),
 
   loadingSearchIndex: false,
   searchIndexReady: false,
   searchIndexProgress: '',
+
+  cachedHomeContent: null,
+  setCachedHomeContent: (playlistId, rows, featured) => {
+    set({ cachedHomeContent: { playlistId, rows, featured } });
+  },
 
   searchChannels: async (query: string) => {
     if (!query) return [];
@@ -367,11 +452,28 @@ export const useAppStore = create<AppState>((set, get) => ({
     const results: Channel[] = [];
     for (const item of globalSearchIndex) {
       if (results.length >= 50) break;
-      if (item.name && item.name.toLowerCase().includes(q)) {
+      const matchName = item.name && item.name.toLowerCase().includes(q);
+      const matchCategory = item.category && item.category.toLowerCase().includes(q);
+      if (matchName || matchCategory) {
         results.push(item);
       }
     }
     return results;
+  },
+
+  getSearchSuggestions: async (query: string) => {
+    if (!query || query.trim().length === 0) return [];
+    const q = query.toLowerCase();
+    const suggestions = new Set<string>();
+    
+    for (const item of globalSearchIndex) {
+      if (suggestions.size >= 6) break;
+      if (item.name && item.name.toLowerCase().includes(q)) {
+        // Try to return just the matching word or the whole name if it's short
+        suggestions.add(item.name.split(' ').slice(0, 3).join(' ')); 
+      }
+    }
+    return Array.from(suggestions);
   },
 
 
@@ -491,6 +593,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       
       const fetchJsonWithFallback = async (endpoint: string): Promise<any> => {
         const targetUrls = [
+          `/proxy?url=${encodeURIComponent(endpoint)}`,
           endpoint,
           `https://corsproxy.io/?url=${encodeURIComponent(endpoint)}`,
           `https://api.allorigins.win/raw?url=${encodeURIComponent(endpoint)}`
@@ -513,7 +616,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       try {
         console.log(`[Xtream Import] Verifying account credentials at: ${host}`);
         onProgress?.('Verifying Xtream Account Status...');
-        const accountInfo = await fetchJsonWithFallback(`${host}/player_api.php?username=${username}&password=${password}`);
+        const accountInfo = await fetchJsonWithFallback(`${host}/player_api.php?username=${username}&password=${password}&_t=${Date.now()}`);
         
         console.log('[Xtream Import] Account info response:', accountInfo);
         
@@ -525,12 +628,20 @@ export const useAppStore = create<AppState>((set, get) => ({
           throw new Error(`Account status is: ${accountInfo.user_info.status || 'Expired or Inactive'}`);
         }
 
+        let expireText = 'Active';
+        if (accountInfo.user_info.exp_date && accountInfo.user_info.exp_date !== "null") {
+          const timestamp = parseInt(accountInfo.user_info.exp_date) * 1000;
+          if (!isNaN(timestamp)) {
+            expireText = 'Expires: ' + new Date(timestamp).toLocaleDateString();
+          }
+        }
+
         console.log('[Xtream Import] Credentials verified. Account status active. Syncing categories...');
         onProgress?.('Fetching categories...');
         const [liveCats, vodCats, seriesCats] = await Promise.all([
-          fetchJsonWithFallback(`${host}/player_api.php?username=${username}&password=${password}&action=get_live_categories`).catch((err) => { console.warn('Failed get_live_categories:', err); return []; }),
-          fetchJsonWithFallback(`${host}/player_api.php?username=${username}&password=${password}&action=get_vod_categories`).catch((err) => { console.warn('Failed get_vod_categories:', err); return []; }),
-          fetchJsonWithFallback(`${host}/player_api.php?username=${username}&password=${password}&action=get_series_categories`).catch((err) => { console.warn('Failed get_series_categories:', err); return []; })
+          fetchJsonWithFallback(`${host}/player_api.php?username=${username}&password=${password}&action=get_live_categories&_t=${Date.now()}`).catch((err) => { console.warn('Failed get_live_categories:', err); return []; }),
+          fetchJsonWithFallback(`${host}/player_api.php?username=${username}&password=${password}&action=get_vod_categories&_t=${Date.now()}`).catch((err) => { console.warn('Failed get_vod_categories:', err); return []; }),
+          fetchJsonWithFallback(`${host}/player_api.php?username=${username}&password=${password}&action=get_series_categories&_t=${Date.now()}`).catch((err) => { console.warn('Failed get_series_categories:', err); return []; })
         ]);
 
         if (Array.isArray(liveCats) || Array.isArray(vodCats) || Array.isArray(seriesCats)) {
@@ -562,14 +673,14 @@ export const useAppStore = create<AppState>((set, get) => ({
           set((s) => ({
             playlists: s.playlists.map((p) =>
               p.id === playlistId
-                ? { ...p, channels: totalCategories, updated: 'Active', lastUpdatedTimestamp: Date.now() }
+                ? { ...p, channels: totalCategories, updated: expireText, lastUpdatedTimestamp: Date.now() }
                 : p
             ),
           }));
 
           await AsyncStorage.setItem('playlists', JSON.stringify(get().playlists));
 
-          return { channels: totalCategories };
+          return { channels: totalCategories, expireText };
         }
       } catch (e: any) {
         console.error('[Xtream Import] Failed to verify or fetch categories:', e);
@@ -593,7 +704,13 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     // Generate the full list of URLs to try:
     // First, try all direct options (so direct works fast if it works)
-    const urlsToTry: string[] = [...baseUrls];
+    const urlsToTry: string[] = [];
+
+    // Prioritize the local proxy in Electron, otherwise direct
+    for (const u of baseUrls) {
+      urlsToTry.push(`/proxy?url=${encodeURIComponent(u)}`);
+      urlsToTry.push(u);
+    }
 
     // Then, try each URL through HTTPS CORS proxies (bypass user-agent blocks and cleartext restrictions)
     for (const u of baseUrls) {
@@ -738,8 +855,8 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
     
     try {
-      const cacheKey = `channels_${playlistId}_${type}_${categoryId}`;
-      const cached = await AsyncStorage.getItem(cacheKey);
+      const storageKey = `channels_v4_${playlistId}_${type}_${categoryId}`;
+      const cached = await AsyncStorage.getItem(storageKey);
       
       if (cached) {
         const parsed = JSON.parse(cached);
@@ -766,66 +883,14 @@ export const useAppStore = create<AppState>((set, get) => ({
           return [];
         }
 
-        // Verify account first to prevent HTML errors on expired playlists
-        try {
-          const authUrl = `${config.host}/player_api.php?username=${config.username}&password=${config.password}`;
-          const targetUrls = [
-            authUrl,
-            `https://corsproxy.io/?url=${encodeURIComponent(authUrl)}`,
-            `https://api.allorigins.win/raw?url=${encodeURIComponent(authUrl)}`
-          ];
-          
-          let authText = '';
-          let authFetched = false;
-          for (const u of targetUrls) {
-            try {
-              authText = await new Promise((resolve, reject) => {
-                const xhr = new XMLHttpRequest();
-                xhr.open('GET', u, true);
-                xhr.timeout = 10000;
-                xhr.onload = () => {
-                  if (xhr.status >= 200 && xhr.status < 300) {
-                    if (xhr.responseText) resolve(xhr.responseText);
-                    else reject(new Error('Empty response'));
-                  }
-                  else reject(new Error(`Auth HTTP ${xhr.status}`));
-                };
-                xhr.onerror = () => reject(new Error('Auth Network error'));
-                xhr.ontimeout = () => reject(new Error('Auth Timeout'));
-                xhr.send();
-              });
-              authFetched = true;
-              break;
-            } catch (e) {
-              // ignore and try next
-            }
-          }
-          
-          if (authFetched) {
-            const authParsed = JSON.parse(authText);
-            if (!authParsed || !authParsed.user_info || authParsed.user_info.auth === 0 || authParsed.user_info.status !== 'Active') {
-              console.warn('[getChannelsForCategory] Account is invalid or expired. Silently returning empty array to avoid annoying errors.');
-              
-              get().showGlobalAlert('Subscription Expired', 'Your current subscription has expired. Please add a new valid playlist.', 'OK', () => { 
-                get().hideGlobalAlert();
-                const { router } = require('expo-router');
-                router.replace('/playlists'); 
-              });
-
-              return []; // Silently return empty array to prevent UI crash/annoying errors
-            }
-          }
-        } catch (e: any) {
-          console.warn('[getChannelsForCategory] Auth check failed to parse (likely expired and returned HTML). Silently returning empty array.');
-          return [];
-        }
+        // We skip auth verify here because it was done on import and doing it on every category fetch triggers rate-limiting.
         
         let action = '';
         if (type === 'live') action = 'get_live_streams';
         else if (type === 'vod') action = 'get_vod_streams';
         else if (type === 'series') action = 'get_series';
         
-        const fetchUrl = `${config.host}/player_api.php?username=${config.username}&password=${config.password}&action=${action}&category_id=${categoryId}`;
+        const fetchUrl = `${config.host}/player_api.php?username=${config.username}&password=${config.password}&action=${action}&category_id=${categoryId}&_t=${Date.now()}`;
         console.log(`[getChannelsForCategory] Fetching streams from host: ${config.host}, url: ${fetchUrl}`);
         
         const targetUrls = [
@@ -889,7 +954,7 @@ export const useAppStore = create<AppState>((set, get) => ({
                   logo: item.stream_icon || '',
                   category: categoryName,
                   streamUrl,
-                  current: 'Live Stream',
+                  current: 'Live Channel',
                   next: 'Upcoming Program',
                   quality,
                   isLive: true,
@@ -898,8 +963,7 @@ export const useAppStore = create<AppState>((set, get) => ({
                   archiveDuration
                 });
               } else if (type === 'vod' && item.stream_id) {
-                const ext = item.container_extension || 'mp4';
-                const streamUrl = `${config.host}/movie/${config.username}/${config.password}/${item.stream_id}.${ext}`;
+                const streamUrl = `${config.host}/movie/${config.username}/${config.password}/${item.stream_id}.${item.container_extension || 'mp4'}`;
                 channelsList.push({
                   id: `xt_vod_${item.stream_id}`,
                   name: item.name,
@@ -914,6 +978,9 @@ export const useAppStore = create<AppState>((set, get) => ({
                 });
               } else if (type === 'series' && item.series_id) {
                 const streamUrl = `${config.host}/series/${config.username}/${config.password}/${item.series_id}.m3u8`;
+                if (channelsList.length > 0) {
+                  // Do not store in cache to prevent OOM crashes
+                }
                 channelsList.push({
                   id: `xt_series_${item.series_id}`,
                   name: item.name,
@@ -995,6 +1062,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     AsyncStorage.setItem('favoriteItems', JSON.stringify(newItems));
   },
 
+  isPlayerOpen: false,
+  setIsPlayerOpen: (isOpen) => set({ isPlayerOpen: isOpen }),
+
   settings: {
     quality: 'Auto',
     forceHttp: false,
@@ -1003,6 +1073,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   updateSettings: (s) =>
     set((state) => ({ settings: { ...state.settings, ...s } })),
+
+  appIsReady: false,
 
   initializeFromStorage: async () => {
     try {
@@ -1057,12 +1129,15 @@ export const useAppStore = create<AppState>((set, get) => ({
       // Auto-load search index for active playlist on start
       if (finalActiveId) {
         try {
-          await get().loadSearchIndex(finalActiveId);
-          if (globalSearchIndex.length === 0) {
-            get().buildSearchIndex(finalActiveId).catch(() => {});
-          }
+          get().loadSearchIndex(finalActiveId).then(() => {
+            if (globalSearchIndex.length === 0) {
+              get().buildSearchIndex(finalActiveId).catch(() => {});
+            }
+          }).catch(err => {
+            console.error('[initializeFromStorage] Failed loading search index:', err);
+          });
         } catch (err) {
-          console.error('[initializeFromStorage] Failed loading search index:', err);
+          console.error('[initializeFromStorage] Error triggering search index:', err);
         }
       }
 
@@ -1073,8 +1148,11 @@ export const useAppStore = create<AppState>((set, get) => ({
 
       const cwStr = await AsyncStorage.getItem('continueWatching');
       if (cwStr) set({ continueWatching: JSON.parse(cwStr) ?? [] });
+
+      set({ appIsReady: true });
     } catch (e) {
       console.error('Failed to load store', e);
+      set({ appIsReady: true });
     }
   },
 
@@ -1139,12 +1217,16 @@ export const useAppStore = create<AppState>((set, get) => ({
             onProgress?.(`Fetching ${a.name} database...`);
             try {
               const url = `${config.host}/player_api.php?username=${config.username}&password=${config.password}&action=${a.action}`;
-              const res = await fetch(url);
+              const res = await fetch(url, {
+                headers: {
+                  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+                }
+              });
               const data = await res.json();
               if (Array.isArray(data)) {
                 for (const item of data) {
                   if (!item || !item.name) continue;
-                  let quality = 'HD';
+                  let quality: '4K' | 'FHD' | 'HD' = 'HD';
                   if (item.name.toUpperCase().includes('4K') || item.name.toUpperCase().includes('UHD')) quality = '4K';
                   else if (item.name.toUpperCase().includes('FHD') || item.name.toUpperCase().includes('1080')) quality = 'FHD';
                   
@@ -1153,7 +1235,7 @@ export const useAppStore = create<AppState>((set, get) => ({
                   let logo = '';
                   
                   if (a.type === 'live' && item.stream_id) {
-                    streamUrl = `${config.host}/live/${config.username}/${config.password}/${item.stream_id}.m3u8`;
+                    streamUrl = `${config.host}/live/${config.username}/${config.password}/${item.stream_id}.ts`;
                     id = `xt_live_${item.stream_id}`;
                     logo = item.stream_icon || '';
                   } else if (a.type === 'vod' && item.stream_id) {
@@ -1168,17 +1250,21 @@ export const useAppStore = create<AppState>((set, get) => ({
                   }
                   
                   if (id) {
+                    const hasArchive = a.type === 'live' && (item.tv_archive === 1 || item.tv_archive === '1');
+                    const archiveDuration = a.type === 'live' ? (parseInt(item.tv_archive_duration, 10) || 0) : 0;
                     tempIndex.push({
                       id,
                       name: item.name,
-                      type: a.type,
+                      type: a.type as 'live' | 'vod' | 'series',
                       logo,
                       category: catMap.get(String(item.category_id)) || item.category_name || (item.name ? item.name.split(/[:|-]/)[0].trim() : 'Unknown'),
                       streamUrl,
                       current: a.type === 'live' ? 'Live Stream' : (a.type === 'vod' ? 'Movie' : (item.plot || 'TV Series')),
                       next: '',
                       quality,
-                      isLive: a.type === 'live'
+                      isLive: a.type === 'live',
+                      hasArchive,
+                      archiveDuration
                     });
                   }
                 }

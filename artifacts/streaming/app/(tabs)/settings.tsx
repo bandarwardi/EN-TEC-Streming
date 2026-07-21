@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable, useWindowDimensions, Platform } from 'react-native';
 import { TVFocusable } from '@/components/TVFocusable';
 import { useColors } from '@/hooks/useColors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -8,11 +8,15 @@ import { StarFatBulk, ArrowRightBulk } from '@lineiconshq/free-icons';
 import { useAppStore } from '@/store/app-store';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
+import { useIsFocused } from '@react-navigation/native';
 
 export default function SettingsScreen() {
+  const isFocused = useIsFocused();
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const { user, playlists, settings, logout } = useAppStore();
+  const { width } = useWindowDimensions();
+  const isLargeScreen = width >= 1024 || Platform.isTV;
 
   const handleLogout = () => {
     logout();
@@ -20,7 +24,7 @@ export default function SettingsScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
+    <View style={[styles.container, { backgroundColor: isLargeScreen ? 'transparent' : colors.background, paddingTop: insets.top, display: isFocused ? 'flex' : 'none' }]}>
       <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: insets.bottom + 80 }}>
         
         <View style={styles.accountSection}>
@@ -58,6 +62,33 @@ export default function SettingsScreen() {
               <Text style={[styles.rowValue, { color: colors.mutedForeground }]}>{playlists.length}</Text>
               <Lineicons icon={ArrowRightBulk} size={16} color={colors.mutedForeground} />
             </View>
+          </TVFocusable>
+          
+          <View style={{ height: 1, backgroundColor: 'rgba(255,255,255,0.05)', marginHorizontal: 20 }} />
+
+          <TVFocusable 
+            style={({ focused }: any) => [
+              styles.row,
+              focused && { backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 3, borderColor: '#FFF', borderRadius: 16 }
+            ]} 
+            onPress={() => router.push('/favorites')}
+            focusable={true}
+          >
+            <Text style={[styles.rowText, { color: colors.text }]}>My Favorites</Text>
+            <Lineicons icon={ArrowRightBulk} size={16} color={colors.mutedForeground} />
+          </TVFocusable>
+          <View style={{ height: 1, backgroundColor: 'rgba(255,255,255,0.05)', marginHorizontal: 20 }} />
+
+          <TVFocusable 
+            style={({ focused }: any) => [
+              styles.row,
+              focused && { backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 3, borderColor: '#FFF', borderRadius: 16 }
+            ]} 
+            onPress={() => router.push('/continue-watching')}
+            focusable={true}
+          >
+            <Text style={[styles.rowText, { color: colors.text }]}>Continue Watching</Text>
+            <Lineicons icon={ArrowRightBulk} size={16} color={colors.mutedForeground} />
           </TVFocusable>
         </View>
 

@@ -148,7 +148,7 @@ export default function FavoritesScreen() {
             styles.backBtn,
             focused && { transform: [{ scale: 1.1 }], backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 12, borderWidth: 3, borderColor: '#FFF' }
           ]} 
-          onPress={() => router.back()}
+          onPress={() => { if (router.canGoBack()) { router.back(); } else { router.replace('/(tabs)'); } }}
           focusable={true}
         >
           {({ focused }: any) => (

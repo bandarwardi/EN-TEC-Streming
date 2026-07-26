@@ -39,7 +39,7 @@ export default function ContinueWatchingScreen() {
             styles.backBtn,
             focused && { transform: [{ scale: 1.1 }], backgroundColor: 'rgba(255,255,255,0.15)' }
           ]}
-          onPress={() => router.back()}
+          onPress={() => { if (router.canGoBack()) { router.back(); } else { router.replace('/(tabs)'); } }}
           focusable={true}
         >
           {({ focused }: any) => (

@@ -156,7 +156,7 @@ export default function PlaylistsScreen() {
     <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top }]}>
       <View style={styles.header}>
         {playlists.length > 0 ? (
-          <TVFocusable onPress={() => router.back()} style={styles.backBtn}>
+          <TVFocusable onPress={() => { if (router.canGoBack()) { router.back(); } else { router.replace('/(tabs)'); } }} style={styles.backBtn}>
             <Lineicons icon={ArrowLeftBulk} size={24} color={colors.foreground} />
           </TVFocusable>
         ) : (

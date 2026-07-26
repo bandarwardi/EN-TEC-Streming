@@ -11,9 +11,10 @@ interface ChannelCardProps {
   channel: Channel;
   onPress: () => void;
   width?: number;
+  autoFocus?: boolean;
 }
 
-export const ChannelCard = React.memo(function ChannelCard({ channel, onPress, width = 160 }: ChannelCardProps) {
+export const ChannelCard = React.memo(function ChannelCard({ channel, onPress, width = 160, autoFocus = false }: ChannelCardProps) {
   const colors = useColors();
   const fallbackUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(channel.name || 'Channel')}&background=1A1A1A&color=D4A843&bold=true&size=300&format=svg`;
   const [imgSource, setImgSource] = React.useState(channel.logo || fallbackUrl);
@@ -23,7 +24,7 @@ export const ChannelCard = React.memo(function ChannelCard({ channel, onPress, w
   }, [channel.logo, fallbackUrl]);
 
   return (
-    <TVFocusable onPress={onPress} style={[styles.container, { width }]} disableBorder={true}>
+    <TVFocusable onPress={onPress} style={[styles.container, { width }]} disableBorder={true} hasTVPreferredFocus={autoFocus}>
       {({ focused }: any) => (
         <View style={[
           styles.imageContainer,

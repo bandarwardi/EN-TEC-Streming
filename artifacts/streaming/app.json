@@ -23,7 +23,10 @@
     },
     "android": {
       "package": "com.entec.streaming",
-      "usesCleartextTraffic": true
+      "usesCleartextTraffic": true,
+      "permissions": [
+        "RECORD_AUDIO"
+      ]
     },
     "androidStatusBar": {
       "hidden": true
@@ -36,6 +39,13 @@
         "expo-router",
         {
           "origin": "https://replit.com/"
+        }
+      ],
+      [
+        "@react-native-voice/voice",
+        {
+          "microphonePermission": "Allow EN TEC Streaming to access the microphone for voice search.",
+          "speechRecognitionPermission": "Allow EN TEC Streaming to securely recognize your voice."
         }
       ],
       "expo-font",

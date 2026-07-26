@@ -6,12 +6,22 @@ const https = require('https');
 const fs = require('fs');
 const os = require('os');
 
+// ==========================================
+// GOOGLE SPEECH-TO-TEXT API KEYS
+// ==========================================
+// To enable webkitSpeechRecognition in Electron, place your Google API keys here:
+// process.env.GOOGLE_API_KEY = 'YOUR_GOOGLE_API_KEY';
+// process.env.GOOGLE_DEFAULT_CLIENT_ID = 'YOUR_CLIENT_ID';
+// process.env.GOOGLE_DEFAULT_CLIENT_SECRET = 'YOUR_CLIENT_SECRET';
+// ==========================================
+
 const httpAgent = new http.Agent({ maxSockets: 100 });
 const httpsAgent = new https.Agent({ maxSockets: 100, rejectUnauthorized: false });
 
 app.commandLine.appendSwitch('ignore-certificate-errors', 'true');
 app.commandLine.appendSwitch('enable-features', 'PlatformHEVCDecoderSupport,ClearKeyCdm,Widevine');
 app.commandLine.appendSwitch('enable-spatial-navigation');
+app.commandLine.appendSwitch('autoplay-policy', 'no-user-gesture-required');
 
 app.on('certificate-error', (event, webContents, url, error, certificate, callback) => {
   event.preventDefault();
@@ -41,7 +51,7 @@ function createWindow() {
   });
 
   mainWindow.setMenu(null);
-  
+
   const isDev = process.argv.includes('--dev');
   mainWindow.loadURL(isDev ? 'http://localhost:8081' : `http://localhost:${serverPort}`);
 
@@ -62,6 +72,21 @@ function createWindow() {
 
   mainWindow.on('closed', () => {
     mainWindow = null;
+  });
+
+  mainWindow.webContents.session.setPermissionCheckHandler((webContents, permission, requestingOrigin, details) => {
+    if (permission === 'media') {
+      return true;
+    }
+    return false;
+  });
+
+  mainWindow.webContents.session.setPermissionRequestHandler((webContents, permission, callback, details) => {
+    if (permission === 'media') {
+      callback(true);
+    } else {
+      callback(false);
+    }
   });
 }
 
@@ -87,8 +112,44 @@ function startServer() {
       res.send('ok');
     });
 
+    let dictationProcess;
+    function getDictationProcess() {
+      if (!dictationProcess) {
+        const { spawn } = require('child_process');
+        dictationProcess = spawn('powershell', ['-NoProfile', '-NonInteractive', '-Command', '-']);
+        const initScript = `
+          Add-Type -TypeDefinition @"
+          using System;
+          using System.Runtime.InteropServices;
+          public class KeySender {
+              [DllImport("user32.dll")]
+              public static extern void keybd_event(byte bVk, byte bScan, uint dwFlags, int dwExtraInfo);
+              public static void SendWinH() {
+                  keybd_event(0x5B, 0, 0, 0); // LWIN down
+                  keybd_event(0x48, 0, 0, 0); // H down
+                  keybd_event(0x48, 0, 2, 0); // H up
+                  keybd_event(0x5B, 0, 2, 0); // LWIN up
+              }
+          }
+"@
+        `;
+        dictationProcess.stdin.write(initScript + "\n");
+        dictationProcess.on('error', (err) => console.error('Dictation PS error', err));
+        dictationProcess.on('exit', () => { dictationProcess = null; });
+      }
+      return dictationProcess;
+    }
+    // Initialize it immediately so it compiles in the background
+    getDictationProcess();
+
+    expressApp.get('/api/dictate', (req, res) => {
+      const ps = getDictationProcess();
+      ps.stdin.write("[KeySender]::SendWinH()\n");
+      res.send('ok');
+    });
+
     expressApp.use(express.json({ limit: '200mb' }));
-    
+
     const appDataPath = path.join(app.getPath('userData'), 'AppCache');
     if (!fs.existsSync(appDataPath)) fs.mkdirSync(appDataPath, { recursive: true });
 
@@ -96,8 +157,8 @@ function startServer() {
       try {
         const { key, data } = req.body;
         if (!key) {
-           console.log('[CACHE WRITE ERROR] Missing key. Body keys:', Object.keys(req.body));
-           return res.status(400).send('No key');
+          console.log('[CACHE WRITE ERROR] Missing key. Body keys:', Object.keys(req.body));
+          return res.status(400).send('No key');
         }
         const p = path.join(appDataPath, key + '.json');
         console.log(`[CACHE WRITE] Writing ${data ? data.length : 0} bytes to ${p}`);
@@ -171,7 +232,7 @@ function startServer() {
       if (streamKey && activeConnections.has(streamKey)) {
         console.log(`[PROXY] Closing previous connection for ${streamKey} to free up IPTV slot...`);
         const oldReq = activeConnections.get(streamKey);
-        try { oldReq.destroy(); } catch (e) {}
+        try { oldReq.destroy(); } catch (e) { }
         activeConnections.delete(streamKey);
       }
 
@@ -191,7 +252,7 @@ function startServer() {
 
         const isHttps = parsedUrl.protocol === 'https:';
         const client = isHttps ? https : http;
-        
+
         const options = {
           hostname: parsedUrl.hostname,
           port: parsedUrl.port,
@@ -209,22 +270,28 @@ function startServer() {
 
         const proxyReq = client.request(options, (proxyRes) => {
           console.log(`[PROXY RESPONSE] Status: ${proxyRes.statusCode}`);
-          
+
           if ([301, 302, 303, 307, 308].includes(proxyRes.statusCode) && proxyRes.headers.location) {
             let redirectUrl = proxyRes.headers.location;
             if (!redirectUrl.startsWith('http')) {
               redirectUrl = new URL(redirectUrl, targetUrl).href;
             }
-            
-            console.log(`[PROXY REDIRECT] Following redirect internally to: ${redirectUrl}`);
-            
-            if (redirectsLeft > 0) {
-              // Drain the response to free the socket for keep-alive
-              proxyRes.on('data', () => {});
-              return makeRequest(redirectUrl, redirectsLeft - 1);
-            } else {
-              console.log(`[PROXY REDIRECT] Max redirects reached.`);
+
+            console.log(`[PROXY REDIRECT] Translating redirect for client to: ${redirectUrl}`);
+            if (!res.headersSent) {
+              const corsHeaders = {
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Methods': 'GET, OPTIONS',
+                'Access-Control-Allow-Headers': 'Origin, X-Requested-With, Content-Type, Accept, Range',
+                'Access-Control-Expose-Headers': 'Content-Length, Content-Range, Accept-Ranges, Content-Type'
+              };
+              const newHeaders = { ...corsHeaders };
+              newHeaders['Location'] = `/proxy?url=${encodeURIComponent(redirectUrl)}`;
+              res.writeHead(proxyRes.statusCode, newHeaders);
+              res.end();
             }
+            proxyRes.on('data', () => {}); // drain
+            return;
           }
 
           const contentType = (proxyRes.headers['content-type'] || '').toLowerCase();
@@ -254,10 +321,10 @@ function startServer() {
                 }
                 return line;
               });
-              
+
               const newHeaders = { ...proxyRes.headers, ...corsHeaders };
               delete newHeaders['content-length'];
-              
+
               if (!res.headersSent) {
                 res.writeHead(proxyRes.statusCode, newHeaders);
                 res.end(rewritten.join('\n'));
@@ -319,7 +386,7 @@ function startServer() {
       const stat = fs.statSync(videoPath);
       const fileSize = stat.size;
       const range = req.headers.range;
-      
+
       const ext = path.extname(videoPath).toLowerCase();
       let contentType = 'video/mp4';
       if (ext === '.mkv') contentType = 'video/x-matroska';
@@ -358,49 +425,66 @@ function startServer() {
 
       const downloadsDir = path.join(os.homedir(), 'Downloads', 'ENTEC');
       if (!fs.existsSync(downloadsDir)) fs.mkdirSync(downloadsDir, { recursive: true });
-      
+
       const destPath = path.join(downloadsDir, `${id}.mp4`);
-      
-      activeDownloadsApp.set(id, { progress: 0, status: 'downloading', localUri: destPath, request: null });
+
+      activeDownloadsApp.set(id, {
+        progress: 0,
+        status: 'downloading',
+        localUri: destPath,
+        request: null,
+        url: urlStr,
+        downloadedBytes: 0,
+        totalBytes: 0
+      });
       res.json({ localUri: destPath });
 
-      let downloadedBytes = 0;
-      let totalBytes = 0;
-      const fileStream = fs.createWriteStream(destPath);
+      let fileStream = fs.createWriteStream(destPath);
 
-      const downloadFile = (targetUrl, redirectsLeft) => {
+      const downloadFile = (targetUrl, redirectsLeft, isResume = false) => {
         let parsedUrl;
-        try { parsedUrl = new URL(targetUrl); } catch(e) { 
-          const item = activeDownloadsApp.get(id);
-          if (item) item.status = 'error';
+        try { parsedUrl = new URL(targetUrl); } catch (e) {
+          const errItem = activeDownloadsApp.get(id);
+          if (errItem) errItem.status = 'error';
           return;
+        }
+
+        const item = activeDownloadsApp.get(id);
+        const headers = { 'User-Agent': 'VLC/3.0.16 LibVLC/3.0.16', 'Accept': '*/*' };
+        if (isResume && item && item.downloadedBytes > 0) {
+          headers['Range'] = `bytes=${item.downloadedBytes}-`;
         }
 
         const client = parsedUrl.protocol === 'https:' ? https : http;
         const request = client.get(targetUrl, {
-          headers: { 'User-Agent': 'VLC/3.0.16 LibVLC/3.0.16', 'Accept': '*/*' },
+          headers: headers,
           agent: parsedUrl.protocol === 'https:' ? httpsAgent : httpAgent,
         }, (response) => {
-          
+
           if ([301, 302, 303, 307, 308].includes(response.statusCode) && response.headers.location) {
             let redirectUrl = response.headers.location;
             if (!redirectUrl.startsWith('http')) {
               redirectUrl = new URL(redirectUrl, targetUrl).href;
             }
             if (redirectsLeft > 0) {
-              response.on('data', () => {}); // drain
+              response.on('data', () => { }); // drain
               return downloadFile(redirectUrl, redirectsLeft - 1);
             }
           }
 
-          totalBytes = parseInt(response.headers['content-length'] || '0', 10);
-          
+          if (!isResume) {
+            const contentLength = parseInt(response.headers['content-length'] || '0', 10);
+            if (item && !item.totalBytes && contentLength > 0) {
+              item.totalBytes = contentLength;
+            }
+          }
+
           response.on('data', (chunk) => {
-            downloadedBytes += chunk.length;
-            if (totalBytes > 0) {
-              const progress = downloadedBytes / totalBytes;
-              const item = activeDownloadsApp.get(id);
-              if (item) item.progress = progress;
+            if (item) {
+              item.downloadedBytes += chunk.length;
+              if (item.totalBytes > 0) {
+                item.progress = item.downloadedBytes / item.totalBytes;
+              }
             }
           });
 
@@ -408,23 +492,34 @@ function startServer() {
 
           response.on('end', () => {
             fileStream.close();
-            const item = activeDownloadsApp.get(id);
-            if (item) {
-               item.status = 'completed';
-               item.progress = 1;
+            const endItem = activeDownloadsApp.get(id);
+            if (endItem) {
+              endItem.status = 'completed';
+              endItem.progress = 1;
             }
           });
         }).on('error', (err) => {
-          fs.unlink(destPath, () => {});
-          const item = activeDownloadsApp.get(id);
-          if (item) item.status = 'error';
+          const errItem = activeDownloadsApp.get(id);
+          if (errItem && errItem.status === 'paused') {
+            return;
+          }
+          fs.unlink(destPath, () => { });
+          if (errItem) errItem.status = 'error';
         });
 
-        const item = activeDownloadsApp.get(id);
         if (item) item.request = request;
       };
 
-      downloadFile(urlStr, 5);
+      downloadFile(urlStr, 5, false);
+
+      // Store the resume function so we can call it later
+      const item = activeDownloadsApp.get(id);
+      if (item) {
+        item.resumeFunction = () => {
+          fileStream = fs.createWriteStream(item.localUri, { flags: 'a' });
+          downloadFile(item.url, 5, true);
+        };
+      }
     });
 
     expressApp.get('/api/download/status', (req, res) => {
@@ -435,12 +530,38 @@ function startServer() {
       res.json(result);
     });
 
+    expressApp.get('/api/download/pause', (req, res) => {
+      const id = req.query.id;
+      if (activeDownloadsApp.has(id)) {
+        const item = activeDownloadsApp.get(id);
+        item.status = 'paused';
+        if (item.request) {
+          item.request.abort();
+          item.request = null;
+        }
+      }
+      res.send('ok');
+    });
+
+    expressApp.get('/api/download/resume', (req, res) => {
+      const id = req.query.id;
+      if (activeDownloadsApp.has(id)) {
+        const item = activeDownloadsApp.get(id);
+        if (item.status === 'paused' && item.resumeFunction) {
+          item.status = 'downloading';
+          item.resumeFunction();
+        }
+      }
+      res.send('ok');
+    });
+
     expressApp.get('/api/download/cancel', (req, res) => {
       const id = req.query.id;
       if (activeDownloadsApp.has(id)) {
         const data = activeDownloadsApp.get(id);
+        data.status = 'canceled';
         if (data.request) data.request.abort();
-        fs.unlink(data.localUri, () => {});
+        fs.unlink(data.localUri, () => { });
         activeDownloadsApp.delete(id);
       }
       res.send('ok');

@@ -26,6 +26,8 @@ const AsyncStorage = {
 };
 
 let globalSearchIndex: Channel[] = [];
+const globalChannelsCache = new Map<string, { data: Channel[], timestamp: number }>();
+const CACHE_TTL = 5 * 60 * 1000;
 import { Channel, Playlist } from '../types';
 import { MOCK_PLAYLISTS, MOCK_CHANNELS, MOCK_MOVIES, MOCK_SERIES } from '../lib/mock-data';
 import { parseM3U } from '../lib/m3u-parser';
@@ -76,7 +78,7 @@ interface AppState {
   searchIndexProgress: string;
   loadSearchIndex: (playlistId: string) => Promise<void>;
   buildSearchIndex: (playlistId: string, onProgress?: (msg: string) => void) => Promise<void>;
-  searchChannels: (query: string) => Promise<Channel[]>;
+  searchChannels: (query: string, typeFilter?: string) => Promise<Channel[]>;
   getSearchSuggestions: (query: string) => Promise<string[]>;
   getChannelsByType: (type: 'live' | 'vod' | 'series') => Promise<Channel[]>;
   
@@ -196,6 +198,7 @@ const fetchWithXHR = (targetUrl: string, acceptHeader?: string): Promise<string>
     xhr.timeout = 30000;
     try {
       xhr.setRequestHeader('Accept', acceptHeader || 'application/json, application/x-mpegurl, */*');
+      xhr.setRequestHeader('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
     } catch (_) {}
 
     xhr.onload = () => {
@@ -331,6 +334,15 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   pauseDownload: async (id) => {
+    if (Platform.OS === 'web') {
+      try {
+        await fetch(`/api/download/pause?id=${id}`);
+        get().updateDownloadItem(id, { status: 'paused' });
+      } catch (e) {
+        console.error("Failed to pause web download", e);
+      }
+      return;
+    }
     const resumable = activeDownloads[id];
     if (resumable) {
       try {
@@ -346,6 +358,16 @@ export const useAppStore = create<AppState>((set, get) => ({
   resumeDownload: async (id) => {
     const download = get().downloads.find(d => d.id === id);
     if (!download) return;
+
+    if (Platform.OS === 'web') {
+      try {
+        await fetch(`/api/download/resume?id=${id}`);
+        get().updateDownloadItem(id, { status: 'downloading' });
+      } catch (e) {
+        console.error("Failed to resume web download", e);
+      }
+      return;
+    }
     
     if (!download.resumeData) {
       return get().startDownload(download);
@@ -399,6 +421,16 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   cancelDownload: async (id) => {
+    if (Platform.OS === 'web') {
+      try {
+        await fetch(`/api/download/cancel?id=${id}`);
+      } catch (e) {
+        console.error("Failed to cancel web download", e);
+      }
+      get().removeDownload(id);
+      return;
+    }
+
     const download = get().downloads.find(d => d.id === id);
     const resumable = activeDownloads[id];
     if (resumable) {
@@ -446,19 +478,51 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ cachedHomeContent: { playlistId, rows, featured } });
   },
 
-  searchChannels: async (query: string) => {
+  searchChannels: async (query: string, typeFilter?: string) => {
     if (!query) return [];
     const q = query.toLowerCase();
-    const results: Channel[] = [];
+    
+    // إذا كان هناك فلتر محدد، ابحث فقط في هذا النوع
+    if (typeFilter && typeFilter !== 'all') {
+      const results: Channel[] = [];
+      for (const item of globalSearchIndex) {
+        if (results.length >= 50) break;
+        if (item.type !== typeFilter) continue;
+        const matchName = item.name && item.name.toLowerCase().includes(q);
+        const matchCategory = item.category && item.category.toLowerCase().includes(q);
+        if (matchName || matchCategory) {
+          results.push(item);
+        }
+      }
+      return results;
+    }
+    
+    // بدون فلتر: اجمع نتائج من كل نوع بالتساوي
+    const liveResults: Channel[] = [];
+    const vodResults: Channel[] = [];
+    const seriesResults: Channel[] = [];
+    const MAX_PER_TYPE = 20;
+    
     for (const item of globalSearchIndex) {
-      if (results.length >= 50) break;
+      // توقف إذا امتلأت كل الأنواع
+      if (liveResults.length >= MAX_PER_TYPE && 
+          vodResults.length >= MAX_PER_TYPE && 
+          seriesResults.length >= MAX_PER_TYPE) break;
+      
       const matchName = item.name && item.name.toLowerCase().includes(q);
       const matchCategory = item.category && item.category.toLowerCase().includes(q);
-      if (matchName || matchCategory) {
-        results.push(item);
+      if (!matchName && !matchCategory) continue;
+      
+      if (item.type === 'live' && liveResults.length < MAX_PER_TYPE) {
+        liveResults.push(item);
+      } else if (item.type === 'vod' && vodResults.length < MAX_PER_TYPE) {
+        vodResults.push(item);
+      } else if (item.type === 'series' && seriesResults.length < MAX_PER_TYPE) {
+        seriesResults.push(item);
       }
     }
-    return results;
+    
+    return [...liveResults, ...vodResults, ...seriesResults];
   },
 
   getSearchSuggestions: async (query: string) => {
@@ -749,9 +813,9 @@ export const useAppStore = create<AppState>((set, get) => ({
         }
 
         onProgress?.('Grouping categories...');
-        const liveCatsList: { id: string; name: string }[] = [];
-        const vodCatsList: { id: string; name: string }[] = [];
-        const seriesCatsList: { id: string; name: string }[] = [];
+        const liveCatsList: { id: string; name: string; count?: number }[] = [];
+        const vodCatsList: { id: string; name: string; count?: number }[] = [];
+        const seriesCatsList: { id: string; name: string; count?: number }[] = [];
         
         const catMap = new Map<string, Channel[]>();
         for (const ch of parsedChannels) {
@@ -768,13 +832,13 @@ export const useAppStore = create<AppState>((set, get) => ({
           const cid = catName;
           
           if (lowerName.includes('series') || lowerName.includes('season') || lowerName.includes('مسلسلات')) {
-            seriesCatsList.push({ id: cid, name: catName });
+            seriesCatsList.push({ id: cid, name: catName, count: catChannels.length });
             await AsyncStorage.setItem(`channels_${playlistId}_series_${cid}`, JSON.stringify(catChannels));
           } else if (lowerName.includes('movie') || lowerName.includes('cinema') || lowerName.includes('films') || lowerName.includes('افلام')) {
-            vodCatsList.push({ id: cid, name: catName });
+            vodCatsList.push({ id: cid, name: catName, count: catChannels.length });
             await AsyncStorage.setItem(`channels_${playlistId}_vod_${cid}`, JSON.stringify(catChannels));
           } else {
-            liveCatsList.push({ id: cid, name: catName });
+            liveCatsList.push({ id: cid, name: catName, count: catChannels.length });
             await AsyncStorage.setItem(`channels_${playlistId}_live_${cid}`, JSON.stringify(catChannels));
           }
         }
@@ -856,10 +920,18 @@ export const useAppStore = create<AppState>((set, get) => ({
     
     try {
       const storageKey = `channels_v4_${playlistId}_${type}_${categoryId}`;
+      
+      const memCache = globalChannelsCache.get(storageKey);
+      if (memCache && (Date.now() - memCache.timestamp < CACHE_TTL)) {
+        console.log(`[getChannelsForCategory] Found in memory cache for ${storageKey}`);
+        return memCache.data;
+      }
+
       const cached = await AsyncStorage.getItem(storageKey);
       
       if (cached) {
         const parsed = JSON.parse(cached);
+        globalChannelsCache.set(storageKey, { data: parsed, timestamp: Date.now() });
         console.log(`[getChannelsForCategory] Found cached channels in AsyncStorage. Count: ${parsed.length}`);
         return parsed;
       }
@@ -901,31 +973,44 @@ export const useAppStore = create<AppState>((set, get) => ({
         
         let text = '';
         let fetched = false;
-        for (let i = 0; i < targetUrls.length; i++) {
-          const u = targetUrls[i];
-          try {
-            console.log(`[getChannelsForCategory] Fetching attempt ${i + 1}/${targetUrls.length} from: ${u}`);
-            text = await new Promise((resolve, reject) => {
-              const xhr = new XMLHttpRequest();
-              xhr.open('GET', u, true);
-              xhr.timeout = 20000;
-              xhr.onload = () => {
-                if (xhr.status >= 200 && xhr.status < 300) {
-                  if (xhr.responseText && xhr.responseText.trim().length > 0) resolve(xhr.responseText);
-                  else reject(new Error(`Empty response, status: ${xhr.status}`));
-                } else {
-                  reject(new Error(`HTTP status error: ${xhr.status}`));
-                }
-              };
-              xhr.onerror = () => reject(new Error('Network error'));
-              xhr.ontimeout = () => reject(new Error('Timeout'));
-              xhr.send();
-            });
-            console.log(`[getChannelsForCategory] Fetching succeeded from: ${u}. Response text sample (first 100 chars): ${text.substring(0, 100)}`);
-            fetched = true;
-            break;
-          } catch (e: any) {
-            console.warn(`[getChannelsForCategory] Failed fetching from ${u}: ${e.message || e}`);
+        
+        try {
+          const res = await fetch(fetchUrl, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            }
+          });
+          if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+          text = await res.text();
+          fetched = true;
+        } catch (fetchErr) {
+          console.warn(`[getChannelsForCategory] Direct fetch failed, trying proxies. Error: ${fetchErr}`);
+          for (let i = 0; i < targetUrls.length; i++) {
+            const u = targetUrls[i];
+            try {
+              console.log(`[getChannelsForCategory] Fetching attempt ${i + 1}/${targetUrls.length} from: ${u}`);
+              text = await new Promise((resolve, reject) => {
+                const xhr = new XMLHttpRequest();
+                xhr.open('GET', u, true);
+                xhr.timeout = 20000;
+                xhr.onload = () => {
+                  if (xhr.status >= 200 && xhr.status < 300) {
+                    if (xhr.responseText && xhr.responseText.trim().length > 0) resolve(xhr.responseText);
+                    else reject(new Error(`Empty response, status: ${xhr.status}`));
+                  } else {
+                    reject(new Error(`HTTP status error: ${xhr.status}`));
+                  }
+                };
+                xhr.onerror = () => reject(new Error('Network error'));
+                xhr.ontimeout = () => reject(new Error('Timeout'));
+                xhr.send();
+              });
+              console.log(`[getChannelsForCategory] Fetching succeeded from: ${u}. Response text sample (first 100 chars): ${text.substring(0, 100)}`);
+              fetched = true;
+              break;
+            } catch (e: any) {
+              console.warn(`[getChannelsForCategory] Failed fetching from ${u}: ${e.message || e}`);
+            }
           }
         }
         
@@ -960,7 +1045,8 @@ export const useAppStore = create<AppState>((set, get) => ({
                   isLive: true,
                   type: 'live',
                   hasArchive,
-                  archiveDuration
+                  archiveDuration,
+                  num: item.num
                 });
               } else if (type === 'vod' && item.stream_id) {
                 const streamUrl = `${config.host}/movie/${config.username}/${config.password}/${item.stream_id}.${item.container_extension || 'mp4'}`;
@@ -1000,7 +1086,12 @@ export const useAppStore = create<AppState>((set, get) => ({
           }
           
           console.log(`[getChannelsForCategory] Processed ${channelsList.length} channels. Live fetch successful.`);
-          // Do not store in cache to prevent OOM crashes on TV bridge!
+          
+          // Store in disk cache
+          AsyncStorage.setItem(storageKey, JSON.stringify(channelsList)).catch(e => console.warn('Cache write failed', e));
+          // Store in memory cache
+          globalChannelsCache.set(storageKey, { data: channelsList, timestamp: Date.now() });
+          
           return channelsList;
         } else {
           console.error('[getChannelsForCategory] All target URLs failed.');
@@ -1168,8 +1259,12 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
     set({ loadingSearchIndex: true });
     try {
-      // We no longer read a massive single search_index. 
-      // We build it in memory from chunks.
+      const cached = await AsyncStorage.getItem(`search_index_v4_${playlistId}`);
+      if (cached) {
+        globalSearchIndex = JSON.parse(cached);
+        set({ searchIndexReady: true, loadingSearchIndex: false });
+        return;
+      }
       await get().buildSearchIndex(playlistId);
     } catch (e) {
       console.error('Failed to load search index', e);
@@ -1215,14 +1310,53 @@ export const useAppStore = create<AppState>((set, get) => ({
           
           for (const a of actions) {
             onProgress?.(`Fetching ${a.name} database...`);
+            console.log(`[buildSearchIndex] Fetching ${a.action}...`);
             try {
               const url = `${config.host}/player_api.php?username=${config.username}&password=${config.password}&action=${a.action}`;
-              const res = await fetch(url, {
-                headers: {
-                  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+              let data: any = null;
+              
+              try {
+                const res = await fetch(url, {
+                  headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+                  }
+                });
+                if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+                data = await res.json();
+              } catch (fetchErr) {
+                console.warn(`[buildSearchIndex] Direct fetch failed for ${a.action}, trying proxies. Error: ${fetchErr}`);
+                const targetUrls = [
+                  url,
+                  `https://corsproxy.io/?url=${encodeURIComponent(url)}`,
+                  `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`
+                ];
+                let text = '';
+                let fetched = false;
+                for (const u of targetUrls) {
+                  try {
+                    text = await new Promise((resolve, reject) => {
+                      const xhr = new XMLHttpRequest();
+                      xhr.open('GET', u, true);
+                      xhr.timeout = 30000;
+                      xhr.onload = () => {
+                        if (xhr.status >= 200 && xhr.status < 300) {
+                          if (xhr.responseText) resolve(xhr.responseText);
+                          else reject(new Error('Empty'));
+                        } else reject(new Error('Status ' + xhr.status));
+                      };
+                      xhr.onerror = () => reject(new Error('Network error'));
+                      xhr.ontimeout = () => reject(new Error('Timeout'));
+                      xhr.send();
+                    });
+                    fetched = true;
+                    break;
+                  } catch (e) { }
                 }
-              });
-              const data = await res.json();
+                if (!fetched) throw new Error('Failed to fetch from all sources on web');
+                data = JSON.parse(text);
+              }
+              
+              console.log(`[buildSearchIndex] Parsed JSON for ${a.action}. Array length: ${Array.isArray(data) ? data.length : 'Not Array'}`);
               if (Array.isArray(data)) {
                 for (const item of data) {
                   if (!item || !item.name) continue;
@@ -1258,6 +1392,7 @@ export const useAppStore = create<AppState>((set, get) => ({
                       type: a.type as 'live' | 'vod' | 'series',
                       logo,
                       category: catMap.get(String(item.category_id)) || item.category_name || (item.name ? item.name.split(/[:|-]/)[0].trim() : 'Unknown'),
+                      categoryId: String(item.category_id || ''),
                       streamUrl,
                       current: a.type === 'live' ? 'Live Stream' : (a.type === 'vod' ? 'Movie' : (item.plot || 'TV Series')),
                       next: '',
@@ -1269,8 +1404,9 @@ export const useAppStore = create<AppState>((set, get) => ({
                   }
                 }
               }
+              console.log(`[buildSearchIndex] Successfully pushed ${a.action} to index.`);
             } catch (e) {
-              console.warn(`Failed fetching ${a.action} for search index`, e);
+              console.warn(`[buildSearchIndex] Failed fetching ${a.action} for search index`, e);
             }
           }
         }
@@ -1310,6 +1446,12 @@ export const useAppStore = create<AppState>((set, get) => ({
       globalSearchIndex = tempIndex;
       set({ searchIndexReady: true, loadingSearchIndex: false });
       onProgress?.('Search index ready!');
+      
+      try {
+        await AsyncStorage.setItem(`search_index_v4_${playlistId}`, JSON.stringify(tempIndex));
+      } catch (e) {
+        console.warn('Failed to save search index to cache', e);
+      }
     } catch (e) {
       console.error('Failed to build search index:', e);
       globalSearchIndex = [];

@@ -23,7 +23,7 @@ export default function FavoritesScreen() {
 
   const toggleFavorite = useAppStore((s) => s.toggleFavorite);
 
-  if (!isFocused) return <View style={{ flex: 1, backgroundColor: colors.background }} />;
+
 
   const handlePlayFav = (item: any) => {
     if (item.type === 'live') {
@@ -97,7 +97,7 @@ export default function FavoritesScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: isLargeScreen ? 'transparent' : colors.background }]}>
+    <View style={[styles.container, { backgroundColor: isLargeScreen ? 'transparent' : colors.background, opacity: isFocused ? 1 : 0, pointerEvents: isFocused ? 'auto' : 'none' }]}>
       <View style={[styles.header, { paddingTop: insets.top + 20, paddingHorizontal: isLargeScreen ? 40 : 20 }]}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
           <View style={[styles.iconBox, { backgroundColor: colors.surface }]}>

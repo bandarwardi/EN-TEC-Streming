@@ -109,7 +109,7 @@ export function TVSidebar() {
           bulkIcon={Search1Bulk}
           iosIcon="magnifyingglass"
           isActive={pathname === '/search'}
-          onPress={() => router.navigate('/search')}
+          onPress={() => router.navigate({ pathname: '/search', params: { tab: 'all' } })}
           isIOS={isIOS}
         />
 

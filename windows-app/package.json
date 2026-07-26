@@ -16,6 +16,7 @@
     "fluent-ffmpeg": "^2.1.3"
   },
   "devDependencies": {
+    "cross-env": "^10.1.0",
     "electron": "^31.0.0",
     "electron-builder": "^24.13.3"
   },
@@ -23,7 +24,7 @@
     "appId": "com.entec.streaming",
     "productName": "ENTEC Streaming",
     "directories": {
-      "output": "dist",
+      "output": "build_dist",
       "buildResources": "build"
     },
     "win": {

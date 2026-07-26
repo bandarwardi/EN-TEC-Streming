@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, FlatList, Pressable, ActivityIndicator, useWindowDimensions, Platform, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, FlatList, Pressable, ActivityIndicator, useWindowDimensions, Platform, ScrollView, TextInput } from 'react-native';
 import { TVFocusable } from '@/components/TVFocusable';
 import { MarqueeText } from '@/components/MarqueeText';
 import { useColors } from '@/hooks/useColors';
@@ -10,6 +10,8 @@ import { MovieCard } from '@/components/MovieCard';
 import { router, useNavigation, useLocalSearchParams, useRouter } from 'expo-router';
 import { useAppStore } from '@/store/app-store';
 import { Channel, Series } from '@/types';
+import { SearchKeyboardModal } from '@/components/SearchKeyboardModal';
+import { Ionicons } from '@expo/vector-icons';
 import { useIsFocused } from '@react-navigation/native';
 
 export default function SeriesScreen() {
@@ -29,14 +31,33 @@ export default function SeriesScreen() {
 
   const [selectedCategory, setSelectedCategory] = useState<{ id: string; name: string } | null>(null);
   const [localSeries, setLocalSeries] = useState<any[]>([]);
+  const [displayCount, setDisplayCount] = useState(50);
   const [loading, setLoading] = useState(false);
   const hasDefaulted = useRef(false);
+  const flatListRef = useRef<FlatList>(null);
+
+  const [categorySearch, setCategorySearch] = useState('');
+  const [seriesSearch, setSeriesSearch] = useState('');
+  const [showCategoryKeyboard, setShowCategoryKeyboard] = useState(false);
+  const [showSeriesKeyboard, setShowSeriesKeyboard] = useState(false);
 
   const categories = useMemo(() => activeCategories?.series || [], [activeCategories]);
 
+  const filteredCategories = useMemo(() => {
+    if (!categorySearch.trim()) return categories;
+    const q = categorySearch.toLowerCase().trim();
+    return categories.filter((c: any) => c.name.toLowerCase().includes(q));
+  }, [categories, categorySearch]);
+
+  const filteredSeries = useMemo(() => {
+    if (!seriesSearch.trim()) return localSeries;
+    const q = seriesSearch.toLowerCase().trim();
+    return localSeries.filter(s => s.title.toLowerCase().includes(q));
+  }, [localSeries, seriesSearch]);
+
   const loadCategory = useCallback(async (cat: { id: string; name: string }) => {
     if (!activePlaylistId) return;
-    setLocalSeries([]);
+    setDisplayCount(50);
     setLoading(true);
     try {
       const result = await getChannelsForCategory(activePlaylistId, 'series', cat.id, cat.name);
@@ -67,33 +88,59 @@ export default function SeriesScreen() {
     }
   }, [selectedCategory, loadCategory]);
 
-  const { categoryId } = useLocalSearchParams<{ categoryId?: string }>();
+  const { categoryId, focusId } = useLocalSearchParams<{ categoryId?: string; focusId?: string }>();
+
+  useEffect(() => {
+    if (focusId && localSeries.length > 0) {
+      const idx = localSeries.findIndex(m => m.id === focusId);
+      if (idx >= 0) {
+        if (idx >= displayCount) {
+          setDisplayCount(idx + 20);
+        }
+        setTimeout(() => {
+          flatListRef.current?.scrollToIndex({ index: idx, animated: true, viewPosition: 0.5 });
+        }, 500);
+      }
+    }
+  }, [localSeries, focusId]);
 
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
       if (categoryId && categories.length > 0) {
         const targetCat = categories.find(c => c.id === categoryId);
         if (targetCat) {
-          setSelectedCategory(targetCat);
+          if (!selectedCategory || selectedCategory.id !== targetCat.id) {
+            setSelectedCategory(targetCat);
+          }
           hasDefaulted.current = true;
           router.setParams({ categoryId: '' });
           return;
         }
       }
 
-      setSelectedCategory(null);
-      hasDefaulted.current = false;
-      // Do not auto-select the first category
+      if (categories.length > 0) {
+        if (!selectedCategory) {
+          setSelectedCategory(categories[0]);
+        }
+        hasDefaulted.current = true;
+      } else {
+        if (selectedCategory) {
+          setSelectedCategory(null);
+        }
+        hasDefaulted.current = false;
+      }
     });
     return unsubscribe;
   }, [navigation, categories, categoryId, selectedCategory]);
 
   useEffect(() => {
     if (categories.length > 0 && !hasDefaulted.current) {
-      // Do not auto-select the first category
+      if (isLargeScreen) {
+        setSelectedCategory(categories[0]);
+      }
       hasDefaulted.current = true;
     }
-  }, [categories]);
+  }, [categories, isLargeScreen]);
 
   useEffect(() => {
     hasDefaulted.current = false;
@@ -101,18 +148,219 @@ export default function SeriesScreen() {
     setLocalSeries([]);
   }, [activePlaylistId]);
 
-  if (!isFocused) return <View style={{ flex: 1, backgroundColor: '#05070a' }} />;
 
-  // --- Unified Layout ---
-  const categoryNumColumns = isLargeScreen ? 4 : (isLandscape ? 3 : 1);
+  if (isLargeScreen) {
+    const isWeb = Platform.OS === 'web';
+    const glassPaneStyle: any = isWeb ? {
+      backgroundColor: 'rgba(0, 0, 0, 0.65)',
+      backdropFilter: 'blur(30px)',
+      WebkitBackdropFilter: 'blur(30px)',
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: 'rgba(255,255,255,0.08)',
+      marginTop: 12,
+      marginBottom: 32,
+      marginRight: 16,
+      overflow: 'hidden',
+    } : {
+      backgroundColor: 'rgba(0, 0, 0, 0.8)',
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: 'rgba(255,255,255,0.08)',
+      marginTop: 12,
+      marginBottom: 32,
+      marginRight: 16,
+      overflow: 'hidden',
+    };
+
+    return (
+      <View style={[styles.tvContainer, { backgroundColor: isLargeScreen ? 'transparent' : colors.background, paddingLeft: 24, opacity: isFocused ? 1 : 0, pointerEvents: isFocused ? 'auto' : 'none' }]}>
+        <View style={[{ flexDirection: 'row', flex: 1 }, glassPaneStyle]}>
+          {/* Pane 1: Categories */}
+          <View style={[styles.tvPaneCategories, { borderRightWidth: 1, borderRightColor: 'rgba(255,255,255,0.08)' }]}>
+            <View style={styles.tvHeader}>
+              <Text style={[styles.tvTitle, { color: colors.text }]}>Series</Text>
+              <View style={[styles.searchBox, { backgroundColor: 'rgba(255,255,255,0.06)', borderColor: 'rgba(255,255,255,0.1)' }]}>
+                <Ionicons name="search" size={14} color={colors.mutedForeground} />
+                {isLargeScreen ? (
+                  <TVFocusable onPress={() => setShowCategoryKeyboard(true)} style={{ flex: 1, paddingVertical: 4 }}>
+                    <Text style={[styles.searchInput, { color: categorySearch ? colors.text : colors.mutedForeground, marginTop: 4 }]}>
+                      {categorySearch || "Search categories..."}
+                    </Text>
+                  </TVFocusable>
+                ) : (
+                  <TextInput
+                    style={[styles.searchInput, { color: colors.text }]}
+                    placeholder="Search categories..."
+                    placeholderTextColor={colors.mutedForeground}
+                    value={categorySearch}
+                    onChangeText={setCategorySearch}
+                  />
+                )}
+                {categorySearch ? (
+                  <Pressable onPress={() => setCategorySearch('')}>
+                    <Ionicons name="close-circle" size={14} color={colors.mutedForeground} />
+                  </Pressable>
+                ) : null}
+              </View>
+            </View>
+            <ScrollView style={{ flex: 1 }}>
+              {filteredCategories.map((item) => {
+                const isSelected = selectedCategory?.id === item.id;
+                return (
+                  <TVFocusable
+                    key={item.id}
+                    onPress={() => setSelectedCategory(item)}
+                    style={({ focused }: any) => [
+                      styles.tvCategoryItem,
+                      isSelected && { backgroundColor: 'rgba(212,168,67,0.15)', borderLeftWidth: 3, borderLeftColor: colors.gold },
+                      focused && { backgroundColor: colors.gold, transform: [{ scale: 1.02 }] }
+                    ]}
+                  >
+                    {({ focused }: any) => (
+                      <MarqueeText 
+                        text={item.name}
+                        isFocused={focused || isSelected}
+                        style={[
+                          styles.tvCategoryText, 
+                          { color: focused ? '#000' : (isSelected ? colors.gold : colors.text), fontWeight: isSelected ? 'bold' : '500' }
+                        ]} 
+                      />
+                    )}
+                  </TVFocusable>
+                );
+              })}
+            </ScrollView>
+          </View>
+
+          {/* Pane 2: Series */}
+          <View style={[styles.tvPaneContent, { flex: 1 }]}>
+            <View style={[styles.tvHeader, { paddingBottom: 16 }]}>
+              <Text style={[styles.tvTitle, { color: colors.text }]}>
+                {selectedCategory ? selectedCategory.name : 'Select a Category'}
+              </Text>
+              {selectedCategory && (
+                <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+                  <View style={[styles.searchBox, { backgroundColor: 'rgba(255,255,255,0.06)', borderColor: 'rgba(255,255,255,0.1)' }]}>
+                    <Ionicons name="search" size={14} color={colors.mutedForeground} />
+                    {isLargeScreen ? (
+                      <TVFocusable onPress={() => setShowSeriesKeyboard(true)} style={{ flex: 1, paddingVertical: 4 }}>
+                        <Text style={[styles.searchInput, { color: seriesSearch ? colors.text : colors.mutedForeground, marginTop: 4 }]}>
+                          {seriesSearch || "Search series..."}
+                        </Text>
+                      </TVFocusable>
+                    ) : (
+                      <TextInput
+                        style={[styles.searchInput, { color: colors.text }]}
+                        placeholder="Search series..."
+                        placeholderTextColor={colors.mutedForeground}
+                        value={seriesSearch}
+                        onChangeText={setSeriesSearch}
+                      />
+                    )}
+                    {seriesSearch ? (
+                      <Pressable onPress={() => setSeriesSearch('')}>
+                        <Ionicons name="close-circle" size={14} color={colors.mutedForeground} />
+                      </Pressable>
+                    ) : null}
+                  </View>
+                </View>
+              )}
+            </View>
+            {loading ? (
+              <View style={styles.centerAll}>
+                <ActivityIndicator size="large" color={colors.gold} />
+              </View>
+            ) : !selectedCategory ? (
+              <View style={styles.centerAll}>
+                <Lineicons icon={Folder1Bulk} size={48} color={colors.mutedForeground} />
+                <Text style={[styles.emptyTitle, { color: colors.text, marginTop: 12 }]}>Choose a category from the left</Text>
+              </View>
+            ) : filteredSeries.length === 0 ? (
+              <View style={styles.centerAll}>
+                <Lineicons icon={Search1Bulk} size={48} color={colors.mutedForeground} />
+                <Text style={[styles.emptyTitle, { color: colors.text, marginTop: 12 }]}>No series found</Text>
+              </View>
+            ) : (
+              <View style={{ flex: 1, opacity: loading ? 0.5 : 1 }}>
+                <FlatList
+                  ref={flatListRef}
+                  onScrollToIndexFailed={(info) => {
+                    const offset = info.averageItemLength * Math.floor(info.index / numColumns);
+                    flatListRef.current?.scrollToOffset({ offset, animated: false });
+                    setTimeout(() => {
+                      try {
+                        flatListRef.current?.scrollToIndex({ index: info.index, animated: true, viewPosition: 0.5 });
+                      } catch (e) {}
+                    }, 300);
+                  }}
+                  removeClippedSubviews={true}
+                  initialNumToRender={8}
+                  maxToRenderPerBatch={12}
+                  windowSize={5}
+                  key={`series_grid_${numColumns}`}
+                  data={filteredSeries.slice(0, displayCount)}
+                onEndReached={() => setDisplayCount(prev => prev + 50)}
+                onEndReachedThreshold={0.5}
+                keyExtractor={(item) => item.id}
+                numColumns={numColumns}
+                renderItem={({ item }) => (
+                  <View style={[styles.tvGridItem, { width: `${100 / numColumns}%`, maxWidth: `${100 / numColumns}%` }]}>
+                    <MovieCard
+                      movie={item}
+                      width={'100%' as any}
+                      onPress={() => {
+                        router.push({
+                          pathname: '/series-detail',
+                          params: {
+                            id: item.id,
+                            title: item.title,
+                            poster: item.poster,
+                            backdrop: item.backdrop,
+                            genres: item.genres.join(','),
+                            description: item.description,
+                            streamUrl: item.streamUrl || '',
+                          },
+                        });
+                      }}
+                    />
+                  </View>
+                )}
+                contentContainerStyle={{ paddingHorizontal: 12, paddingBottom: 40 }}
+              />
+              </View>
+            )}
+          </View>
+        </View>
+
+        <SearchKeyboardModal 
+          visible={showCategoryKeyboard}
+          value={categorySearch}
+          onChangeText={setCategorySearch}
+          onClose={() => setShowCategoryKeyboard(false)}
+          placeholder="Search categories..."
+        />
+        <SearchKeyboardModal 
+          visible={showSeriesKeyboard}
+          value={seriesSearch}
+          onChangeText={setSeriesSearch}
+          onClose={() => setShowSeriesKeyboard(false)}
+          placeholder="Search series..."
+        />
+      </View>
+    );
+  }
+
+  // --- Mobile Layout ---
+  const categoryNumColumns = 1;
 
   if (selectedCategory) {
     return (
-      <View style={[styles.container, { backgroundColor: isLargeScreen ? 'transparent' : colors.background, paddingTop: insets.top, display: isFocused ? 'flex' : 'none' }]}>
+      <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top, opacity: isFocused ? 1 : 0, pointerEvents: isFocused ? 'auto' : 'none' }]}>
         <View style={[styles.header, isLandscape && { paddingTop: 4, paddingBottom: 4 }]}>
           <TVFocusable 
             onPress={() => setSelectedCategory(null)} 
-            style={{ marginRight: 8, padding: 8 }}
+            style={{ marginRight: 8, padding: 8, zIndex: 9999, elevation: 9999 }}
             hitSlop={{ top: 20, bottom: 20, left: 20, right: 20 }}
             disableBorder
           >
@@ -155,13 +403,30 @@ export default function SeriesScreen() {
           </View>
         ) : (
           <FlatList
+            ref={flatListRef}
+            onScrollToIndexFailed={(info) => {
+              const offset = info.averageItemLength * Math.floor(info.index / mobileNumColumns);
+              flatListRef.current?.scrollToOffset({ offset, animated: false });
+              setTimeout(() => {
+                try {
+                  flatListRef.current?.scrollToIndex({ index: info.index, animated: true, viewPosition: 0.5 });
+                } catch (e) {}
+              }, 300);
+            }}
+            removeClippedSubviews={true}
+            initialNumToRender={8}
+            maxToRenderPerBatch={12}
+            windowSize={5}
             key={`series_grid_${mobileNumColumns}`}
-            data={localSeries}
+            data={localSeries.slice(0, displayCount)}
+            onEndReached={() => setDisplayCount(prev => prev + 50)}
+            onEndReachedThreshold={0.5}
             keyExtractor={(item) => item.id}
             numColumns={mobileNumColumns}
             renderItem={({ item }) => (
               <View style={[styles.gridItem, { width: `${100 / mobileNumColumns}%`, maxWidth: `${100 / mobileNumColumns}%` }]}>
                 <MovieCard
+                  autoFocus={focusId === item.id}
                   movie={item}
                   width={'100%' as any}
                   onPress={() => {
@@ -200,7 +465,7 @@ export default function SeriesScreen() {
   }
 
   return (
-    <View style={[styles.container, { backgroundColor: isLargeScreen ? 'transparent' : colors.background, paddingTop: insets.top, display: isFocused ? 'flex' : 'none' }]}>
+    <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top, opacity: isFocused ? 1 : 0, pointerEvents: isFocused ? 'auto' : 'none' }]}>
       <View style={styles.header}>
         <Text style={[styles.title, { color: colors.text }]}>Series</Text>
         <Text style={[styles.count, { color: colors.mutedForeground }]}>
@@ -225,27 +490,30 @@ export default function SeriesScreen() {
         </View>
       ) : (
         <FlatList
+removeClippedSubviews={true}
+initialNumToRender={8}
+maxToRenderPerBatch={12}
+windowSize={5}
           key={`categories_grid_${categoryNumColumns}`}
           data={categories}
           numColumns={categoryNumColumns}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
-            <View style={{ width: `${100 / categoryNumColumns}%`, padding: categoryNumColumns === 1 ? 0 : 6 }}>
+            <View style={{ width: `${100 / categoryNumColumns}%`, padding: 0 }}>
               <TVFocusable
                 onPress={() => setSelectedCategory(item)}
                 style={({ focused }: any) => [
                   styles.categoryItem,
                   { backgroundColor: focused ? colors.surface : colors.surface2, borderColor: focused ? colors.gold : colors.border },
-                  { padding: isLargeScreen ? 20 : 14 },
-                  categoryNumColumns > 1 && { marginBottom: 0 }
+                  { padding: 14 }
                 ]}
               >
-                <View style={[styles.categoryLeft, { flex: 1, flexDirection: isLargeScreen ? 'column' : 'row' }]}>
-                  <View style={[styles.categoryIconBg, { backgroundColor: colors.gold + '15' }, isLargeScreen && { width: 48, height: 48, borderRadius: 12, marginBottom: 8 }]}>
-                    <Lineicons icon={Folder1Bulk} size={isLargeScreen ? 24 : 18} color={colors.gold} />
+                <View style={[styles.categoryLeft, { flex: 1, flexDirection: 'row' }]}>
+                  <View style={[styles.categoryIconBg, { backgroundColor: colors.gold + '15' }]}>
+                    <Lineicons icon={Folder1Bulk} size={18} color={colors.gold} />
                   </View>
                   <Text 
-                    style={[styles.categoryName, { color: colors.text, textAlign: isLargeScreen ? 'center' : 'left', flex: isLargeScreen ? 0 : 1 }]} 
+                    style={[styles.categoryName, { color: colors.text, textAlign: 'left', flex: 1 }]} 
                     numberOfLines={2}
                   >
                     {item.name}
@@ -262,6 +530,16 @@ export default function SeriesScreen() {
 }
 
 const styles = StyleSheet.create({
+  searchBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    height: 36,
+    borderRadius: 8,
+    borderWidth: 1,
+    marginTop: 8,
+    gap: 8,
+  },
   mobileChannelListContent: {
     borderRadius: 12,
     borderWidth: 1,

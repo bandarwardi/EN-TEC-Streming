@@ -14,14 +14,17 @@ import {
 import { useColors } from '@/hooks/useColors';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Lineicons } from '@lineiconshq/react-native-lineicons';
-import { ArrowLeftBulk, Search1Bulk, XmarkBulk, RefreshCircle1ClockwiseBulk, Database2Bulk, EmojiSadBulk, Ban2Bulk, MonitorBulk, QuestionMarkCircleBulk } from '@lineiconshq/free-icons';
+import { ArrowLeftBulk, Search1Bulk, XmarkBulk, RefreshCircle1ClockwiseBulk, Database2Bulk, EmojiSadBulk, Ban2Bulk, MonitorBulk, QuestionMarkCircleBulk, Microphone1Bulk, PlayBulk } from '@lineiconshq/free-icons';
 import { Image } from 'expo-image';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { TVFocusable } from '@/components/TVFocusable';
 import { TVSidebar } from '@/components/TVSidebar';
 import { TVKeyboard } from '@/components/TVKeyboard';
 import { useAppStore } from '@/store/app-store';
 import { Channel } from '@/types';
+import QRCode from 'react-native-qrcode-svg';
+import { listenToRemoteKeyboard } from '@/store/firebase';
+import { useVoiceSearch } from '@/hooks/useVoiceSearch';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -46,13 +49,27 @@ export default function SearchScreen() {
   const [query, setQuery] = useState('');
   const [filteredResults, setFilteredResults] = useState<Channel[]>([]);
   const [suggestions, setSuggestions] = useState<string[]>([]);
-  const [isKeyboardOpen, setIsKeyboardOpen] = useState(isLargeScreen);
+  const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
   const [isSearching, setIsSearching] = useState(false);
   const [activeTab, setActiveTab] = useState<SearchTab>('all');
   const [preparingChannelId, setPreparingChannelId] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState('');
   const [hasAttemptedAutoBuild, setHasAttemptedAutoBuild] = useState(false);
+  const remoteSessionId = useRef(Math.random().toString(36).substring(2, 6).toUpperCase()).current;
   const inputRef = useRef<any>(null);
+  const { tab } = useLocalSearchParams<{ tab?: SearchTab }>();
+
+  const { isListening, toggleListening, isSupported } = useVoiceSearch((text) => {
+    setQuery((prev) => prev ? `${prev} ${text}` : text);
+  });
+
+  useEffect(() => {
+    if (tab && ['all', 'live', 'vod', 'series'].includes(tab)) {
+      setActiveTab(tab);
+      // clear the param so it doesn't get stuck if navigating back
+      router.setParams({ tab: '' });
+    }
+  }, [tab]);
 
   // Auto-focus input after screen transition completes
   useEffect(() => {
@@ -76,6 +93,12 @@ export default function SearchScreen() {
     }
   };
 
+  useEffect(() => {
+    return listenToRemoteKeyboard(remoteSessionId, (text) => {
+      setQuery(text);
+    });
+  }, [remoteSessionId]);
+
   // Perform async debounce filter
   useEffect(() => {
     if (query.trim().length < 2) {
@@ -87,13 +110,9 @@ export default function SearchScreen() {
     const timer = setTimeout(async () => {
       setIsSearching(true);
       try {
-        const results = await searchChannels(query);
+        const results = await searchChannels(query, activeTab);
         const sugs = await getSearchSuggestions(query);
-        if (activeTab !== 'all') {
-          setFilteredResults(results.filter(r => r.type === activeTab));
-        } else {
-          setFilteredResults(results);
-        }
+        setFilteredResults(results);
         setSuggestions(sugs);
       } catch (e) {
       } finally {
@@ -105,53 +124,27 @@ export default function SearchScreen() {
   }, [query, activeTab, searchChannels, getSearchSuggestions]);
 
   const handleItemPress = (item: Channel, index: number) => {
-    if (preparingChannelId) return;
-
     if (item.type === 'live') {
-      setPreparingChannelId(item.id);
-      const liveResults = filteredResults.filter(r => r.type === 'live');
-      const indexInLive = liveResults.findIndex(r => r.id === item.id);
-      setPlaybackQueue(liveResults, indexInLive >= 0 ? indexInLive : 0);
-      useAppStore.getState().setIsPlayerOpen(true);
-      setTimeout(() => {
-        setPreparingChannelId(null);
-        router.push({
-          pathname: '/player',
-          params: {
-            id: item.id,
-            streamUrl: item.streamUrl,
-            title: item.name,
-            isLive: 'true',
-            current: item.current || 'Live Stream',
-            quality: item.quality || 'HD',
-          }
-        });
-      }, 100);
+      router.replace({ pathname: '/(tabs)/live', params: { categoryId: item.categoryId, focusId: item.id } });
     } else if (item.type === 'vod') {
-      router.push({
-        pathname: '/movie-detail',
-        params: {
+      router.push({ 
+        pathname: '/movie-detail', 
+        params: { 
           id: item.id,
           title: item.name,
-          poster: item.logo,
-          backdrop: item.logo,
-          quality: item.quality || 'HD',
-          genres: item.category,
-          description: '',
-          streamUrl: item.streamUrl
-        }
+          poster: item.logo || '',
+          streamUrl: item.streamUrl || ''
+        } 
       });
     } else if (item.type === 'series') {
-      router.push({
-        pathname: '/series-detail',
-        params: {
+      router.push({ 
+        pathname: '/series-detail', 
+        params: { 
           id: item.id,
           title: item.name,
-          poster: item.logo,
-          backdrop: item.logo,
-          genres: item.category,
-          description: ''
-        }
+          poster: item.logo || '',
+          streamUrl: item.streamUrl || ''
+        } 
       });
     }
   };
@@ -187,14 +180,14 @@ export default function SearchScreen() {
           <Text style={[styles.cardName, { color: colors.text }]} numberOfLines={1}>
             {item.name}
           </Text>
-          <View style={styles.badgeRow}>
+          <View style={[styles.badgeRow, { justifyContent: 'space-between' }]}>
             <View style={[styles.typeBadge, { backgroundColor: typeColor + '20' }]}>
               <Text style={[styles.typeBadgeText, { color: typeColor }]}>
                 {typeLabel}
               </Text>
             </View>
             {item.category ? (
-              <Text style={[styles.cardCategory, { color: colors.mutedForeground }]} numberOfLines={1}>
+              <Text style={[styles.cardCategory, { color: colors.mutedForeground, textAlign: 'right', flex: 1, writingDirection: 'rtl' }]} numberOfLines={1}>
                 {item.category}
               </Text>
             ) : null}
@@ -205,7 +198,7 @@ export default function SearchScreen() {
           {preparingChannelId === item.id ? (
             <ActivityIndicator size="small" color={colors.gold} />
           ) : (
-            <Lineicons icon={item.type === 'live' ? MonitorBulk : QuestionMarkCircleBulk} size={18} color={colors.gold} />
+            <Lineicons icon={item.type === 'live' ? MonitorBulk : PlayBulk} size={18} color={colors.gold} />
           )}
         </View>
       </TVFocusable>
@@ -223,7 +216,7 @@ export default function SearchScreen() {
             styles.backBtn,
             focused && { transform: [{ scale: 1.1 }], backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 12, borderWidth: 3, borderColor: '#FFF' }
           ]} 
-          onPress={() => router.back()}
+          onPress={() => { if (router.canGoBack()) { router.back(); } else { router.replace('/(tabs)'); } }}
           focusable={true}
         >
           {({ focused }: any) => (
@@ -249,9 +242,9 @@ export default function SearchScreen() {
             placeholderTextColor={colors.mutedForeground}
             style={[styles.searchInput, { color: colors.text }]}
             returnKeyType="search"
-            focusable={false}
-            editable={!isLargeScreen}
-            showSoftInputOnFocus={!isLargeScreen}
+            focusable={true}
+            editable={true}
+            showSoftInputOnFocus={false}
             onFocus={() => { if (isLargeScreen) setIsKeyboardOpen(true) }}
           />
           {query.length > 0 && (
@@ -260,6 +253,21 @@ export default function SearchScreen() {
             </TVFocusable>
           )}
         </TVFocusable>
+        {isSupported && (
+          <TVFocusable 
+            style={({ focused }: any) => [
+              styles.syncBtn,
+              focused && { transform: [{ scale: 1.1 }], backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: 12, borderWidth: 3, borderColor: '#FFF' },
+              isListening && { backgroundColor: colors.destructive, borderColor: colors.destructive }
+            ]} 
+            onPress={toggleListening}
+            focusable={true}
+          >
+            {({ focused }: any) => (
+              <Lineicons icon={Microphone1Bulk} size={20} color={isListening ? "#FFF" : (focused ? "#FFF" : colors.gold)} />
+            )}
+          </TVFocusable>
+        )}
         {!loadingSearchIndex && (
           <TVFocusable 
             style={({ focused }: any) => [
@@ -311,17 +319,32 @@ export default function SearchScreen() {
       )}
 
       {/* Main Body */}
-      <View style={{ flex: 1, flexDirection: isLargeScreen && isKeyboardOpen ? 'row' : 'column', gap: 24, paddingHorizontal: isLargeScreen && isKeyboardOpen ? 16 : 0, marginTop: 16 }}>
+      <View style={{ flex: 1, flexDirection: 'column', gap: 24, paddingHorizontal: isLargeScreen && isKeyboardOpen ? 16 : 0, marginTop: 16 }}>
         {isLargeScreen && isKeyboardOpen && (
-          <View style={{ width: 480 }}>
-            <TVKeyboard 
-               value={query} 
-               onChangeText={setQuery} 
-               onSubmit={() => setIsKeyboardOpen(false)} 
-               suggestions={suggestions}
-               onSuggestionPress={(sug) => { setQuery(sug); setIsKeyboardOpen(false); }}
-               autoFocus={true}
-            />
+          <View style={{ transform: [{ scale: 0.75 }], marginVertical: -40 }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: 40, width: '100%', paddingVertical: 12 }}>
+              <View style={{ width: 480 }}>
+                <TVKeyboard 
+                   value={query} 
+                   onChangeText={setQuery} 
+                   onSubmit={() => setIsKeyboardOpen(false)} 
+                   suggestions={suggestions}
+                   onSuggestionPress={(sug) => { setQuery(sug); setIsKeyboardOpen(false); }}
+                   autoFocus={true}
+                />
+              </View>
+
+              <View style={{ alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.02)', padding: 24, borderRadius: 16, borderWidth: 1, borderColor: colors.border }}>
+                <Text style={{ color: colors.text, fontSize: 18, fontWeight: 'bold', marginBottom: 12 }}>Remote Search</Text>
+                <View style={{ backgroundColor: '#fff', padding: 12, borderRadius: 12, marginBottom: 12 }}>
+                  <QRCode 
+                    value={`https://entec-keyboard.web.app/?session=${remoteSessionId}`} 
+                    size={140} 
+                  />
+                </View>
+                <Text style={{ color: colors.gold, fontSize: 24, fontWeight: 'bold', letterSpacing: 4 }}>{remoteSessionId}</Text>
+              </View>
+            </View>
           </View>
         )}
         <View style={{ flex: 1 }}>

@@ -151,7 +151,7 @@ export default function ActorDetailScreen() {
           
           <TVFocusable 
             style={[styles.backBtn, { top: insets.top + 10 }]} 
-            onPress={() => router.back()}
+            onPress={() => { if (router.canGoBack()) { router.back(); } else { router.replace('/(tabs)'); } }}
           >
             <Lineicons icon={ArrowLeftBulk} size={28} color="#FFF" style={styles.shadowIcon} />
           </TVFocusable>

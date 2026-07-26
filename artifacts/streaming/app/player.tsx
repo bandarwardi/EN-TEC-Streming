@@ -137,6 +137,7 @@ export default function PlayerScreen() {
   const seekBarWidth = useRef(W - 40);
   const seekStartX = useRef(0);
   const controlsOpacity = useRef(new Animated.Value(1)).current;
+  const hasAutoResumed = useRef(false);
 
   const matchedWatchedRef = useRef(continueWatching.find(item => item.streamUrl === streamUrl || (params.id && item.id === params.id)));
   const matchedWatched = matchedWatchedRef.current;
@@ -669,7 +670,7 @@ export default function PlayerScreen() {
         <StatusBar hidden />
         <Lineicons icon={QuestionMarkCircleBulk} size={48} color="#E53935" />
         <Text style={styles.errorTitle}>No stream URL provided</Text>
-        <TVFocusable style={styles.retryBtn} onPress={() => router.back()}>
+        <TVFocusable style={styles.retryBtn} onPress={() => { if (router.canGoBack()) { router.back(); } else { router.replace('/(tabs)'); } }}>
           <Text style={styles.retryText}>Go Back</Text>
         </TVFocusable>
       </View>
@@ -704,6 +705,11 @@ export default function PlayerScreen() {
                 setIsBuffering(false);
                 setHasError(false);
                 retryCount.current = 0; // Reset retry count on success
+                
+                if (params.autoResume === 'true' && matchedWatched && !hasAutoResumed.current) {
+                  webPlayerRef.current?.seek(matchedWatched.progress);
+                  hasAutoResumed.current = true;
+                }
               }}
               onError={(e: any) => {
                 console.error("WebVideoPlayer Error:", e);
@@ -724,7 +730,7 @@ export default function PlayerScreen() {
                 if (playbackQueue.length > 1) {
                   handleNextChannel();
                 } else {
-                  router.back();
+                  if (router.canGoBack()) { router.back(); } else { router.replace('/(tabs)'); };
                 }
               }}
             />
@@ -788,7 +794,7 @@ export default function PlayerScreen() {
             pointerEvents="box-none"
           >
             <TVFocusable 
-              onPress={() => router.back()} 
+              onPress={() => { if (router.canGoBack()) { router.back(); } else { router.replace('/(tabs)'); } }} 
               style={({ focused }: any) => [
                 styles.iconBtn,
                 focused && { transform: [{ scale: 1.1 }], backgroundColor: colors.gold, borderWidth: 3, borderColor: '#FFF' }

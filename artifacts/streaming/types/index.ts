@@ -3,6 +3,7 @@ export interface Channel {
   name: string;
   logo: string;
   category: string;
+  categoryId?: string;
   streamUrl: string;
   current: string;
   next: string;
@@ -11,6 +12,7 @@ export interface Channel {
   type: 'live' | 'vod' | 'series';
   hasArchive?: boolean;
   archiveDuration?: number;
+  num?: number | string;
 }
 
 export interface Playlist {
@@ -21,6 +23,12 @@ export interface Playlist {
   updated: string;
   lastUpdatedTimestamp: number;
   isDemo?: boolean;
+}
+
+export interface PlaylistCategories {
+  live: { id: string; name: string; count?: number }[];
+  vod: { id: string; name: string; count?: number }[];
+  series: { id: string; name: string; count?: number }[];
 }
 
 export interface Movie {

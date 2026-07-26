@@ -14,14 +14,16 @@ export function GlobalHeader() {
   const isLandscape = width > height;
   
   return (
-    <View style={[styles.headerContainer, { 
+    <View 
+      pointerEvents="box-none"
+      style={[styles.headerContainer, { 
       paddingTop: Platform.OS === 'ios' ? Math.max(insets.top, 10) : isLandscape ? Math.max(insets.top, 10) : insets.top + 10,
       paddingBottom: isLandscape ? 4 : 10,
-      backgroundColor: isLandscape ? 'transparent' : colors.background,
+      backgroundColor: isLandscape ? undefined : colors.background,
       borderBottomWidth: isLandscape ? 0 : 1,
       borderBottomColor: colors.border
     }]}>
-      <View style={styles.left}>
+      <View style={styles.left} pointerEvents="box-none">
         {!isLandscape && (
           <Text style={[styles.logoText, { color: colors.gold }]}>
             EN<Text style={{ color: colors.text }}>-TEC</Text>
@@ -29,7 +31,7 @@ export function GlobalHeader() {
         )}
       </View>
       
-      <View style={[styles.right, { gap: 12 }]}>
+      <View style={[styles.right, { gap: 12 }]} pointerEvents="box-none">
         <TVFocusable 
           onPress={() => router.push('/search')}
           style={({ focused }: any) => [

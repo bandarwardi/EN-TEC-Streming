@@ -365,7 +365,7 @@ export default function CatchUpScreen() {
     });
   }, [days, selectedDayIndex, epgList]);
 
-  if (!isFocused) return <View style={{ flex: 1, backgroundColor: '#05070a' }} />;
+
 
   // --- TV Layout ---
   if (isLargeScreen) {
@@ -393,7 +393,7 @@ export default function CatchUpScreen() {
     };
 
     return (
-      <View style={[styles.tvContainer, { backgroundColor: isLargeScreen ? 'transparent' : colors.background, paddingLeft: 24 }]}>
+      <View style={[styles.tvContainer, { backgroundColor: isLargeScreen ? 'transparent' : colors.background, paddingLeft: 24, opacity: isFocused ? 1 : 0, pointerEvents: isFocused ? 'auto' : 'none' }]}>
         <View style={[{ flexDirection: 'row', flex: 1 }, glassPaneStyle]}>
           {/* Pane 1: Channels */}
           <View style={[styles.tvPaneChannels, { borderRightWidth: 1, borderRightColor: 'rgba(255,255,255,0.08)' }]}>
@@ -546,7 +546,7 @@ export default function CatchUpScreen() {
   };
 
   return (
-    <View style={[styles.container, { backgroundColor: isLargeScreen ? 'transparent' : colors.background, display: isFocused ? 'flex' : 'none' }]}>
+    <View style={[styles.container, { backgroundColor: isLargeScreen ? 'transparent' : colors.background, opacity: isFocused ? 1 : 0, pointerEvents: isFocused ? 'auto' : 'none' }]}>
       {selectedChannel && (
         <View style={[styles.header, { paddingBottom: 0 }, isLandscape && { paddingTop: 4, paddingBottom: 4 }]}>
           <TVFocusable 

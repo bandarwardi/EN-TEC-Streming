@@ -1,9 +1,10 @@
 import React, { useState, useMemo } from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { TVFocusable } from './TVFocusable';
 import { useColors } from '@/hooks/useColors';
 import { Lineicons } from '@lineiconshq/react-native-lineicons';
-import { ArrowLeftBulk, Search1Bulk, XmarkBulk } from '@lineiconshq/free-icons';
+import { ArrowLeftBulk, Search1Bulk, XmarkBulk, Microphone1Bulk } from '@lineiconshq/free-icons';
+import { useVoiceSearch } from '@/hooks/useVoiceSearch';
 
 interface TVKeyboardProps {
   value: string;
@@ -40,6 +41,10 @@ export function TVKeyboard({ value, onChangeText, onSubmit, suggestions = [], on
   const [language, setLanguage] = useState<'EN' | 'AR'>('EN');
   const [isShift, setIsShift] = useState(false);
 
+  const { isListening, toggleListening, isSupported } = useVoiceSearch((text) => {
+    onChangeText(value ? `${value} ${text}` : text);
+  });
+
   const currentLayout = useMemo(() => {
     if (language === 'AR') return AR_LAYOUT;
     return isShift ? EN_LAYOUT_UPPER : EN_LAYOUT_LOWER;
@@ -75,7 +80,12 @@ export function TVKeyboard({ value, onChangeText, onSubmit, suggestions = [], on
     <View style={[styles.container, { backgroundColor: colors.surface }]}>
       {/* Suggestions Row */}
       {suggestions.length > 0 && (
-        <View style={styles.suggestionsRow}>
+        <ScrollView 
+          horizontal={true}
+          showsHorizontalScrollIndicator={false}
+          style={{ flexGrow: 0, marginBottom: 20 }}
+          contentContainerStyle={{ gap: 12, paddingHorizontal: 4 }}
+        >
           {suggestions.map((suggestion, index) => (
             <TVFocusable
               key={`sug_${index}`}
@@ -99,7 +109,7 @@ export function TVKeyboard({ value, onChangeText, onSubmit, suggestions = [], on
               )}
             </TVFocusable>
           ))}
-        </View>
+        </ScrollView>
       )}
 
       {/* Keyboard Grid */}
@@ -158,6 +168,23 @@ export function TVKeyboard({ value, onChangeText, onSubmit, suggestions = [], on
             </TVFocusable>
           )}
 
+          {/* Mic Button */}
+          {isSupported && (
+            <TVFocusable
+              onPress={toggleListening}
+              style={({ focused }: any) => [
+                styles.actionButton,
+                { flex: 1.5, backgroundColor: isListening ? colors.destructive : (focused ? colors.gold : colors.surface2), borderColor: isListening ? colors.destructive : (focused ? colors.gold : colors.border) }
+              ]}
+            >
+              {({ focused }: any) => (
+                <View style={styles.actionInner}>
+                  <Lineicons icon={Microphone1Bulk} size={20} color={isListening ? '#FFF' : (focused ? '#000' : colors.text)} />
+                </View>
+              )}
+            </TVFocusable>
+          )}
+
           {/* Space */}
           <TVFocusable
             onPress={handleSpace}
@@ -211,7 +238,7 @@ export function TVKeyboard({ value, onChangeText, onSubmit, suggestions = [], on
           >
             {({ focused }: any) => (
               <View style={styles.actionInner}>
-                <Text style={[styles.actionText, { color: focused ? '#000' : colors.text }]}>Search</Text>
+                <Lineicons icon={Search1Bulk} size={20} color={focused ? '#000' : colors.text} />
               </View>
             )}
           </TVFocusable>

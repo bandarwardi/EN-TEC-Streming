@@ -3,12 +3,14 @@ import { View, Text, StyleSheet, Platform, Pressable } from 'react-native';
 import { MinusBulk } from '@lineiconshq/free-icons';
 import { Ionicons } from '@expo/vector-icons';
 import { useColors } from '@/hooks/useColors';
+import { useAppStore } from '@/store/app-store';
 
 export function DesktopTitleBar() {
   const colors = useColors();
+  const isFullscreen = useAppStore(s => s.isFullscreen);
   const [hovered, setHovered] = useState<string | null>(null);
 
-  if (Platform.OS !== 'web') return null;
+  if (Platform.OS !== 'web' || isFullscreen) return null;
 
   const handleAction = async (action: string) => {
     try {

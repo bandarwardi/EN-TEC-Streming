@@ -43,6 +43,8 @@ export default function HomeScreen() {
   const setSubscriptionExpired = useAppStore((s) => s.setSubscriptionExpired);
 
   const continueWatching = useAppStore((s) => s.continueWatching) || [];
+  const favoriteItems = useAppStore((s) => s.favoriteItems) || [];
+  const favoriteChannels = favoriteItems.filter((item) => item.type === 'live' || item.isLive === true || (item.isLive as unknown) === 'true');
   const [refreshKey, setRefreshKey] = useState(0);
 
   const onRefresh = () => {
@@ -61,19 +63,23 @@ export default function HomeScreen() {
         return;
       }
 
-      if (
-        refreshKey === 0 && 
-        cachedHomeContent && 
-        cachedHomeContent.playlistId === activePlaylistId && 
-        cachedHomeContent.rows.length > 0
-      ) {
+      const hasValidCache = cachedHomeContent && cachedHomeContent.playlistId === activePlaylistId && cachedHomeContent.rows.length > 0;
+
+      if (hasValidCache) {
         setContentRows(cachedHomeContent.rows);
         setFeaturedItems(cachedHomeContent.featured);
+        
+        if (refreshKey === 0) {
+          setLoading(false);
+          return;
+        }
+        
+        // When refreshing, don't show the full page skeleton
         setLoading(false);
-        return;
+      } else {
+        setLoading(true);
       }
 
-      setLoading(true);
       setSubscriptionExpired(false);
       try {
         const activePlaylist = playlists.find(p => p.id === activePlaylistId);
@@ -113,7 +119,7 @@ export default function HomeScreen() {
           }
         }
 
-        if (active) {
+        if (active && !hasValidCache) {
           setContentRows([]);
           setFeaturedItems([]);
         }
@@ -169,7 +175,7 @@ export default function HomeScreen() {
             if (added) {
               count++;
               rowCount++;
-              await new Promise(r => setTimeout(r, 400)); // Rate limit protection
+              // Removed 400ms delay for faster loading (since we now have caching)
             }
           }
         };
@@ -179,9 +185,12 @@ export default function HomeScreen() {
         const shuffledVod = [...(activeCategories.vod || [])].sort(() => 0.5 - Math.random());
         const shuffledLive = [...(activeCategories.live || [])].sort(() => 0.5 - Math.random());
 
-        await fillRows('series', shuffledSeries, 2);
-        await fillRows('vod', shuffledVod, 2);
-        await fillRows('live', shuffledLive, 2);
+        // Load series, vod, and live rows in parallel to speed up home screen loading
+        await Promise.all([
+          fillRows('series', shuffledSeries, 2),
+          fillRows('vod', shuffledVod, 2),
+          fillRows('live', shuffledLive, 2),
+        ]);
 
         if (!active) return;
 
@@ -382,29 +391,43 @@ export default function HomeScreen() {
                     )}
                   </TVFocusable>
 
-                  <TVFocusable
-                    style={({ focused }: any) => [
-                      styles.tvHeroBtnSecondary,
-                      { backgroundColor: focused ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.1)' }
-                    ]}
-                    scaleAmount={1.05}
-                    onPress={() => {
-                      if (heroItem.originalItem.type === 'series') {
-                        router.push({ pathname: '/series-detail', params: { id: heroItem.id, title: heroItem.title, poster: heroItem.backdrop?.uri, backdrop: heroItem.backdrop?.uri, genres: heroItem.genres.join(','), description: heroItem.description, streamUrl: heroItem.streamUrl || '' } });
-                      } else if (heroItem.originalItem.type === 'vod') {
-                        router.push({ pathname: '/movie-detail', params: { id: heroItem.id, title: heroItem.title, poster: heroItem.backdrop?.uri, backdrop: heroItem.backdrop?.uri, quality: 'HD', genres: heroItem.genres.join(','), description: heroItem.description, streamUrl: heroItem.streamUrl || '' } });
-                      }
-                    }}
-                  >
-                    <Lineicons icon={QuestionMarkCircleBulk} size={24} color="#FFF" />
-                    <Text style={styles.tvHeroBtnSecondaryText}>More Info</Text>
-                  </TVFocusable>
+
                 </View>
               </View>
             </View>
           ) : null}
 
           <View style={styles.tvBottomContent}>
+            {favoriteChannels.length > 0 && (
+              <ContentRow
+                title="Favorite Channels"
+                data={favoriteChannels}
+                onSeeAll={() => router.push('/(tabs)/favorites')}
+                renderItem={({ item, index: itemIndex }) => (
+                  <ChannelCard
+                    channel={item}
+                    width={200}
+                    onPress={() => {
+                      setPlaybackQueue(favoriteChannels, itemIndex);
+                      router.push({
+                        pathname: '/player',
+                        params: {
+                          id: item.id,
+                          streamUrl: item.streamUrl,
+                          title: item.name || item.title,
+                          isLive: 'true',
+                          current: item.current || '',
+                          next: item.next || '',
+                          quality: item.quality || 'HD',
+                          logo: item.logo || item.poster || '',
+                          category: item.category || ''
+                        }
+                      });
+                    }}
+                  />
+                )}
+              />
+            )}
             {continueWatching.length > 0 && (
               <ContentRow
                 title="Continue Watching"
@@ -512,6 +535,36 @@ export default function HomeScreen() {
         )}
 
         <View style={styles.content}>
+          {favoriteChannels.length > 0 && (
+            <ContentRow
+              title="Favorite Channels"
+              data={favoriteChannels}
+              onSeeAll={() => router.push('/(tabs)/favorites')}
+              renderItem={({ item, index: itemIndex }) => (
+                <ChannelCard
+                  channel={item}
+                  width={160}
+                  onPress={() => {
+                    setPlaybackQueue(favoriteChannels, itemIndex);
+                    router.push({
+                      pathname: '/player',
+                      params: {
+                        id: item.id,
+                        streamUrl: item.streamUrl,
+                        title: item.name || item.title,
+                        isLive: 'true',
+                        current: item.current || '',
+                        next: item.next || '',
+                        quality: item.quality || 'HD',
+                        logo: item.logo || item.poster || '',
+                        category: item.category || ''
+                      }
+                    });
+                  }}
+                />
+              )}
+            />
+          )}
           {continueWatching.length > 0 && (
             <ContentRow
               title="Continue Watching"

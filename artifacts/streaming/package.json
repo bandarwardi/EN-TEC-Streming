@@ -61,6 +61,7 @@
   "dependencies": {
     "@lineiconshq/free-icons": "^1.0.6",
     "@lineiconshq/react-native-lineicons": "^0.0.3",
+    "@react-native-voice/voice": "^3.2.4",
     "expo": "~54.0.35",
     "expo-build-properties": "~1.0.10",
     "expo-clipboard": "^8.0.8",
@@ -69,9 +70,12 @@
     "expo-navigation-bar": "~5.0.10",
     "expo-screen-orientation": "~9.0.9",
     "expo-video": "^3.0.16",
+    "firebase": "^12.16.0",
     "hls.js": "^1.6.16",
     "react": "19.1.0",
     "react-native": "0.81.5",
+    "react-native-qrcode-svg": "^6.3.21",
+    "react-native-svg": "15.12.1",
     "semver": "^7.8.5",
     "zustand": "^5.0.14"
   }

@@ -57,8 +57,6 @@ function EpisodeItem({ ep, seriesTitle, seriesPoster, seriesBackdrop, seriesQual
   const downloads = useAppStore((s) => s.downloads);
   const startDownload = useAppStore((s) => s.startDownload);
   const removeDownload = useAppStore((s) => s.removeDownload);
-  const nativePlayerPath = useAppStore((s) => s.nativePlayerPath);
-  const setNativePlayerPath = useAppStore((s) => s.setNativePlayerPath);
 
   const downloadedItem = downloads.find(d => d.id === ep.id);
   const isDownloaded = downloadedItem?.status === 'completed';
@@ -137,8 +135,6 @@ export default function SeriesDetailScreen() {
   const playlists = useAppStore((s) => s.playlists);
   const favorites = useAppStore((s) => s.favorites);
   const toggleFavorite = useAppStore((s) => s.toggleFavorite);
-  const nativePlayerPath = useAppStore((s) => s.nativePlayerPath);
-  const setNativePlayerPath = useAppStore((s) => s.setNativePlayerPath);
 
   const [loading, setLoading] = useState(true);
   const [episodes, setEpisodes] = useState<Episode[]>([]);
@@ -487,33 +483,6 @@ export default function SeriesDetailScreen() {
     }
   };
 
-  const handlePlayNative = async () => {
-    if (episodes.length === 0) return;
-    try {
-      const ep = episodes[0]; // Assuming playing the first episode natively
-      let path = nativePlayerPath;
-      if (!path) {
-        const res = await fetch('http://localhost:1337/select-player');
-        const data = await res.json();
-        if (data.path) {
-          path = data.path;
-          setNativePlayerPath(path);
-        } else {
-          return; 
-        }
-      }
-      
-      const title = `${seriesTitle} - S${ep.season}:E${ep.number}`;
-      const res = await fetch(`http://localhost:1337/play-native?url=${encodeURIComponent(ep.streamUrl)}&title=${encodeURIComponent(title)}&playerPath=${encodeURIComponent(path || '')}`);
-      if (!res.ok) {
-        const errorText = await res.text();
-        Alert.alert('Error', errorText || 'Failed to launch native player.');
-      }
-    } catch (e) {
-      console.error('Failed to launch native player', e);
-      Alert.alert('Error', 'Failed to connect to local proxy for native playback.');
-    }
-  };
 
   useEffect(() => {
     const getActors = (): Actor[] => {
@@ -583,7 +552,13 @@ const description = seriesInfo?.plot || seriesDescription;
           />
           <TVFocusable 
             style={[styles.backBtn, { top: insets.top + 10 }]} 
-            onPress={() => router.back()}
+            onPress={() => {
+              if (router.canGoBack()) {
+                router.back();
+              } else {
+                router.replace('/(tabs)/series');
+              }
+            }}
           >
             <Lineicons icon={ArrowLeftBulk} size={28} color="#FFF" style={styles.shadowIcon} />
           </TVFocusable>

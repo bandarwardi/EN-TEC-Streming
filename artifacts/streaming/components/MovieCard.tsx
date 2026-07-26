@@ -10,9 +10,10 @@ interface MovieCardProps {
   movie: Movie;
   onPress: () => void;
   width?: number;
+  autoFocus?: boolean;
 }
 
-export const MovieCard = React.memo(function MovieCard({ movie, onPress, width = 128 }: MovieCardProps) {
+export const MovieCard = React.memo(function MovieCard({ movie, onPress, width = 128, autoFocus = false }: MovieCardProps) {
   const colors = useColors();
   const fallbackUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(movie.title || 'Movie')}&background=1A1A1A&color=D4A843&bold=true&size=300&format=svg`;
   const [imgSource, setImgSource] = React.useState(movie.poster || fallbackUrl);
@@ -23,22 +24,34 @@ export const MovieCard = React.memo(function MovieCard({ movie, onPress, width =
   }, [movie.poster, fallbackUrl]);
 
   return (
-    <TVFocusable onPress={onPress} style={{ width }} disableBorder={true}>
-      {({ focused }: any) => (
-        <View style={[
-          styles.posterContainer,
-          { borderColor: focused ? colors.gold : 'transparent', borderWidth: 4 }
-        ]}>
-          <Image 
-            source={{ uri: imgSource }} 
-            style={styles.poster} 
-            contentFit="cover" 
-            onError={() => {
-              if (imgSource !== fallbackUrl) setImgSource(fallbackUrl);
-            }}
-          />
-        </View>
-      )}
+    <TVFocusable onPress={onPress} style={{ width }} disableBorder={true} hasTVPreferredFocus={autoFocus}>
+      {({ focused }: any) => {
+        const isHighlighted = focused || autoFocus;
+        return (
+          <View style={[
+            styles.posterContainer,
+            { 
+              borderColor: isHighlighted ? colors.gold : 'transparent', 
+              borderWidth: 4,
+              transform: isHighlighted ? [{ scale: 1.05 }] : [{ scale: 1 }]
+            }
+          ]}>
+            <Image 
+              source={{ 
+                uri: imgSource,
+                headers: {
+                  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+                }
+              }} 
+              style={styles.poster} 
+              contentFit="cover" 
+              onError={() => {
+                if (imgSource !== fallbackUrl) setImgSource(fallbackUrl);
+              }}
+            />
+          </View>
+        );
+      }}
     </TVFocusable>
   );
 });

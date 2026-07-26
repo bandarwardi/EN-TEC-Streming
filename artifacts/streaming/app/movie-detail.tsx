@@ -57,8 +57,6 @@ export default function MovieDetailScreen() {
   const downloads = useAppStore((s) => s.downloads);
   const startDownload = useAppStore((s) => s.startDownload);
   const removeDownload = useAppStore((s) => s.removeDownload);
-  const nativePlayerPath = useAppStore((s) => s.nativePlayerPath);
-  const setNativePlayerPath = useAppStore((s) => s.setNativePlayerPath);
 
   const [loading, setLoading] = useState(true);
   const [movieInfo, setMovieInfo] = useState<any>(null);
@@ -307,30 +305,6 @@ export default function MovieDetailScreen() {
     }
   };
 
-  const handlePlayNative = async () => {
-    try {
-      let path = nativePlayerPath;
-      if (!path) {
-        const res = await fetch('http://localhost:1337/select-player');
-        const data = await res.json();
-        if (data.path) {
-          path = data.path;
-          setNativePlayerPath(path);
-        } else {
-          return; 
-        }
-      }
-      
-      const res = await fetch(`http://localhost:1337/play-native?url=${encodeURIComponent(movieStreamUrl)}&title=${encodeURIComponent(movieTitle)}&playerPath=${encodeURIComponent(path || '')}`);
-      if (!res.ok) {
-        const errorText = await res.text();
-        Alert.alert('Error', errorText || 'Failed to launch native player.');
-      }
-    } catch (e) {
-      console.error('Failed to launch native player', e);
-      Alert.alert('Error', 'Failed to connect to local proxy for native playback.');
-    }
-  };
 
   useEffect(() => {
     const getActors = (): Actor[] => {
@@ -426,7 +400,13 @@ export default function MovieDetailScreen() {
           />
           <TVFocusable 
             style={[styles.backBtn, { top: insets.top + 10 }]} 
-            onPress={() => router.back()}
+            onPress={() => {
+              if (router.canGoBack()) {
+                router.back();
+              } else {
+                router.replace('/(tabs)/movies');
+              }
+            }}
           >
             <Lineicons icon={ArrowLeftBulk} size={28} color="#FFF" style={styles.shadowIcon} />
           </TVFocusable>

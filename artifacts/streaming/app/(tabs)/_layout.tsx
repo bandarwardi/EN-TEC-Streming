@@ -1,11 +1,14 @@
 import { Ionicons } from '@expo/vector-icons';
 import { BlurView } from "expo-blur";
 import { isLiquidGlassAvailable } from "expo-glass-effect";
-import { Tabs } from "expo-router";
+import { Tabs, router } from "expo-router";
 import { Icon, Label, NativeTabs } from "expo-router/unstable-native-tabs";
 import { SymbolView } from "expo-symbols";
 import React from "react";
-import { Platform, StyleSheet, View, useWindowDimensions } from "react-native";
+import { Lineicons } from '@lineiconshq/react-native-lineicons';
+import { Search1Bulk, User4Bulk } from '@lineiconshq/free-icons';
+import { TVFocusable } from '@/components/TVFocusable';
+import { Platform, StyleSheet, View, Text, useWindowDimensions } from "react-native";
 import { LinearGradient } from 'expo-linear-gradient';
 import { useColors } from "@/hooks/useColors";
 import { TVSidebar } from "@/components/TVSidebar";
@@ -43,7 +46,43 @@ function ClassicTabLayout() {
             lazy: true,
             headerShown: !isLargeScreen,
             headerTransparent: isLandscape,
-            header: () => <GlobalHeader />,
+            headerTitle: '',
+            headerLeft: () => !isLandscape ? (
+              <View style={{ paddingLeft: 20 }}>
+                <Text style={{ fontSize: 22, fontWeight: '900', letterSpacing: 1, color: colors.gold }}>
+                  EN<Text style={{ color: colors.text }}>-TEC</Text>
+                </Text>
+              </View>
+            ) : null,
+            headerRight: () => (
+              <View style={{ flexDirection: 'row', gap: 12, paddingRight: 20, paddingTop: isLandscape ? Math.max(Platform.OS === 'ios' ? 10 : 0, 10) : 0 }}>
+                <TVFocusable 
+                  onPress={() => router.push('/search')}
+                  style={({ focused }: any) => [
+                    { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.3)' },
+                    focused && { backgroundColor: colors.gold, transform: [{ scale: 1.1 }] }
+                  ]}
+                >
+                  {({ focused }: any) => <Lineicons icon={Search1Bulk} size={22} color={focused ? "#000" : colors.text} />}
+                </TVFocusable>
+                <TVFocusable 
+                  onPress={() => router.push('/settings')}
+                  style={({ focused }: any) => [
+                    { width: 40, height: 40, borderRadius: 20, justifyContent: 'center', alignItems: 'center', backgroundColor: 'rgba(0,0,0,0.3)' },
+                    focused && { backgroundColor: colors.gold, transform: [{ scale: 1.1 }] }
+                  ]}
+                >
+                  {({ focused }: any) => <Lineicons icon={User4Bulk} size={22} color={focused ? "#000" : colors.text} />}
+                </TVFocusable>
+              </View>
+            ),
+            headerStyle: {
+              backgroundColor: isLandscape ? 'transparent' : colors.background,
+              borderBottomWidth: isLandscape ? 0 : 1,
+              borderBottomColor: colors.border,
+              elevation: 0,
+              shadowOpacity: 0,
+            },
             tabBarActiveTintColor: colors.tint,
             tabBarInactiveTintColor: colors.mutedForeground,
             tabBarStyle: {

@@ -5,6 +5,9 @@ import Hls from 'hls.js';
 export interface WebVideoPlayerRef {
   seek: (time: number) => void;
   toggleSubtitle: () => string | null | false;
+  requestFullscreen: () => void;
+  exitFullscreen: () => void;
+  togglePiP: () => Promise<void>;
 }
 
 interface WebVideoPlayerProps {
@@ -18,10 +21,11 @@ interface WebVideoPlayerProps {
   onReady?: () => void;
   onError?: (e: any) => void;
   controls?: boolean;
+  onFullscreenExit?: () => void;
 }
 
 export const WebVideoPlayer = forwardRef<WebVideoPlayerRef, WebVideoPlayerProps>(
-  ({ source, style, onProgress, onEnd, aspectMode = 0, paused = false, muted = false, controls = false, onReady, onError }, ref) => {
+  ({ source, style, onProgress, onEnd, aspectMode = 0, paused = false, muted = false, controls = false, onReady, onError, onFullscreenExit }, ref) => {
     const videoRef = useRef<HTMLVideoElement>(null);
     const hlsRef = useRef<Hls | null>(null);
 
@@ -46,6 +50,31 @@ export const WebVideoPlayer = forwardRef<WebVideoPlayerRef, WebVideoPlayerProps>
           }
         }
         return false; // No tracks
+      },
+      requestFullscreen: () => {
+        if (videoRef.current) {
+          const v = videoRef.current as any;
+          if (v.requestFullscreen) v.requestFullscreen();
+          else if (v.webkitRequestFullscreen) v.webkitRequestFullscreen();
+          else if (v.mozRequestFullScreen) v.mozRequestFullScreen();
+          else if (v.msRequestFullscreen) v.msRequestFullscreen();
+        }
+      },
+      exitFullscreen: () => {
+        const d = document as any;
+        if (d.exitFullscreen) d.exitFullscreen();
+        else if (d.webkitExitFullscreen) d.webkitExitFullscreen();
+        else if (d.mozCancelFullScreen) d.mozCancelFullScreen();
+        else if (d.msExitFullscreen) d.msExitFullscreen();
+      },
+      togglePiP: async () => {
+        if (videoRef.current) {
+          if (document.pictureInPictureElement) {
+            await document.exitPictureInPicture().catch(e => console.log('PiP exit error:', e));
+          } else {
+            await (videoRef.current as HTMLVideoElement).requestPictureInPicture().catch(e => console.log('PiP request error:', e));
+          }
+        }
       }
     }));
 
@@ -92,12 +121,13 @@ export const WebVideoPlayer = forwardRef<WebVideoPlayerRef, WebVideoPlayerProps>
           enableWorker: true,
           lowLatencyMode: true,
           backBufferLength: 30,
-          maxBufferLength: 2,
-          maxMaxBufferLength: 8,
-          liveSyncDurationCount: 1,
-          liveMaxLatencyDurationCount: 2,
+          maxBufferLength: 10,
+          maxMaxBufferLength: 20,
+          maxBufferSize: 10 * 1000 * 1000,
+          liveSyncDurationCount: 2,
+          liveMaxLatencyDurationCount: 5,
           startFragPrefetch: true,
-          testBandwidth: false,
+          startLevel: -1,
         });
         hlsRef.current = hls;
 
@@ -153,12 +183,27 @@ export const WebVideoPlayer = forwardRef<WebVideoPlayerRef, WebVideoPlayerProps>
       };
       video.addEventListener('playing', handlePlaying);
 
+      const handleFullscreenChange = () => {
+        const isFs = document.fullscreenElement || (document as any).webkitFullscreenElement || (document as any).mozFullScreenElement || (document as any).msFullscreenElement;
+        if (!isFs && onFullscreenExit) {
+          onFullscreenExit();
+        }
+      };
+      document.addEventListener('fullscreenchange', handleFullscreenChange);
+      document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+      document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+      document.addEventListener('MSFullscreenChange', handleFullscreenChange);
+
       return () => {
         if (retryTimeout) clearTimeout(retryTimeout);
         video.removeEventListener('timeupdate', handleTimeUpdate);
         video.removeEventListener('ended', handleEnded);
         video.removeEventListener('playing', handlePlaying);
         video.removeEventListener('error', handleError);
+        document.removeEventListener('fullscreenchange', handleFullscreenChange);
+        document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+        document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
+        document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
         video.pause();
         video.removeAttribute('src');
         video.load();
@@ -191,7 +236,8 @@ export const WebVideoPlayer = forwardRef<WebVideoPlayerRef, WebVideoPlayerProps>
           style={{
             width: '100%',
             height: '100%',
-            objectFit: aspectMode === 0 ? 'contain' : aspectMode === 1 ? 'cover' : 'fill'
+            objectFit: aspectMode === 0 ? 'contain' : aspectMode === 1 ? 'fill' : aspectMode === 2 ? 'cover' : aspectMode === 3 ? 'fill' : 'contain',
+            transform: aspectMode === 3 ? 'scaleX(1.33)' : aspectMode === 4 ? 'scaleX(0.75)' : 'none'
           }}
           controls={controls}
           playsInline

@@ -1,30 +1,33 @@
 import React, { useEffect } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withRepeat, withTiming, withSequence, Easing } from 'react-native-reanimated';
-import { useColors } from '@/hooks/useColors';
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withSequence,
+  withTiming,
+  Easing,
+} from 'react-native-reanimated';
 
 export function LiveBadge() {
-  const colors = useColors();
   const opacity = useSharedValue(1);
 
   useEffect(() => {
     opacity.value = withRepeat(
       withSequence(
-        withTiming(0.4, { duration: 800, easing: Easing.ease }),
-        withTiming(1, { duration: 800, easing: Easing.ease })
+        withTiming(0.35, { duration: 700, easing: Easing.ease }),
+        withTiming(1, { duration: 700, easing: Easing.ease })
       ),
       -1,
       true
     );
   }, []);
 
-  const animatedStyle = useAnimatedStyle(() => ({
-    opacity: opacity.value,
-  }));
+  const dotStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
 
   return (
-    <View style={[styles.container, { backgroundColor: colors.live }]}>
-      <Animated.View style={[styles.dot, animatedStyle]} />
+    <View style={styles.container}>
+      <Animated.View style={[styles.dot, dotStyle]} />
       <Text style={styles.text}>LIVE</Text>
     </View>
   );
@@ -34,21 +37,22 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 6,
     gap: 4,
+    backgroundColor: '#FF3B30',
   },
   dot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
     backgroundColor: '#FFF',
   },
   text: {
     color: '#FFF',
     fontSize: 10,
-    fontWeight: 'bold',
-    letterSpacing: 1,
-  }
+    fontWeight: '800',
+    letterSpacing: 1.2,
+  },
 });

@@ -13,7 +13,15 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { SymbolView } from 'expo-symbols';
 import { TVFocusable } from '@/components/TVFocusable';
 import { Lineicons } from '@lineiconshq/react-native-lineicons';
-import { Home2Bulk, CloudBolt1Bulk, CameraMovie1Bulk, MonitorBulk, StopwatchBulk, Search1Bulk, User4Bulk } from '@lineiconshq/free-icons';
+import {
+  Home2Bulk,
+  CloudBolt1Bulk,
+  CameraMovie1Bulk,
+  MonitorBulk,
+  StopwatchBulk,
+  Search1Bulk,
+  User4Bulk,
+} from '@lineiconshq/free-icons';
 
 const TABS = [
   { name: 'index', path: '/', icon: 'home-outline', bulkIcon: Home2Bulk, label: 'Home', iosIcon: 'house' },
@@ -23,33 +31,40 @@ const TABS = [
   { name: 'catchup', path: '/catchup', icon: 'time-outline', bulkIcon: StopwatchBulk, label: 'Replay', iosIcon: 'clock.arrow.circlepath' },
 ];
 
-function OutlineButton({ icon, bulkIcon, iosIcon, isActive, onPress, isIOS, customContent, onFocus }: any) {
-  const iconColor = isActive ? '#D4A843' : 'rgba(255,255,255,0.7)';
-  
+const GOLD = '#F4C542';
+
+function SidebarItem({ icon, bulkIcon, iosIcon, isActive, onPress, isIOS, customContent, onFocus }: any) {
   return (
     <TVFocusable onPress={onPress} onFocus={onFocus} style={[styles.tabBtn]} disableBorder={true}>
       {({ focused }: any) => (
         <View style={StyleSheet.absoluteFill}>
-          {/* Base rounded square for all icons */}
-          <View style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 14 }, Platform.OS === 'web' ? { backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' } as any : {}]} />
-
-          {/* Active outline box */}
-          {isActive && <View style={[StyleSheet.absoluteFillObject, { borderRadius: 14, borderWidth: 1.5, borderColor: '#D4A843', backgroundColor: 'rgba(212,168,67,0.1)' }]} />}
-
-          {/* Focused overlay */}
-          {focused && !isActive && <View style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 14 }]} />}
-          {focused && isActive && <View style={[StyleSheet.absoluteFillObject, { backgroundColor: 'rgba(212,168,67,0.2)', borderRadius: 14 }]} />}
-
-          {/* Content */}
-          <View style={[styles.iconContainer, { alignSelf: 'center', marginTop: 7 }]}>
+          <View style={[
+            StyleSheet.absoluteFillObject,
+            styles.itemBase,
+            isActive && styles.itemActive,
+            focused && !isActive && styles.itemFocused,
+            focused && isActive && styles.itemFocusedActive,
+          ]} />
+          <View style={styles.iconContainer}>
             {customContent ? customContent : (
               isIOS ? (
-                <SymbolView name={iosIcon as any} tintColor={iconColor} size={22} />
+                <SymbolView
+                  name={iosIcon}
+                  tintColor={isActive ? GOLD : focused ? GOLD : 'rgba(255,255,255,0.55)'}
+                  size={22}
+                />
               ) : (
-                <Ionicons name={icon as any} size={24} color={iconColor} />
+                <Lineicons
+                  icon={bulkIcon}
+                  size={22}
+                  color={isActive ? GOLD : focused ? GOLD : 'rgba(255,255,255,0.55)'}
+                />
               )
             )}
           </View>
+          {isActive && (
+            <View style={styles.activeIndicator} />
+          )}
         </View>
       )}
     </TVFocusable>
@@ -64,24 +79,30 @@ export function TVSidebar() {
   const isIOS = Platform.OS === 'ios';
   const { width } = useWindowDimensions();
   const isLargeScreen = width >= 1024 || Platform.isTV;
+  const isWeb = Platform.OS === 'web';
 
   if (!isLargeScreen) return null;
 
-  const isWeb = Platform.OS === 'web';
-
   const renderLogo = () => (
-    <View style={{ alignItems: 'center', justifyContent: 'center', paddingVertical: 8 }}>
-      <Text style={{ color: '#D4A843', fontWeight: 'bold', fontSize: 13, letterSpacing: 1 }}>EN</Text>
-      <Text style={{ color: '#FFF', fontWeight: 'bold', fontSize: 13, letterSpacing: 1 }}>TEC</Text>
+    <View style={styles.logoContainer}>
+      <Text style={styles.logoEN}>EN</Text>
+      <View style={styles.logoDivider} />
+      <Text style={styles.logoTEC}>TEC</Text>
     </View>
   );
 
-  const glassStyle: any = isWeb
+  const sidebarBg: any = isWeb
     ? {
-        backgroundColor: 'transparent',
+        backgroundColor: 'rgba(14,16,21,0.92)',
+        backdropFilter: 'blur(24px)',
+        WebkitBackdropFilter: 'blur(24px)',
+        borderRightWidth: 1,
+        borderRightColor: 'rgba(255,255,255,0.04)',
       }
     : {
-        backgroundColor: 'transparent',
+        backgroundColor: 'rgba(14,16,21,0.95)',
+        borderRightWidth: 1,
+        borderRightColor: colors.border,
       };
 
   return (
@@ -89,22 +110,20 @@ export function TVSidebar() {
       style={[
         styles.sidebar,
         {
-          paddingTop: insets.top > 0 ? insets.top + 16 : 12,
-          paddingBottom: insets.bottom > 0 ? insets.bottom + 16 : 32,
+          paddingTop: insets.top > 0 ? insets.top + 12 : 16,
+          paddingBottom: insets.bottom > 0 ? insets.bottom + 12 : 24,
         },
-        glassStyle
+        sidebarBg,
       ]}
     >
       <View style={styles.navGroup}>
-        {/* Logo */}
-        <OutlineButton 
-          customContent={renderLogo()} 
+        <SidebarItem
+          customContent={renderLogo()}
           onPress={() => router.navigate('/')}
           isIOS={isIOS}
         />
-        
-        {/* Search */}
-        <OutlineButton 
+
+        <SidebarItem
           icon="search-outline"
           bulkIcon={Search1Bulk}
           iosIcon="magnifyingglass"
@@ -115,14 +134,14 @@ export function TVSidebar() {
 
         <View style={styles.divider} />
 
-        {/* Main Tabs */}
         {TABS.map((tab) => {
-          const isActive = tab.path === '/' 
-            ? pathname === '/' 
-            : (pathname === tab.path || pathname.startsWith(tab.path));
+          const isActive =
+            tab.path === '/'
+              ? pathname === '/'
+              : pathname === tab.path || pathname.startsWith(tab.path);
 
           return (
-            <OutlineButton
+            <SidebarItem
               key={tab.name}
               icon={tab.icon}
               bulkIcon={tab.bulkIcon}
@@ -135,12 +154,10 @@ export function TVSidebar() {
         })}
       </View>
 
-      {/* Spacer to push account to bottom */}
       <View style={{ flex: 1 }} />
 
-      {/* Account / Settings */}
       <View style={styles.navGroup}>
-        <OutlineButton 
+        <SidebarItem
           icon="person-outline"
           bulkIcon={User4Bulk}
           iosIcon="person"
@@ -149,7 +166,7 @@ export function TVSidebar() {
           isIOS={isIOS}
         />
         {isWeb && (
-          <OutlineButton 
+          <SidebarItem
             icon="power-outline"
             iosIcon="power"
             isActive={false}
@@ -170,53 +187,79 @@ const styles = StyleSheet.create({
     top: 0,
     bottom: 0,
     left: 0,
-    width: 80,
+    width: 76,
     zIndex: 100,
     alignItems: 'center',
   },
   navGroup: {
     alignItems: 'center',
-    gap: 16,
-  },
-  logoBadge: {
-    width: 24,
-    height: 24,
-    borderRadius: 6,
-    backgroundColor: 'rgba(212,168,67,0.15)',
-    borderWidth: 1,
-    borderColor: 'rgba(212,168,67,0.4)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  logoDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#D4A843',
-    shadowColor: '#D4A843',
-    shadowOpacity: 0.8,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 0 },
+    gap: 6,
   },
   divider: {
-    width: 32,
+    width: 30,
     height: 1,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    marginVertical: 4,
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    marginVertical: 6,
     borderRadius: 1,
   },
   tabBtn: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
+    width: 50,
+    height: 50,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
     position: 'relative',
   },
+  itemBase: {
+    borderRadius: 16,
+    backgroundColor: 'rgba(255,255,255,0.03)',
+  },
+  itemActive: {
+    backgroundColor: 'rgba(244,197,66,0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(244,197,66,0.25)',
+  },
+  itemFocused: {
+    backgroundColor: 'rgba(255,255,255,0.08)',
+  },
+  itemFocusedActive: {
+    backgroundColor: 'rgba(244,197,66,0.18)',
+  },
   iconContainer: {
-    width: 38,
-    height: 38,
+    ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  activeIndicator: {
+    position: 'absolute',
+    left: 0,
+    top: '25%',
+    bottom: '25%',
+    width: 3,
+    borderRadius: 2,
+    backgroundColor: '#F4C542',
+  },
+  logoContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 2,
+  },
+  logoEN: {
+    color: '#F4C542',
+    fontWeight: '900',
+    fontSize: 13,
+    letterSpacing: 1.5,
+  },
+  logoDivider: {
+    width: 18,
+    height: 1,
+    backgroundColor: 'rgba(244,197,66,0.3)',
+    borderRadius: 1,
+  },
+  logoTEC: {
+    color: 'rgba(255,255,255,0.75)',
+    fontWeight: '700',
+    fontSize: 11,
+    letterSpacing: 1,
   },
 });

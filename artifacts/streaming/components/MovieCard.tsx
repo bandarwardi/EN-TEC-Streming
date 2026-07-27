@@ -1,6 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import { TVFocusable } from '@/components/TVFocusable';
+import { View, Text, StyleSheet, Pressable, Animated } from 'react-native';
 import { Image } from 'expo-image';
 import { Movie } from '@/types';
 import { QualityBadge } from './QualityBadge';
@@ -13,46 +12,74 @@ interface MovieCardProps {
   autoFocus?: boolean;
 }
 
-export const MovieCard = React.memo(function MovieCard({ movie, onPress, width = 128, autoFocus = false }: MovieCardProps) {
+export const MovieCard = React.memo(function MovieCard({
+  movie,
+  onPress,
+  width = 128,
+}: MovieCardProps) {
   const colors = useColors();
-  const fallbackUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(movie.title || 'Movie')}&background=1A1A1A&color=D4A843&bold=true&size=300&format=svg`;
+  const fallbackUrl = `https://ui-avatars.com/api/?name=${encodeURIComponent(movie.title || 'Movie')}&background=1A1F2B&color=F4C542&bold=true&size=300&format=svg`;
   const [imgSource, setImgSource] = React.useState(movie.poster || fallbackUrl);
+  const scale = React.useRef(new Animated.Value(1)).current;
+  const overlayOpacity = React.useRef(new Animated.Value(0)).current;
 
-  // Update source if movie changes
   React.useEffect(() => {
     setImgSource(movie.poster || fallbackUrl);
-  }, [movie.poster, fallbackUrl]);
+  }, [movie.poster]);
+
+  const handlePressIn = () => {
+    Animated.parallel([
+      Animated.spring(scale, { toValue: 0.97, useNativeDriver: true, speed: 30 }),
+      Animated.timing(overlayOpacity, { toValue: 1, duration: 150, useNativeDriver: true }),
+    ]).start();
+  };
+
+  const handlePressOut = () => {
+    Animated.parallel([
+      Animated.spring(scale, { toValue: 1, useNativeDriver: true, speed: 20 }),
+      Animated.timing(overlayOpacity, { toValue: 0, duration: 200, useNativeDriver: true }),
+    ]).start();
+  };
 
   return (
-    <TVFocusable onPress={onPress} style={{ width }} disableBorder={true} hasTVPreferredFocus={autoFocus}>
-      {({ focused }: any) => {
-        const isHighlighted = focused || autoFocus;
-        return (
-          <View style={[
-            styles.posterContainer,
-            { 
-              borderColor: isHighlighted ? colors.gold : 'transparent', 
-              borderWidth: 4,
-              transform: isHighlighted ? [{ scale: 1.05 }] : [{ scale: 1 }]
-            }
-          ]}>
-            <Image 
-              source={{ 
-                uri: imgSource,
-                headers: {
-                  'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-                }
-              }} 
-              style={styles.poster} 
-              contentFit="cover" 
-              onError={() => {
-                if (imgSource !== fallbackUrl) setImgSource(fallbackUrl);
-              }}
-            />
-          </View>
-        );
-      }}
-    </TVFocusable>
+    <Pressable onPress={onPress} onPressIn={handlePressIn} onPressOut={handlePressOut}>
+      <Animated.View style={[{ width }, { transform: [{ scale }] }]}>
+        <View style={[styles.posterContainer, { backgroundColor: colors.surface }]}>
+          <Image
+            source={{
+              uri: imgSource,
+              headers: {
+                'User-Agent': 'Mozilla/5.0',
+              },
+            }}
+            style={styles.poster}
+            contentFit="cover"
+            onError={() => {
+              if (imgSource !== fallbackUrl) setImgSource(fallbackUrl);
+            }}
+          />
+          <Animated.View
+            style={[
+              StyleSheet.absoluteFillObject,
+              { backgroundColor: 'rgba(244,197,66,0.08)', opacity: overlayOpacity },
+            ]}
+          />
+          {(movie as any).quality && (
+            <View style={styles.badges}>
+              <QualityBadge quality={(movie as any).quality} />
+            </View>
+          )}
+        </View>
+        <Text style={[styles.title, { color: colors.text }]} numberOfLines={2}>
+          {movie.title}
+        </Text>
+        {(movie as any).year && (
+          <Text style={[styles.meta, { color: colors.mutedForeground }]}>
+            {(movie as any).year}
+          </Text>
+        )}
+      </Animated.View>
+    </Pressable>
   );
 });
 
@@ -60,11 +87,9 @@ const styles = StyleSheet.create({
   posterContainer: {
     width: '100%',
     aspectRatio: 2 / 3,
-    borderRadius: 16,
+    borderRadius: 14,
     overflow: 'hidden',
-    backgroundColor: '#1A1A1A',
     marginBottom: 8,
-    position: 'relative',
   },
   poster: {
     width: '100%',
@@ -74,29 +99,14 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 8,
     left: 8,
-    right: 8,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  ratingBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    gap: 4,
-  },
-  ratingText: {
-    color: '#FFF',
-    fontSize: 10,
-    fontWeight: 'bold',
   },
   title: {
-    fontSize: 14,
-    fontWeight: 'bold',
+    fontSize: 13,
+    fontWeight: '600',
+    lineHeight: 18,
   },
   meta: {
     fontSize: 11,
     marginTop: 2,
-  }
+  },
 });

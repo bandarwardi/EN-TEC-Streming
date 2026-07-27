@@ -16,7 +16,7 @@ paths = [ "/" ]
 localPort = 25128
 
 [services.development]
-run = "pnpm --filter @workspace/streaming run dev"
+run = "bash -c 'cd /home/runner/workspace/artifacts/streaming && node_modules/.bin/expo start -c --port 25128 --web'"
 
 [services.production]
 build = [ "pnpm", "--filter", "@workspace/streaming", "run", "build" ]

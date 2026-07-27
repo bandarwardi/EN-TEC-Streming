@@ -1,0 +1,304 @@
+Redesign the entire IPTV application's UI to achieve a premium, modern, elegant streaming platform experience inspired by Apple TV, Infuse, Plex, and Stremio. Keep the current layout and functionality exactly the same—only improve the visual design and user experience.
+
+## Design Goals
+
+The application currently feels too dark because every surface uses almost the same black color. Increase visual hierarchy, depth, spacing, and elegance while preserving the existing structure.
+
+The design should feel:
+- Premium
+- Minimal
+- Modern
+- Clean
+- Cinematic
+- High-end
+- Smooth
+
+Avoid flashy gaming UI, neon effects, excessive gradients, or glassmorphism overload.
+
+----------------------------------
+
+## Color Palette
+
+Replace pure black with layered dark surfaces.
+
+Background:
+#0F1115
+
+Sidebar:
+#161A20
+
+Cards:
+#1D222B
+
+Hover:
+#252B36
+
+Borders:
+#313845
+
+Primary text:
+#FFFFFF
+
+Secondary text:
+#9AA3B2
+
+Muted text:
+#6B7280
+
+Accent Gold:
+#F4C542
+
+Accent Background:
+rgba(244,197,66,0.12)
+
+Do NOT use large solid gold backgrounds.
+
+Gold should only be used for:
+- Active states
+- Focus
+- Favorite icons
+- Progress bars
+- Small highlights
+- Selected borders
+
+----------------------------------
+
+## Sidebar
+
+Make the sidebar slimmer.
+
+Width around 72px.
+
+Icons should be centered.
+
+Increase spacing between icons.
+
+Use rounded buttons.
+
+Selected item:
+- subtle gold glow
+- dark background
+- thin gold indicator
+
+Hover:
+slightly lighter surface.
+
+----------------------------------
+
+## Panels
+
+Every panel should become a floating card.
+
+Use:
+
+Border radius:
+16-20px
+
+Soft shadows
+
+Very subtle borders
+
+No heavy outlines.
+
+Panels should feel separated from the background.
+
+----------------------------------
+
+## Lists
+
+Improve Categories and Channels lists.
+
+Increase row height.
+
+Add smoother hover animation.
+
+Selected item should use:
+
+- dark surface
+- thin gold left border
+- subtle gold overlay
+
+NOT a full gold rectangle.
+
+Spacing between rows should be larger.
+
+----------------------------------
+
+## Search Inputs
+
+Modern rounded inputs.
+
+Radius:
+14px
+
+Soft border.
+
+Dark background.
+
+Better placeholder color.
+
+Animated focus border using the gold accent.
+
+----------------------------------
+
+## Video Player Section
+
+Give the video player much more importance.
+
+Reduce empty black areas around it.
+
+Player should appear inside a premium card.
+
+Rounded corners.
+
+Soft shadow.
+
+The right panel should feel like a streaming application rather than an IPTV software.
+
+----------------------------------
+
+## Channel Information
+
+Redesign the information section.
+
+Include:
+
+Large channel logo
+
+Channel name
+
+Current program
+
+Category
+
+Resolution badge
+
+Live indicator
+
+Better typography hierarchy.
+
+Buttons should become modern rounded icon buttons.
+
+----------------------------------
+
+## Buttons
+
+Replace square buttons with rounded buttons.
+
+Radius:
+14px
+
+Smooth hover.
+
+Small shadow.
+
+Micro animation on hover.
+
+----------------------------------
+
+## Typography
+
+Improve typography hierarchy.
+
+Use:
+
+Large bold titles
+
+Medium subtitles
+
+Muted metadata
+
+Increase line spacing.
+
+Increase whitespace throughout the interface.
+
+----------------------------------
+
+## Animations
+
+Add smooth animations:
+
+150–250ms
+
+Hover
+
+Selection
+
+Focus
+
+Scrolling
+
+Transitions
+
+Nothing should change instantly.
+
+----------------------------------
+
+## Scrollbars
+
+Replace default scrollbars.
+
+Use thin modern dark scrollbars.
+
+Rounded thumb.
+
+Gold highlight while hovering.
+
+----------------------------------
+
+## Depth
+
+Introduce visual depth using:
+
+Different surface colors
+
+Shadows
+
+Elevation
+
+Layer separation
+
+Avoid making everything flat black.
+
+----------------------------------
+
+## Background
+
+Use a dark gray background instead of pure black.
+
+Optionally add an extremely subtle noise texture or soft vignette to create a cinematic feeling.
+
+----------------------------------
+
+## General UX Improvements
+
+Increase padding.
+
+Increase spacing between sections.
+
+Improve alignment.
+
+Improve balance.
+
+Nothing should feel cramped.
+
+----------------------------------
+
+## Inspiration
+
+Use these applications as visual inspiration:
+
+- Apple TV
+- Infuse
+- Plex
+- Stremio
+- Netflix Desktop
+
+The result should immediately feel like a premium streaming platform rather than a traditional IPTV application.
+
+IMPORTANT:
+- Do not change any functionality.
+- Do not remove any features.
+- Do not modify application logic.
+- Only improve the visual design, spacing, typography, colors, hierarchy, animations, and overall user experience.
+- Maintain responsiveness and desktop usability.

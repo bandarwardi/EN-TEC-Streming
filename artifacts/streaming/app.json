@@ -41,13 +41,6 @@
           "origin": "https://replit.com/"
         }
       ],
-      [
-        "@react-native-voice/voice",
-        {
-          "microphonePermission": "Allow EN TEC Streaming to access the microphone for voice search.",
-          "speechRecognitionPermission": "Allow EN TEC Streaming to securely recognize your voice."
-        }
-      ],
       "expo-font",
       "expo-web-browser",
       [
